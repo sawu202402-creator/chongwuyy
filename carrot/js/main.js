@@ -1755,6 +1755,16 @@ window.addEventListener('pagehide', () => {
     if (sound) sound.pauseAll();
     if (gameEngine) gameEngine.stopLoop();
 });
+window.addEventListener('pageshow', (e) => {
+    if (e.persisted) {
+        profileManager.data = profileManager.load();
+        profileManager.ensureIntegrity();
+        const user = profileManager.getActiveUser();
+        mathEngine.setDifficulty(user.difficulty);
+        syncUserProfileUI();
+        updateQuestionUI();
+    }
+});
 
 fitToScreen();
 mathEngine.nextQuestion();

@@ -193,6 +193,9 @@ class PetWonderTownApp {
         const u = profileManager.getActiveUser();
         mathEngine.setConfig(u.mathConfig);
         englishEngine.setConfig(u.englishConfig);
+        if (u.englishConfig?.packId && u.englishConfig.packId !== 'all') {
+            this.activeWordPackId = u.englishConfig.packId;
+        }
         this.pairDraftShopId = u.activeShopId || 'supermarket';
         this.pairDraftPetId = u.activePetId || 'rabbit';
     }
@@ -873,6 +876,12 @@ class PetWonderTownApp {
             btn.onclick = () => {
                 soundEngine.playTap();
                 this.activeWordPackId = p.id;
+                const active = profileManager.getActiveUser();
+                if (active) {
+                    profileManager.updateUserSettings(active.id, {
+                        englishConfig: { ...(active.englishConfig || {}), packId: p.id }
+                    });
+                }
                 this.renderWordPackStrip();
                 if (this.engSubMode === 'vocab_camp') {
                     this.initVocabCampForPack(p.id, true);
@@ -1638,6 +1647,17 @@ class PetWonderTownApp {
 
     // ==================== 事件绑定总入口 ====================
     bindGlobalEvents() {
+        window.addEventListener('pageshow', (e) => {
+            if (e.persisted) {
+                profileManager.data = profileManager.load();
+                profileManager.ensureIntegrity();
+                this.syncEnginesWithActiveUser();
+                this.renderAll();
+                mathEngine.nextQuestion();
+                this.renderCurrentMathQuestion();
+            }
+        });
+
         // 顶部四大世界视图切换
         document.querySelectorAll('.stage-nav-btn').forEach(btn => {
             btn.onclick = () => {

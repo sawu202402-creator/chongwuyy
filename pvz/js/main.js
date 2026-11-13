@@ -244,6 +244,14 @@ class GameApp {
     async init() {
         this.updateProfileUI();
         this.fitToScreen();
+        window.addEventListener('pageshow', (e) => {
+            if (e.persisted) {
+                profileManager.data = profileManager.load();
+                profileManager.ensureIntegrity();
+                this.updateProfileUI();
+                this.syncQuestionToBlackboard();
+            }
+        });
 
         // 第一梯队：首屏核心 UI + 通用弹道特效 + 全植物轻量卡面图标 + 第 1-1 关完整战斗资产 (H5 秒开且低内存峰值)
         const criticalSet = new Set([

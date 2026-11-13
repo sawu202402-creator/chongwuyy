@@ -354,7 +354,24 @@ export class UserProfileManager {
         }
         const incomingMath = mathConfig || difficulty;
         if (incomingMath) {
-            u.mathConfig = { ...u.mathConfig, ...incomingMath };
+            const merged = { ...u.mathConfig, ...incomingMath };
+            if (incomingMath.mode === 'preset') {
+                const pg = merged.presetGrade || 'grade1_2';
+                if (pg === 'grade1_2') {
+                    merged.operations = ['add', 'sub'];
+                    merged.range = 20;
+                    merged.maxMultiplier = incomingMath.maxMultiplier || 5;
+                } else if (pg === 'grade3_4') {
+                    merged.operations = ['add', 'sub', 'mul', 'div'];
+                    merged.range = 100;
+                    merged.maxMultiplier = incomingMath.maxMultiplier || 9;
+                } else if (pg === 'grade5_6') {
+                    merged.operations = ['add', 'sub', 'mul', 'div'];
+                    merged.range = 1000;
+                    merged.maxMultiplier = incomingMath.maxMultiplier || 12;
+                }
+            }
+            u.mathConfig = merged;
             u.difficulty = { ...u.mathConfig };
         }
         if (englishConfig) {
