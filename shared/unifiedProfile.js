@@ -38,7 +38,8 @@ function createFreshDailyState() {
         badgesEarned: 0,
         ticketsEarned: 0,
         starProgress: 0,
-        vocabCampCount: 0
+        vocabCampCount: 0,
+        siblingGiftClaimed: false
     };
 }
 
@@ -149,6 +150,12 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
         mistakes: [],
         bestEndlessFlags: 0,
         bestEndlessWave: 0,
+        carrotRecords: {},
+        lastCarrotStage: 1,
+        carrotSeenTowers: [],
+        pvzRecords: {},
+        lastPvzLevel: '1-1',
+        preferredSmartMode: 'calc',
         stats: {
             totalMathCorrect: 0,
             totalEnglishCorrect: 0,
@@ -160,6 +167,8 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
 
 const DEFAULT_DATA = {
     activeUserId: 'child_xiaowandou',
+    parentLockEnabled: true,
+    parentPin: '',
     users: [
         createKidTemplate({
             id: 'child_xiaowandou',
@@ -220,6 +229,12 @@ export class UserProfileManager {
     ensureIntegrity() {
         if (!this.data || !Array.isArray(this.data.users) || this.data.users.length === 0) {
             this.data = JSON.parse(JSON.stringify(DEFAULT_DATA));
+        }
+        if (typeof this.data.parentLockEnabled !== 'boolean') {
+            this.data.parentLockEnabled = true;
+        }
+        if (typeof this.data.parentPin !== 'string') {
+            this.data.parentPin = '';
         }
         this.data.users.forEach(u => {
             if ((u.id === 'child_lele' || u.id === 'user_1') && (u.name === '乐乐' || !u.name)) {
@@ -286,6 +301,12 @@ export class UserProfileManager {
             if (!Array.isArray(u.mistakes)) u.mistakes = [];
             if (typeof u.bestEndlessFlags !== 'number') u.bestEndlessFlags = 0;
             if (typeof u.bestEndlessWave !== 'number') u.bestEndlessWave = 0;
+            if (!u.carrotRecords || typeof u.carrotRecords !== 'object') u.carrotRecords = {};
+            if (typeof u.lastCarrotStage !== 'number' || u.lastCarrotStage < 1 || u.lastCarrotStage > 48) u.lastCarrotStage = 1;
+            if (!Array.isArray(u.carrotSeenTowers)) u.carrotSeenTowers = [];
+            if (!u.pvzRecords || typeof u.pvzRecords !== 'object') u.pvzRecords = {};
+            if (typeof u.lastPvzLevel !== 'string' || !u.lastPvzLevel) u.lastPvzLevel = '1-1';
+            if (!['calc', 'word', 'data', 'english'].includes(u.preferredSmartMode)) u.preferredSmartMode = 'calc';
             if (!Array.isArray(u.ownedAccessories)) u.ownedAccessories = ['none'];
             if (!Array.isArray(u.ownedDecors)) u.ownedDecors = [];
             if (!u.stats) u.stats = { totalMathCorrect: 0, totalEnglishCorrect: 0, totalWordsMastered: 0, bestCombo: 0 };
@@ -296,6 +317,23 @@ export class UserProfileManager {
         if (!this.data.users.some(u => u.id === this.data.activeUserId)) {
             this.data.activeUserId = this.data.users[0].id;
         }
+
+        // 一次性平滑迁移旧版全局保卫萝卜关卡勋章记录到当前小朋友名下
+        try {
+            if (typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function') {
+                const legacyRaw = localStorage.getItem('carrot_level_records_v1');
+                const migratedFlag = localStorage.getItem('carrot_level_records_migrated_v2');
+                if (legacyRaw && !migratedFlag) {
+                    const parsed = JSON.parse(legacyRaw);
+                    const activeU = this.getActiveUser();
+                    if (parsed && typeof parsed === 'object' && activeU && Object.keys(activeU.carrotRecords).length === 0) {
+                        activeU.carrotRecords = { ...parsed };
+                    }
+                    localStorage.setItem('carrot_level_records_migrated_v2', '1');
+                }
+            }
+        } catch (e) {}
+
         this.save();
     }
 
@@ -505,8 +543,93 @@ export class UserProfileManager {
         if (!u) return false;
         u.history = [];
         u.mistakes = [];
+        u.mathMistakes = [];
+        u.englishMistakes = [];
         this.save();
         return true;
+    }
+
+    // ==================== 双宝独立关卡勋章与偏好同步 ====================
+    getCarrotRecords(userId = null) {
+        const u = userId ? this.getUser(userId) : this.getActiveUser();
+        return (u && u.carrotRecords) ? u.carrotRecords : {};
+    }
+
+    setCarrotStageRecord(stageNum, recObj, userId = null) {
+        const u = userId ? this.getUser(userId) : this.getActiveUser();
+        if (!u) return null;
+        if (!u.carrotRecords || typeof u.carrotRecords !== 'object') u.carrotRecords = {};
+        u.carrotRecords[String(stageNum)] = recObj;
+        this.save();
+        return recObj;
+    }
+
+    setLastCarrotStage(stageNum, userId = null) {
+        const u = userId ? this.getUser(userId) : this.getActiveUser();
+        if (!u) return;
+        const n = Number(stageNum);
+        if (n >= 1 && n <= 48) {
+            u.lastCarrotStage = n;
+            this.save();
+        }
+    }
+
+    getLastCarrotStage(userId = null) {
+        const u = userId ? this.getUser(userId) : this.getActiveUser();
+        return (u && typeof u.lastCarrotStage === 'number') ? u.lastCarrotStage : 1;
+    }
+
+    markCarrotTowersSeen(towerKeys = []) {
+        const u = this.getActiveUser();
+        if (!u || !Array.isArray(towerKeys)) return [];
+        if (!Array.isArray(u.carrotSeenTowers)) u.carrotSeenTowers = [];
+        const newlySeen = [];
+        towerKeys.forEach(k => {
+            if (k && !u.carrotSeenTowers.includes(k)) {
+                u.carrotSeenTowers.push(k);
+                newlySeen.push(k);
+            }
+        });
+        if (newlySeen.length > 0) this.save();
+        return newlySeen;
+    }
+
+    getPvzRecords(userId = null) {
+        const u = userId ? this.getUser(userId) : this.getActiveUser();
+        return (u && u.pvzRecords) ? u.pvzRecords : {};
+    }
+
+    recordPvzLevelClear(levelId, accuracy = 100) {
+        const u = this.getActiveUser();
+        if (!u || !levelId || String(levelId).startsWith('endless')) return null;
+        if (!u.pvzRecords || typeof u.pvzRecords !== 'object') u.pvzRecords = {};
+        const prev = u.pvzRecords[levelId] || { cleared: false, bestAccuracy: 0 };
+        u.pvzRecords[levelId] = {
+            cleared: true,
+            bestAccuracy: Math.max(prev.bestAccuracy || 0, Number(accuracy) || 0),
+            clearedAt: nowTimeStr()
+        };
+        this.save();
+        return u.pvzRecords[levelId];
+    }
+
+    setLastPvzLevel(levelId) {
+        const u = this.getActiveUser();
+        if (!u || !levelId) return;
+        u.lastPvzLevel = String(levelId);
+        this.save();
+    }
+
+    getLastPvzLevel(userId = null) {
+        const u = userId ? this.getUser(userId) : this.getActiveUser();
+        return (u && u.lastPvzLevel) ? String(u.lastPvzLevel) : '1-1';
+    }
+
+    setPreferredSmartMode(mode) {
+        const u = this.getActiveUser();
+        if (!u || !['calc', 'word', 'data', 'english'].includes(mode)) return;
+        u.preferredSmartMode = mode;
+        this.save();
     }
 
     // ==================== 徽章与得分账本记录 ====================
@@ -943,6 +1066,142 @@ export class UserProfileManager {
         }
         u.stats.totalWordsMastered = Object.values(u.wordMastery).filter(v => v >= 2).length;
         this.save();
+    }
+
+    // ==================== 家长守护锁、双宝串门彩蛋与存档备份导入导出 ====================
+    setParentLockSettings({ enabled, pin } = {}) {
+        if (typeof enabled === 'boolean') {
+            this.data.parentLockEnabled = enabled;
+        }
+        if (pin !== undefined) {
+            const cleanPin = String(pin || '').trim();
+            this.data.parentPin = /^\d{4}$/.test(cleanPin) ? cleanPin : '';
+        }
+        this.save();
+        return {
+            parentLockEnabled: this.data.parentLockEnabled,
+            parentPin: this.data.parentPin
+        };
+    }
+
+    getSiblingVisitor() {
+        const active = this.getActiveUser();
+        const sibling = this.data.users.find(u => u.id !== active.id);
+        if (!sibling) return null;
+        const ds = this._ensureDailyState(active);
+        const petMeta = getPetById(sibling.activePetId || 'frog');
+        const petState = sibling.pets?.[sibling.activePetId] || { level: 1, accessory: 'none' };
+        const shopMeta = getShopById(sibling.activeShopId || 'supermarket');
+        return {
+            siblingId: sibling.id,
+            siblingName: sibling.name,
+            siblingAvatar: sibling.avatar || '🐸',
+            petMeta,
+            petLevel: petState.level || 1,
+            accessory: petState.accessory || 'none',
+            shopName: shopMeta?.name || '阳光超市',
+            giftClaimedToday: Boolean(ds.siblingGiftClaimed)
+        };
+    }
+
+    claimSiblingVisitGift() {
+        const active = this.getActiveUser();
+        const visitor = this.getSiblingVisitor();
+        if (!visitor) return { ok: false, msg: '当前只有一位小店长哦～' };
+        const ds = this._ensureDailyState(active);
+        if (ds.siblingGiftClaimed) {
+            return {
+                ok: false,
+                alreadyClaimed: true,
+                msg: `${visitor.siblingName}的【${visitor.petMeta.name}】今天已经送过串门小星星啦，明天再来串门领礼物吧！`
+            };
+        }
+        ds.siblingGiftClaimed = true;
+        const rewardRes = this.awardLearningProgress({
+            title: `💌 双宝串门：【${visitor.siblingName}】的${visitor.petMeta.name}送来友谊星礼`,
+            subjectTag: '双宝串门',
+            badges: 0,
+            stars: 2,
+            gotTicket: false,
+            combo: 0,
+            isMath: true
+        });
+        this.save();
+        return {
+            ok: true,
+            visitor,
+            rewardRes
+        };
+    }
+
+    exportBackupJSON() {
+        const payload = {
+            magic: 'CHONGWUYY_BACKUP_V1',
+            exportedAt: new Date().toISOString(),
+            version: 2,
+            data: this.data
+        };
+        return JSON.stringify(payload, null, 2);
+    }
+
+    exportBackupCode() {
+        const compactJson = JSON.stringify({
+            m: 'CWYY1',
+            t: Date.now(),
+            d: this.data
+        });
+        const bytes = new TextEncoder().encode(compactJson);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        const b64 = (typeof btoa === 'function')
+            ? btoa(binary)
+            : Buffer.from(compactJson, 'utf8').toString('base64');
+        return `CWYY1:${b64}`;
+    }
+
+    importBackup(rawInput) {
+        if (!rawInput || typeof rawInput !== 'string') {
+            return { ok: false, msg: '备份内容为空，请粘贴备份码或选择备份文件。' };
+        }
+        const trimmed = rawInput.trim();
+        let parsedObj = null;
+        try {
+            if (trimmed.startsWith('CWYY1:')) {
+                const b64 = trimmed.slice(6).replace(/\s+/g, '');
+                let jsonStr = '';
+                if (typeof atob === 'function') {
+                    const binary = atob(b64);
+                    const bytes = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                    jsonStr = new TextDecoder().decode(bytes);
+                } else {
+                    jsonStr = Buffer.from(b64, 'base64').toString('utf8');
+                }
+                const wrapper = JSON.parse(jsonStr);
+                parsedObj = wrapper?.d || wrapper?.data || null;
+            } else {
+                const wrapper = JSON.parse(trimmed);
+                parsedObj = wrapper?.data || wrapper?.d || (Array.isArray(wrapper?.users) ? wrapper : null);
+            }
+        } catch (e) {
+            return { ok: false, msg: '备份格式无法识别，请检查是否完整复制了 CWYY1: 开头的备份码或 JSON 文件。' };
+        }
+
+        if (!parsedObj || !Array.isArray(parsedObj.users) || parsedObj.users.length === 0) {
+            return { ok: false, msg: '备份数据中未包含有效的小朋友档案列表。' };
+        }
+
+        this.data = parsedObj;
+        this.ensureIntegrity();
+        const names = this.data.users.map(u => `${u.avatar || '🐰'}${u.name}`).join('、');
+        return {
+            ok: true,
+            userCount: this.data.users.length,
+            names,
+            msg: `🎉 存档恢复成功！已同步：${names}`
+        };
     }
 }
 

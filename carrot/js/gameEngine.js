@@ -2,12 +2,12 @@
  * gameEngine.js - 塔防核心逻辑循环、波次生成器与物理结算
  */
 
-import { GAME_CONFIG, TOWER_TYPES } from './config.js?v=20261113_carrot_concise_v1';
-import { GameMap, MapProp } from './map.js?v=20261113_carrot_concise_v1';
-import { Tower } from './towers.js?v=20261113_carrot_concise_v1';
-import { Enemy } from './enemies.js?v=20261113_carrot_concise_v1';
-import { ProjectileSystem } from './projectiles.js?v=20261113_carrot_concise_v1';
-import { sound } from './audio.js?v=20261113_carrot_concise_v1';
+import { GAME_CONFIG, TOWER_TYPES } from './config.js?v=20261113_opt_v1';
+import { GameMap, MapProp } from './map.js?v=20261113_opt_v1';
+import { Tower } from './towers.js?v=20261113_opt_v1';
+import { Enemy } from './enemies.js?v=20261113_opt_v1';
+import { ProjectileSystem } from './projectiles.js?v=20261113_opt_v1';
+import { sound } from './audio.js?v=20261113_opt_v1';
 
 export class GameEngine {
     constructor(canvas, mathEngine, onStateChange) {

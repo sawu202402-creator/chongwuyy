@@ -20,7 +20,14 @@ export class MathEngine {
         this.mistakes = [];
         this.superChargeActive = false;
         this.superChargeTimer = 0;
+        this._lastWasReview = false;
+        this._lastExpr = '';
+        this.mistakesProvider = null; // () => Array<mistakeObj>
         this.nextQuestion();
+    }
+
+    setMistakesProvider(fn) {
+        this.mistakesProvider = typeof fn === 'function' ? fn : null;
     }
 
     resetRoundStats() {
@@ -32,6 +39,8 @@ export class MathEngine {
         this.mistakes = [];
         this.superChargeActive = false;
         this.superChargeTimer = 0;
+        this._lastWasReview = false;
+        this._lastExpr = '';
         this.nextQuestion();
     }
 
@@ -114,18 +123,64 @@ export class MathEngine {
 
         // 2. 错题本定向复习支持
         if (forcedOrShield && typeof forcedOrShield === 'object') {
+            const ans = Number(forcedOrShield.answer ?? forcedOrShield.expected);
             const rq = {
                 ...forcedOrShield,
+                kind: forcedOrShield.kind || 'calc',
+                answer: ans,
                 expr: forcedOrShield.expr || forcedOrShield.formula || '复习题',
                 formula: forcedOrShield.formula || forcedOrShield.expr || '复习题',
                 display: forcedOrShield.display || forcedOrShield.formula || forcedOrShield.expr || '复习题',
+                hint: forcedOrShield.hint ? `🔄 ${forcedOrShield.hint}` : '🔄 错题重温 · 消灭它！',
                 id: 'rev_' + Date.now(),
                 isReview: true,
                 timestamp: Date.now()
             };
+            this._lastWasReview = true;
+            this._lastExpr = rq.expr;
             this.currentQuestion = rq;
             return rq;
         }
+
+        // 3. 艾宾浩斯错题穿插复习：平时闯关以 18% 概率自动回捞当前模式下的历史错题（不连续出现两次）
+        if (this.mistakesProvider && !this._lastWasReview && Math.random() < 0.18) {
+            try {
+                const rawList = this.mistakesProvider() || [];
+                const targetKind = this.currentSubMode || 'calc';
+                const eligible = rawList.filter(m => {
+                    const mKind = m.kind || 'calc';
+                    const ans = Number(m.answer ?? m.expected);
+                    const expr = m.expr || m.formula || '';
+                    if (!Number.isInteger(ans) || ans < 0 || expr === this._lastExpr) return false;
+                    if (targetKind === 'word') return mKind === 'word' && (m.storyHtml || m.questionText || m.questionHtml);
+                    if (targetKind === 'data') return mKind === 'data' && (m.chartData || m.chart);
+                    return mKind === 'calc' && Boolean(expr);
+                });
+                if (eligible.length > 0) {
+                    const pick = eligible[Math.floor(Math.random() * eligible.length)];
+                    const ans = Number(pick.answer ?? pick.expected);
+                    const exprStr = pick.expr || pick.formula || '';
+                    const autoRev = {
+                        ...pick,
+                        kind: pick.kind || 'calc',
+                        answer: ans,
+                        expr: exprStr,
+                        formula: pick.formula || exprStr,
+                        display: pick.display || (pick.formula || exprStr).replace(/\( \? \)/g, '?'),
+                        hint: '🔄 错题重温 · 答对移出错题本！',
+                        id: 'arev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
+                        isReview: true,
+                        timestamp: Date.now()
+                    };
+                    this._lastWasReview = true;
+                    this._lastExpr = exprStr;
+                    this.currentQuestion = autoRev;
+                    return autoRev;
+                }
+            } catch (e) {}
+        }
+
+        this._lastWasReview = false;
 
         let q;
         if (this.currentSubMode === 'word') {
@@ -152,6 +207,7 @@ export class MathEngine {
         if (!q.display) q.display = q.formula.replace(/\( \? \)/g, '?');
         q.id = 'mq_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
         q.timestamp = Date.now();
+        this._lastExpr = q.expr;
         this.currentQuestion = q;
         return q;
     }

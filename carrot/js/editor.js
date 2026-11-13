@@ -3,8 +3,8 @@
  * 允许玩家与开发者直接在画布上通过鼠标点击/涂抹来编辑怪兽路线、起点、终点及炮塔插槽
  */
 
-import { LEVEL_CONFIGS, MapProp } from './map.js?v=20261113_carrot_concise_v1';
-import { TOWER_TYPES } from './config.js?v=20261113_carrot_concise_v1';
+import { LEVEL_CONFIGS, MapProp, ensureStageConfigLoaded } from './map.js?v=20261113_opt_v1';
+import { TOWER_TYPES } from './config.js?v=20261113_opt_v1';
 
 export const STORAGE_KEY = 'CF_CUSTOM_LEVEL_CONFIGS';
 
@@ -249,9 +249,10 @@ export class MapEditor {
     /**
      * 当外部切换关卡时，编辑器自动载入对应关卡的草稿配置
      */
-    onLevelChanged(newLevel) {
+    async onLevelChanged(newLevel) {
         if (!this.isEditing) return;
         const targetId = parseInt(newLevel, 10);
+        await ensureStageConfigLoaded(targetId);
         const customConfigs = MapEditor.getCustomConfigs();
         const baseConfig = (customConfigs && customConfigs[targetId] && customConfigs[targetId].id === targetId)
             ? customConfigs[targetId]

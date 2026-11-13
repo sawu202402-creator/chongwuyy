@@ -2,7 +2,7 @@
  * enemies.js - 敌人怪物实体与波次逻辑
  */
 
-import { ENEMY_TYPES } from './config.js?v=20261113_carrot_concise_v1';
+import { ENEMY_TYPES } from './config.js?v=20261113_opt_v1';
 
 const ASSET_VER = '20261022_jungle_fix_v8';
 function loadImg(src) {

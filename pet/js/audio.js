@@ -3,6 +3,8 @@
  * 零外部音频文件依赖，iPad Safari / Chrome / PC 全平台零报错顺畅运行
  */
 
+import { sharedSpeech } from '../../shared/audioTTS.js';
+
 class SoundAndSpeechEngine {
     constructor() {
         this.ctx = null;
@@ -54,6 +56,7 @@ class SoundAndSpeechEngine {
 
     toggleMute() {
         this.muted = !this.muted;
+        sharedSpeech.setMuted(this.muted);
         if (this.muted && typeof window !== 'undefined' && 'speechSynthesis' in window) {
             window.speechSynthesis.cancel();
         }
@@ -76,36 +79,16 @@ class SoundAndSpeechEngine {
         };
     }
 
-    // 英语地道朗读 (支持 1.0 常速与 0.72 慢速自然拼读跟读)
+    // 英语地道朗读 (共享 iPadOS 解锁与自然音色引擎，支持常速与慢速自然拼读跟读)
     speakEnglish(text, slow = false) {
         if (this.muted || !text) return;
-        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-        try {
-            window.speechSynthesis.cancel();
-            const utter = new SpeechSynthesisUtterance(String(text));
-            utter.lang = 'en-US';
-            if (this.enVoice) utter.voice = this.enVoice;
-            utter.rate = slow ? 0.70 : 0.94;
-            utter.pitch = 1.08;
-            utter.volume = 1.0;
-            window.speechSynthesis.speak(utter);
-        } catch (e) {}
+        sharedSpeech.speakEnglish(text, slow);
     }
 
     // 中文应用题温柔语音读题
     speakChinese(text) {
         if (this.muted || !text) return;
-        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
-        try {
-            window.speechSynthesis.cancel();
-            const cleanText = String(text).replace(/<[^>]+>/g, '');
-            const utter = new SpeechSynthesisUtterance(cleanText);
-            utter.lang = 'zh-CN';
-            if (this.zhVoice) utter.voice = this.zhVoice;
-            utter.rate = 0.95;
-            utter.pitch = 1.1;
-            window.speechSynthesis.speak(utter);
-        } catch (e) {}
+        sharedSpeech.speakChinese(text);
     }
 
     // 果冻按键清脆波普音

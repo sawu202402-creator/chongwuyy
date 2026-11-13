@@ -1,13 +1,18 @@
 /**
  * js/hub.js - 《奇趣数英游乐园 · 三合一儿童学习大厅》主控脚本
- * 连接 shared/unifiedProfile.js、shared/mathEngine.js、shared/englishEngine.js，
- * 实现【小豌豆 🐰】与【川川 🐸】一键切换、统一难度配置、每日上限与跨游错题/单词本管理。
+ * 连接 shared/unifiedProfile.js、shared/mathEngine.js、shared/englishEngine.js、shared/parentGate.js，
+ * 实现：
+ * 1. 【小豌豆 🐰】与【川川 🐸】一键免密切换，各自独立记录保卫萝卜48关金萝卜与PVZ 50关奖杯；
+ * 2. 家长守护锁保护下的统一难度配置（含进退位、凑数填空、年级预设、12主题英语词包、每日上限）；
+ * 3. 全局【错题重练消消乐】（数学错题互动答题消除 + 英语待强化词听音重练消除，攻克赢星星/徽章）；
+ * 4. 存档备份码（CWYY1:...）与 .json 文件一键导出/恢复，跨 iPad 无缝迁移防丢失。
  */
 import { profileManager } from '../shared/unifiedProfile.js';
 import { MathEngine } from '../shared/mathEngine.js';
-import { WORD_PACKS, ALL_WORDS, ENGLISH_LEVELS } from '../shared/englishEngine.js';
+import { WORD_PACKS, ALL_WORDS, ENGLISH_LEVELS, EnglishEngine } from '../shared/englishEngine.js';
 import { AVATAR_LIST, DAILY_BADGE_CAP_OPTIONS, getPetById } from '../pet/js/config.js';
 import { sharedSpeech } from '../shared/audioTTS.js';
+import { requireParentGate } from '../shared/parentGate.js';
 
 class PortalHubApp {
     constructor() {
@@ -15,13 +20,31 @@ class PortalHubApp {
         this.formState = {
             avatar: '🐰',
             dailyBadgeCap: 30,
+            mode: 'custom',
+            presetGrade: 'grade1_2',
             ops: ['add', 'sub'],
             range: 20,
             maxMultiplier: 5,
+            allowCarryBorrow: true,
+            allowFillBlank: true,
             enLevel: 'level2_match',
-            enPackId: 'all'
+            enPackId: 'all',
+            parentLockEnabled: true,
+            parentPin: ''
         };
         this.activeReportTab = 'math';
+        this.enReportPackFilter = 'all';
+
+        // 错题重练消消乐状态
+        this.practiceState = {
+            active: false,
+            subject: 'math', // 'math' | 'english'
+            inputBuf: '',
+            currentItem: null,
+            enOptions: [],
+            clearedCount: 0,
+            locked: false
+        };
 
         this.bindEvents();
         this.renderAll();
@@ -49,11 +72,22 @@ class PortalHubApp {
             this.renderAll();
         });
 
-        document.getElementById('btnHubSettings')?.addEventListener('click', () => this.openSettingsModal());
+        // 家长设置（需家长守护锁验证）
+        document.getElementById('btnHubSettings')?.addEventListener('click', () => {
+            requireParentGate(() => this.openSettingsModal(), {
+                profileManager,
+                actionLabel: '进入家长难度与上限管理'
+            });
+        });
         document.getElementById('btnCloseHubSettings')?.addEventListener('click', () => {
             document.getElementById('hubSettingsModal')?.classList.remove('show');
         });
         document.getElementById('btnSaveHubSettings')?.addEventListener('click', () => this.saveSettingsModal());
+
+        document.getElementById('btnToggleParentLock')?.addEventListener('click', () => {
+            this.formState.parentLockEnabled = !this.formState.parentLockEnabled;
+            this.renderParentLockBtn();
+        });
 
         document.getElementById('btnHubDeleteKid')?.addEventListener('click', () => {
             if (!this.editingKidId || this.editingKidId === '__NEW__') return;
@@ -67,19 +101,63 @@ class PortalHubApp {
             }
         });
 
+        // 错题本与重练消消乐弹窗
         document.getElementById('btnHubReport')?.addEventListener('click', () => this.openReportModal());
         document.getElementById('btnCloseHubReport')?.addEventListener('click', () => {
+            this.stopMistakePractice();
             document.getElementById('hubReportModal')?.classList.remove('show');
         });
 
         document.getElementById('hubReportTabs')?.addEventListener('click', (e) => {
             const btn = e.target.closest('.hub-rep-tab');
             if (!btn) return;
+            this.stopMistakePractice();
             this.activeReportTab = btn.getAttribute('data-rtab') || 'math';
             document.querySelectorAll('#hubReportTabs .hub-rep-tab').forEach(b => {
                 b.classList.toggle('active', b === btn);
             });
             this.renderReportList();
+        });
+
+        // 存档备份导入导出弹窗
+        document.getElementById('btnHubBackup')?.addEventListener('click', () => this.openBackupModal());
+        document.getElementById('btnCloseHubBackup')?.addEventListener('click', () => {
+            document.getElementById('hubBackupModal')?.classList.remove('show');
+        });
+        document.getElementById('btnCopyBackupCode')?.addEventListener('click', () => this.handleCopyBackupCode());
+        document.getElementById('btnDownloadBackupJson')?.addEventListener('click', () => this.handleDownloadBackupJson());
+        document.getElementById('btnPickBackupFile')?.addEventListener('click', () => {
+            document.getElementById('hubBackupFileInput')?.click();
+        });
+        document.getElementById('hubBackupFileInput')?.addEventListener('change', (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+                const inputEl = document.getElementById('hubBackupCodeInput');
+                if (inputEl) inputEl.value = String(reader.result || '');
+                this.setBackupMsg(`📂 已读取备份文件《${file.name}》，请点击右侧【验证并恢复存档】生效。`, false);
+            };
+            reader.readAsText(file);
+        });
+        document.getElementById('btnApplyBackupImport')?.addEventListener('click', () => {
+            const raw = (document.getElementById('hubBackupCodeInput')?.value || '').trim();
+            if (!raw) {
+                this.setBackupMsg('⚠️ 请先粘贴备份码或选择 .json 备份文件！', true);
+                return;
+            }
+            requireParentGate(() => {
+                const res = profileManager.importBackup(raw);
+                this.setBackupMsg(res.msg, !res.ok);
+                if (res.ok) {
+                    this.renderAll();
+                    const outEl = document.getElementById('hubBackupCodeOutput');
+                    if (outEl) outEl.value = profileManager.exportBackupCode();
+                }
+            }, {
+                profileManager,
+                actionLabel: '恢复覆盖存档需家长验证'
+            });
         });
 
         document.getElementById('btnHubFullscreen')?.addEventListener('click', () => {
@@ -94,10 +172,13 @@ class PortalHubApp {
         });
 
         // 模态遮罩空白处关闭
-        ['hubSettingsModal', 'hubReportModal'].forEach(id => {
+        ['hubSettingsModal', 'hubReportModal', 'hubBackupModal'].forEach(id => {
             const modal = document.getElementById(id);
             modal?.addEventListener('click', (e) => {
-                if (e.target === modal) modal.classList.remove('show');
+                if (e.target === modal) {
+                    if (id === 'hubReportModal') this.stopMistakePractice();
+                    modal.classList.remove('show');
+                }
             });
         });
     }
@@ -107,7 +188,7 @@ class PortalHubApp {
         const active = profileManager.getActiveUser();
         const daily = profileManager.getDailyStatus(active);
 
-        // 1. 顶部小朋友切换条
+        // 1. 顶部小朋友一键切换条（免密秒切）
         const switcher = document.getElementById('hubKidsSwitcher');
         if (switcher) {
             switcher.innerHTML = '';
@@ -124,6 +205,14 @@ class PortalHubApp {
             });
         }
 
+        // 错题红点提示
+        const totalMistakes = (active.mathMistakes?.length || 0) + (active.englishMistakes?.length || 0);
+        const dotEl = document.getElementById('hubMistakeBadge');
+        if (dotEl) {
+            dotEl.style.display = totalMistakes > 0 ? 'inline-block' : 'none';
+            dotEl.textContent = String(totalMistakes);
+        }
+
         // 2. 顶部宝贝进度横幅
         const petMeta = getPetById(active.activePetId || 'rabbit');
         const petThumb = document.getElementById('bannerPetThumb');
@@ -133,11 +222,11 @@ class PortalHubApp {
         }
 
         const mathSummary = MathEngine.formatSummary(active.mathConfig || active.difficulty);
-        const enLvlObj = ENGLISH_LEVELS[active.englishConfig?.level] || ENGLISH_LEVELS.level2_match;
+        const enSummary = EnglishEngine.formatSummary(active.englishConfig);
 
         document.getElementById('bannerKidName').textContent = `${active.avatar || '🐰'} ${active.name}`;
         document.getElementById('bannerMathSummary').textContent = `🎯 数学：${mathSummary}`;
-        document.getElementById('bannerEnSummary').textContent = `🔤 英语：${enLvlObj.name}`;
+        document.getElementById('bannerEnSummary').textContent = `🔤 英语：${enSummary}`;
         document.getElementById('bannerBadgesVal').textContent = active.badges || 0;
         document.getElementById('bannerTicketsVal').textContent = active.gachaTickets || 0;
 
@@ -147,7 +236,7 @@ class PortalHubApp {
             : `${daily.earned} / ${daily.cap}`;
         document.getElementById('bannerDailyFill').style.width = `${pct}%`;
 
-        // 3. 三张游戏卡的实时个性化数据
+        // 3. 三张游戏卡的实时独立个性化进度
         const unlockedPetsCount = Object.values(active.pets || {}).filter(p => p.unlocked).length;
         const activePetState = active.pets?.[active.activePetId] || { level: 1 };
         const statPetEl = document.getElementById('liveStatPet');
@@ -158,23 +247,26 @@ class PortalHubApp {
             `;
         }
 
+        const carrotRecs = Object.values(active.carrotRecords || {});
+        const carrotCleared = carrotRecs.filter(r => r && r.cleared).length;
+        const carrotGold = carrotRecs.filter(r => r && r.carrot === 'gold').length;
         const totalAnswered = (active.stats?.totalMathCorrect || 0) + (active.stats?.totalEnglishCorrect || 0);
-        const bestCombo = active.stats?.bestCombo || 0;
         const statCarrotEl = document.getElementById('liveStatCarrot');
         if (statCarrotEl) {
             statCarrotEl.innerHTML = `
-                <span>🎯 累计答对：${totalAnswered} 题</span>
-                <span>🔥 最高连对：x${bestCombo}</span>
+                <span>🥕 闯关 ${carrotCleared}/48 · 🥇${carrotGold}</span>
+                <span>🎯 累计答对 ${totalAnswered} 题</span>
             `;
         }
 
         const statPvzEl = document.getElementById('liveStatPvz');
         if (statPvzEl) {
+            const pvzCleared = Object.values(active.pvzRecords || {}).filter(r => r && r.cleared).length;
             const flags = active.bestEndlessFlags || 0;
             const masteredWords = active.stats?.totalWordsMastered || 0;
             statPvzEl.innerHTML = `
-                <span>♾️ 无尽纪录：🚩 ${flags} 旗</span>
-                <span>🔤 已掌握单词：${masteredWords} 词</span>
+                <span>🌻 冒险 ${pvzCleared}/50 · ♾️${flags}旗</span>
+                <span>🔤 已掌握 ${masteredWords}/${ALL_WORDS.length} 词</span>
             `;
         }
     }
@@ -194,16 +286,35 @@ class PortalHubApp {
         this.formState = {
             avatar: user?.avatar || '🐰',
             dailyBadgeCap: user?.dailyBadgeCap || 30,
+            mode: mc.mode === 'preset' ? 'preset' : 'custom',
+            presetGrade: mc.presetGrade || 'grade1_2',
             ops: Array.isArray(mc.operations) && mc.operations.length > 0 ? [...mc.operations] : ['add', 'sub'],
             range: Number(mc.range) || 20,
             maxMultiplier: Number(mc.maxMultiplier) || 5,
+            allowCarryBorrow: mc.allowCarryBorrow !== false,
+            allowFillBlank: mc.allowFillBlank !== false,
             enLevel: ec.level || 'level2_match',
-            enPackId: ec.packId || 'all'
+            enPackId: ec.packId || 'all',
+            parentLockEnabled: profileManager.data.parentLockEnabled !== false,
+            parentPin: profileManager.data.parentPin || ''
         };
         const nameInput = document.getElementById('hubInputName');
         if (nameInput) {
             nameInput.value = isNew ? '' : (user?.name || '');
         }
+        const pinInput = document.getElementById('hubInputParentPin');
+        if (pinInput) {
+            pinInput.value = this.formState.parentPin;
+        }
+    }
+
+    renderParentLockBtn() {
+        const btn = document.getElementById('btnToggleParentLock');
+        if (!btn) return;
+        btn.classList.toggle('selected', this.formState.parentLockEnabled);
+        btn.textContent = this.formState.parentLockEnabled
+            ? '🔒 守护锁：已开启'
+            : '🔓 守护锁：已关闭';
     }
 
     renderSettingsModal() {
@@ -275,11 +386,38 @@ class PortalHubApp {
             capWrap.appendChild(b);
         });
 
-        // 3. 数学加减乘除多选
+        // 3. 年级预设快捷按钮 + 数学加减乘除多选
+        const presetRow = document.getElementById('hubMathPresetRow');
+        if (presetRow) {
+            presetRow.innerHTML = '<span style="font-size:12.5px;font-weight:800;">快捷学段：</span>';
+            const presets = [
+                { id: 'grade1_2', label: '🌱 1~2年级预设(20内加减)', ops: ['add', 'sub'], range: 20, mul: 5 },
+                { id: 'grade3_4', label: '⚡ 3~4年级预设(100内四则)', ops: ['add', 'sub', 'mul', 'div'], range: 100, mul: 9 },
+                { id: 'grade5_6', label: '🔥 5~6年级预设(千内巧算)', ops: ['add', 'sub', 'mul', 'div'], range: 1000, mul: 12 }
+            ];
+            presets.forEach(pr => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                const isSel = this.formState.mode === 'preset' && this.formState.presetGrade === pr.id;
+                b.className = `hub-opt-pill ${isSel ? 'selected' : ''}`;
+                b.textContent = pr.label;
+                b.addEventListener('click', () => {
+                    this.formState.mode = 'preset';
+                    this.formState.presetGrade = pr.id;
+                    this.formState.ops = [...pr.ops];
+                    this.formState.range = pr.range;
+                    this.formState.maxMultiplier = pr.mul;
+                    this.renderSettingsModal();
+                });
+                presetRow.appendChild(b);
+            });
+        }
+
         document.querySelectorAll('#hubMathOpsRow .hub-opt-pill').forEach(btn => {
             const op = btn.getAttribute('data-op');
             btn.classList.toggle('selected', this.formState.ops.includes(op));
             btn.onclick = () => {
+                this.formState.mode = 'custom';
                 if (this.formState.ops.includes(op)) {
                     if (this.formState.ops.length > 1) {
                         this.formState.ops = this.formState.ops.filter(x => x !== op);
@@ -300,6 +438,7 @@ class PortalHubApp {
             b.className = `hub-opt-pill ${this.formState.range === r ? 'selected' : ''}`;
             b.textContent = `${r}以内`;
             b.addEventListener('click', () => {
+                this.formState.mode = 'custom';
                 this.formState.range = r;
                 this.renderSettingsModal();
             });
@@ -315,13 +454,40 @@ class PortalHubApp {
             b.className = `hub-opt-pill ${this.formState.maxMultiplier === m ? 'selected' : ''}`;
             b.textContent = `${m}以内乘除`;
             b.addEventListener('click', () => {
+                this.formState.mode = 'custom';
                 this.formState.maxMultiplier = m;
                 this.renderSettingsModal();
             });
             multRow.appendChild(b);
         });
 
-        // 4. 英语题型与词包
+        // 进退位与凑数填空开关（与保卫萝卜、植物大战僵尸100%对齐，绝不覆盖丢失）
+        const extraRow = document.getElementById('hubMathExtraRow');
+        if (extraRow) {
+            extraRow.innerHTML = '<span style="font-size:12.5px;font-weight:800;">启发题型开关：</span>';
+            const btnCarry = document.createElement('button');
+            btnCarry.type = 'button';
+            btnCarry.className = `hub-opt-pill ${this.formState.allowCarryBorrow ? 'selected' : ''}`;
+            btnCarry.textContent = `${this.formState.allowCarryBorrow ? '✅' : '⬜'} 允许进位/退位`;
+            btnCarry.addEventListener('click', () => {
+                this.formState.allowCarryBorrow = !this.formState.allowCarryBorrow;
+                this.renderSettingsModal();
+            });
+
+            const btnFill = document.createElement('button');
+            btnFill.type = 'button';
+            btnFill.className = `hub-opt-pill ${this.formState.allowFillBlank ? 'selected' : ''}`;
+            btnFill.textContent = `${this.formState.allowFillBlank ? '✅' : '⬜'} 允许凑数填空 (7 + ? = 15)`;
+            btnFill.addEventListener('click', () => {
+                this.formState.allowFillBlank = !this.formState.allowFillBlank;
+                this.renderSettingsModal();
+            });
+
+            extraRow.appendChild(btnCarry);
+            extraRow.appendChild(btnFill);
+        }
+
+        // 4. 英语题型与 12 大主题词包
         const enLevelRow = document.getElementById('hubEnLevelRow');
         enLevelRow.innerHTML = '<span style="font-size:12.5px;font-weight:800;">英语题型：</span>';
         Object.values(ENGLISH_LEVELS).forEach(lvl => {
@@ -338,7 +504,7 @@ class PortalHubApp {
 
         const enPackRow = document.getElementById('hubEnPackRow');
         enPackRow.innerHTML = '<span style="font-size:12.5px;font-weight:800;">默认词包：</span>';
-        const packChoices = [{ id: 'all', icon: '📚', name: '全部主题' }, ...WORD_PACKS];
+        const packChoices = [{ id: 'all', icon: '📚', name: `全部12主题(${ALL_WORDS.length}词)` }, ...WORD_PACKS];
         packChoices.forEach(pk => {
             const b = document.createElement('button');
             b.type = 'button';
@@ -350,18 +516,35 @@ class PortalHubApp {
             });
             enPackRow.appendChild(b);
         });
+
+        this.renderParentLockBtn();
     }
 
     saveSettingsModal() {
         const rawName = (document.getElementById('hubInputName')?.value || '').trim();
+        const rawPin = (document.getElementById('hubInputParentPin')?.value || '').trim();
+        if (rawPin && !/^\d{4}$/.test(rawPin)) {
+            alert('家长 PIN 码请填写 4 位纯数字（或留空使用乘加口算验证）！');
+            return;
+        }
+
+        profileManager.setParentLockSettings({
+            enabled: this.formState.parentLockEnabled,
+            pin: rawPin
+        });
+
+        const presetGrade = this.formState.mode === 'preset'
+            ? this.formState.presetGrade
+            : (this.formState.range >= 500 ? 'grade5_6' : (this.formState.range >= 50 ? 'grade3_4' : 'grade1_2'));
+
         const mathConfig = {
-            mode: 'custom',
-            presetGrade: this.formState.range >= 100 ? 'grade3_4' : 'grade1_2',
+            mode: this.formState.mode,
+            presetGrade,
             operations: [...this.formState.ops],
             range: this.formState.range,
             maxMultiplier: this.formState.maxMultiplier,
-            allowCarryBorrow: true,
-            allowFillBlank: true
+            allowCarryBorrow: this.formState.allowCarryBorrow,
+            allowFillBlank: this.formState.allowFillBlank
         };
         const englishConfig = {
             level: this.formState.enLevel,
@@ -393,25 +576,302 @@ class PortalHubApp {
         this.renderAll();
     }
 
-    // ==================== 全局错题本 & 英语单词掌握册弹窗 ====================
+    // ==================== 存档备份导入导出弹窗 ====================
+    openBackupModal() {
+        const outEl = document.getElementById('hubBackupCodeOutput');
+        if (outEl) {
+            outEl.value = profileManager.exportBackupCode();
+        }
+        this.setBackupMsg('', false);
+        document.getElementById('hubBackupModal')?.classList.add('show');
+    }
+
+    setBackupMsg(msg, isError = false) {
+        const el = document.getElementById('hubBackupStatusMsg');
+        if (!el) return;
+        el.style.color = isError ? '#d63031' : '#00b894';
+        el.textContent = msg || '';
+    }
+
+    handleCopyBackupCode() {
+        const code = profileManager.exportBackupCode();
+        const outEl = document.getElementById('hubBackupCodeOutput');
+        if (outEl) {
+            outEl.value = code;
+            outEl.select();
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(code).then(() => {
+                this.setBackupMsg('✅ 备份码已复制到剪贴板！可直接发给另一台 iPad 粘贴恢复。', false);
+            }).catch(() => {
+                this.setBackupMsg('✅ 已生成最新备份码，请长按上方文本框全选复制。', false);
+            });
+        } else {
+            this.setBackupMsg('✅ 已生成最新备份码，请长按上方文本框全选复制。', false);
+        }
+    }
+
+    handleDownloadBackupJson() {
+        const json = profileManager.exportBackupJSON();
+        const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const dateTag = new Date().toISOString().slice(0, 10);
+        a.href = url;
+        a.download = `奇趣数英游乐园_双宝存档_${dateTag}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        this.setBackupMsg('💾 已下载 .json 存档备份文件！', false);
+    }
+
+    // ==================== 全局错题重练消消乐 & 单词掌握册弹窗 ====================
     openReportModal() {
+        this.stopMistakePractice();
         const u = profileManager.getActiveUser();
         const titleEl = document.getElementById('hubReportTitle');
         if (titleEl) {
-            titleEl.textContent = `📒 ${u.avatar || '🐰'} ${u.name} 的全局错题本与单词成长册`;
+            titleEl.textContent = `📒 ${u.avatar || '🐰'} ${u.name} 的全局错题重练与单词成长册`;
         }
         this.renderReportList();
         document.getElementById('hubReportModal')?.classList.add('show');
     }
 
+    stopMistakePractice() {
+        this.practiceState.active = false;
+        this.practiceState.currentItem = null;
+        this.practiceState.inputBuf = '';
+        this.practiceState.locked = false;
+        const stage = document.getElementById('hubPracticeStage');
+        if (stage) {
+            stage.style.display = 'none';
+            stage.innerHTML = '';
+        }
+    }
+
+    startMistakePractice(subject) {
+        this.practiceState = {
+            active: true,
+            subject,
+            inputBuf: '',
+            currentItem: null,
+            enOptions: [],
+            clearedCount: 0,
+            locked: false
+        };
+        this.nextPracticeQuestion();
+    }
+
+    nextPracticeQuestion() {
+        const u = profileManager.getActiveUser();
+        const stage = document.getElementById('hubPracticeStage');
+        if (!stage) return;
+        stage.style.display = 'block';
+        this.practiceState.inputBuf = '';
+        this.practiceState.locked = false;
+
+        if (this.practiceState.subject === 'math') {
+            const list = u.mathMistakes || [];
+            if (list.length === 0) {
+                stage.innerHTML = `
+                    <div style="text-align:center; padding:8px 0;">
+                        <div style="font-size:22px; font-weight:900; color:#ffeaa7;">🎉 太棒啦！所有数学错题已全部消灭干净！</div>
+                        <div style="font-size:13px; margin-top:4px;">本次重练共攻克 ${this.practiceState.clearedCount} 道错题！</div>
+                    </div>
+                `;
+                this.renderAll();
+                this.renderReportList();
+                return;
+            }
+            const item = list[0];
+            this.practiceState.currentItem = item;
+            this.renderMathPracticeCard(stage, item, list.length);
+            return;
+        }
+
+        // English weak words practice
+        const errList = u.englishMistakes || [];
+        if (errList.length === 0) {
+            stage.innerHTML = `
+                <div style="text-align:center; padding:8px 0;">
+                    <div style="font-size:22px; font-weight:900; color:#ffeaa7;">🎉 太棒啦！待强化生词已全部攻克！</div>
+                    <div style="font-size:13px; margin-top:4px;">本次重练共消灭 ${this.practiceState.clearedCount} 个生词！</div>
+                </div>
+            `;
+            this.renderAll();
+            this.renderReportList();
+            return;
+        }
+        const errEntry = errList[0];
+        const wordObj = ALL_WORDS.find(w => w.id === errEntry.wordId) || {
+            id: errEntry.wordId,
+            word: errEntry.word,
+            phonics: errEntry.phonics || errEntry.word,
+            zh: errEntry.zh,
+            icon: errEntry.icon || '🔤'
+        };
+        this.practiceState.currentItem = wordObj;
+        const distractors = ALL_WORDS.filter(w => w.id !== wordObj.id).sort(() => Math.random() - 0.5).slice(0, 3);
+        this.practiceState.enOptions = [...distractors, wordObj].sort(() => Math.random() - 0.5);
+        this.renderEnglishPracticeCard(stage, wordObj, errList.length);
+    }
+
+    renderMathPracticeCard(stage, item, remainingCount) {
+        const promptText = item.questionText || item.storyHtml || item.formula || item.expr || '';
+        stage.innerHTML = `
+            <div class="hub-prac-header">
+                <span>🎯 数学错题消消乐 · 剩余 ${remainingCount} 题（答对自动移出错题本并攒星⭐）</span>
+                <button type="button" class="hub-opt-pill" id="btnExitPractice" style="padding:2px 10px;font-size:12px;">收起 ✕</button>
+            </div>
+            <div class="hub-prac-question">${promptText}</div>
+            <div class="hub-prac-input-row">
+                <div class="hub-prac-ans-display" id="hubPracAnsBox">?</div>
+                <button type="button" class="hub-primary-btn" id="btnSubmitPracMath" style="padding:6px 18px;">确认 ↵</button>
+            </div>
+            <div class="hub-prac-keypad" id="hubPracKeypad">
+                ${[1,2,3,4,5,6,7,8,9,0].map(n => `<button type="button" class="hub-prac-key" data-pk="${n}">${n}</button>`).join('')}
+                <button type="button" class="hub-prac-key" data-pk="clear">清空</button>
+                <button type="button" class="hub-prac-key" data-pk="back">⌫</button>
+            </div>
+            <div class="hub-prac-feedback" id="hubPracFeedback">仔细想想，算对就能消灭这道错题啦！</div>
+        `;
+
+        stage.querySelector('#btnExitPractice')?.addEventListener('click', () => {
+            this.stopMistakePractice();
+        });
+
+        const ansBox = stage.querySelector('#hubPracAnsBox');
+        const fbEl = stage.querySelector('#hubPracFeedback');
+
+        stage.querySelector('#hubPracKeypad')?.addEventListener('click', (e) => {
+            if (this.practiceState.locked) return;
+            const btn = e.target.closest('.hub-prac-key');
+            if (!btn) return;
+            const k = btn.getAttribute('data-pk');
+            if (k === 'clear') this.practiceState.inputBuf = '';
+            else if (k === 'back') this.practiceState.inputBuf = this.practiceState.inputBuf.slice(0, -1);
+            else if (this.practiceState.inputBuf.length < 5) this.practiceState.inputBuf += k;
+            ansBox.textContent = this.practiceState.inputBuf || '?';
+        });
+
+        stage.querySelector('#btnSubmitPracMath')?.addEventListener('click', () => {
+            if (this.practiceState.locked || !this.practiceState.inputBuf) return;
+            const userVal = Number(this.practiceState.inputBuf);
+            const expected = Number(item.answer ?? item.expected);
+            if (userVal === expected) {
+                this.practiceState.locked = true;
+                this.practiceState.clearedCount += 1;
+                profileManager.resolveMathMistake(item);
+                const prog = profileManager.awardLearningProgress({
+                    title: `🎯 [错题消消乐] 成功攻克错题 ${item.expr || item.formula || ''}`,
+                    subjectTag: '错题攻坚',
+                    badges: 0,
+                    stars: 1,
+                    gotTicket: false,
+                    combo: this.practiceState.clearedCount,
+                    isMath: true
+                });
+                const rewardTip = prog.actualBadges > 0 ? `🏅+${prog.actualBadges}枚徽章！` : `⭐攒星 ${prog.starProgress}/3`;
+                fbEl.style.color = '#55efc4';
+                fbEl.textContent = `🎉 答对啦！错题已消灭！${rewardTip}`;
+                this.renderAll();
+                this.renderReportList();
+                setTimeout(() => this.nextPracticeQuestion(), 650);
+            } else {
+                fbEl.style.color = '#ff7675';
+                fbEl.textContent = `💡 再算一算哦～（提示：之前误填了 ${item.userAns ?? '其他数'}）`;
+                this.practiceState.inputBuf = '';
+                ansBox.textContent = '?';
+            }
+        });
+    }
+
+    renderEnglishPracticeCard(stage, wordObj, remainingCount) {
+        const optsHtml = this.practiceState.enOptions.map(opt => `
+            <button type="button" class="hub-prac-en-btn" data-wid="${opt.id}">
+                ${opt.word}
+            </button>
+        `).join('');
+
+        stage.innerHTML = `
+            <div class="hub-prac-header">
+                <span>🔤 英语生词消消乐 · 剩余 ${remainingCount} 词（答对升星并移出待强化列表）</span>
+                <button type="button" class="hub-opt-pill" id="btnExitPractice" style="padding:2px 10px;font-size:12px;">收起 ✕</button>
+            </div>
+            <div class="hub-prac-question">
+                <span style="font-size:34px;">${wordObj.icon}</span>
+                <span style="margin-left:10px;">${wordObj.zh}</span>
+                <button type="button" class="hub-opt-pill" id="btnPracSpeak" style="margin-left:12px;font-size:13px;">🔊 听发音</button>
+            </div>
+            <div class="hub-prac-en-opts">${optsHtml}</div>
+            <div class="hub-prac-feedback" id="hubPracFeedback">听发音看图标，选出正确的英语单词吧！</div>
+        `;
+
+        sharedSpeech.speakEnglish(wordObj.word, false);
+
+        stage.querySelector('#btnExitPractice')?.addEventListener('click', () => {
+            this.stopMistakePractice();
+        });
+        stage.querySelector('#btnPracSpeak')?.addEventListener('click', () => {
+            sharedSpeech.speakEnglish(wordObj.word, true, wordObj.phonics);
+        });
+
+        const fbEl = stage.querySelector('#hubPracFeedback');
+        stage.querySelectorAll('.hub-prac-en-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (this.practiceState.locked) return;
+                const picked = btn.getAttribute('data-wid');
+                if (picked === wordObj.id) {
+                    this.practiceState.locked = true;
+                    btn.classList.add('correct');
+                    this.practiceState.clearedCount += 1;
+                    sharedSpeech.speakEnglish(wordObj.word, false);
+                    profileManager.updateWordProgress(wordObj, true, 1);
+                    const prog = profileManager.awardLearningProgress({
+                        title: `🔤 [生词消消乐] 攻克待强化词 ${wordObj.word}`,
+                        subjectTag: '生词攻坚',
+                        badges: 0,
+                        stars: 1,
+                        gotTicket: false,
+                        combo: this.practiceState.clearedCount,
+                        isMath: false
+                    });
+                    const rewardTip = prog.actualBadges > 0 ? `🏅+${prog.actualBadges}枚徽章！` : `⭐攒星 ${prog.starProgress}/3`;
+                    fbEl.style.color = '#55efc4';
+                    fbEl.textContent = `🎉 太棒啦！已掌握 ${wordObj.word} (${wordObj.zh}) · ${rewardTip}`;
+                    this.renderAll();
+                    this.renderReportList();
+                    setTimeout(() => this.nextPracticeQuestion(), 700);
+                } else {
+                    btn.classList.add('wrong');
+                    sharedSpeech.speakEnglish(wordObj.word, true, wordObj.phonics);
+                    fbEl.style.color = '#ff7675';
+                    fbEl.textContent = `👂 听一听慢读发音，再试一次吧！`;
+                }
+            });
+        });
+    }
+
     renderReportList() {
         const u = profileManager.getActiveUser();
         const box = document.getElementById('hubReportList');
+        const toolbar = document.getElementById('hubReportToolbar');
         if (!box) return;
         box.innerHTML = '';
+        if (toolbar) toolbar.innerHTML = '';
 
         if (this.activeReportTab === 'math') {
             const list = u.mathMistakes || [];
+            if (toolbar && list.length > 0 && !this.practiceState.active) {
+                toolbar.innerHTML = `
+                    <span style="font-size:13px;font-weight:800;color:#636e72;">共有 <strong>${list.length}</strong> 道未攻克错题（平时闯关也会自动穿插复习）：</span>
+                    <button type="button" class="hub-btn-start-practice" id="btnStartMathPrac">🎯 立即重练消灭错题 (${list.length}题)</button>
+                `;
+                toolbar.querySelector('#btnStartMathPrac')?.addEventListener('click', () => {
+                    this.startMistakePractice('math');
+                });
+            }
             if (list.length === 0) {
                 box.innerHTML = `<div class="hub-list-item" style="justify-content:center; color:#00b894;">🎉 太棒啦！${u.name}目前没有任何未攻克的数学错题！</div>`;
                 return;
@@ -433,8 +893,37 @@ class PortalHubApp {
 
         if (this.activeReportTab === 'english') {
             const mastery = u.wordMastery || {};
-            const mistakesIds = new Set((u.englishMistakes || []).map(x => x.wordId));
-            const sortedWords = [...ALL_WORDS].sort((a, b) => {
+            const mistakesList = u.englishMistakes || [];
+            const mistakesIds = new Set(mistakesList.map(x => x.wordId));
+
+            if (toolbar) {
+                const packOpts = [
+                    `<option value="all">📚 全部12大主题 (${ALL_WORDS.length}词)</option>`,
+                    ...WORD_PACKS.map(p => `<option value="${p.id}" ${this.enReportPackFilter === p.id ? 'selected' : ''}>${p.icon} ${p.name} (${p.words.length}词)</option>`)
+                ].join('');
+                toolbar.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                        <select id="hubEnFilterSelect" class="hub-opt-pill" style="padding:5px 10px;">${packOpts}</select>
+                        <span style="font-size:12.5px;font-weight:800;color:#636e72;">已掌握(≥2⭐)：${u.stats?.totalWordsMastered || 0} / ${ALL_WORDS.length} 词</span>
+                    </div>
+                    ${(mistakesList.length > 0 && !this.practiceState.active)
+                        ? `<button type="button" class="hub-btn-start-practice" id="btnStartEnPrac">🎯 重练消灭生词 (${mistakesList.length}词)</button>`
+                        : ''}
+                `;
+                toolbar.querySelector('#hubEnFilterSelect')?.addEventListener('change', (e) => {
+                    this.enReportPackFilter = e.target.value;
+                    this.renderReportList();
+                });
+                toolbar.querySelector('#btnStartEnPrac')?.addEventListener('click', () => {
+                    this.startMistakePractice('english');
+                });
+            }
+
+            const basePool = this.enReportPackFilter === 'all'
+                ? ALL_WORDS
+                : (WORD_PACKS.find(p => p.id === this.enReportPackFilter)?.words || ALL_WORDS);
+
+            const sortedWords = [...basePool].sort((a, b) => {
                 const aErr = mistakesIds.has(a.id) ? 1 : 0;
                 const bErr = mistakesIds.has(b.id) ? 1 : 0;
                 if (aErr !== bErr) return bErr - aErr;
@@ -451,8 +940,8 @@ class PortalHubApp {
                     <div style="display:flex; align-items:center; gap:10px;">
                         <span style="font-size:24px;">${w.icon}</span>
                         <div>
-                            <div><strong>${w.word}</strong> <span style="color:#636e72;">${w.zh}</span> ${isMistake ? '<span style="color:#d63031;font-size:11px;">(待强化)</span>' : ''}</div>
-                            <div style="font-size:11.5px; color:#888;">${w.sentence}</div>
+                            <div><strong>${w.word}</strong> <span style="color:#888;font-size:12px;">${w.ipa || ''}</span> <span style="color:#636e72;">${w.zh}</span> ${isMistake ? '<span style="color:#d63031;font-size:11px;">(待强化)</span>' : ''}</div>
+                            <div style="font-size:11.5px; color:#888;">${w.sentence}（${w.sentenceZh}）</div>
                         </div>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
@@ -474,7 +963,7 @@ class PortalHubApp {
             box.innerHTML = `<div class="hub-list-item" style="justify-content:center;">🌱 快进入任意一款游戏答题闯关吧！</div>`;
             return;
         }
-        records.slice(0, 30).forEach(r => {
+        records.slice(0, 40).forEach(r => {
             const row = document.createElement('div');
             row.className = 'hub-list-item';
             row.innerHTML = `

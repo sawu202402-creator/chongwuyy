@@ -2305,6 +2305,106 @@ button:active {
     100% { left: 48%; top: 8%; transform: scaleX(-1); }
 }
 
+/* ===== 双宝互相串门做客彩蛋组件 ===== */
+.sibling-visit-home-pill {
+    position: absolute;
+    right: 14px;
+    bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px 6px 8px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(255, 250, 230, 0.96), rgba(255, 232, 245, 0.96));
+    border: 2px solid #ff9ec4;
+    box-shadow: 0 5px 14px rgba(124, 92, 252, 0.18);
+    cursor: pointer;
+    z-index: 6;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.sibling-visit-home-pill:hover {
+    transform: translateY(-2px);
+}
+
+.sibling-visit-home-pill.has-gift {
+    border-color: #f59e0b;
+    animation: siblingFloat 2.4s ease-in-out infinite;
+}
+
+.sibling-visit-mini-img {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
+.sibling-visit-txt {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.2;
+}
+
+.sibling-visit-txt strong {
+    font-size: 12px;
+    font-weight: 900;
+    color: #5b21b6;
+}
+
+.sibling-visit-txt small {
+    font-size: 11px;
+    font-weight: 800;
+    color: #d97706;
+}
+
+.town-sibling-visitor {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    z-index: 16;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px 6px 8px;
+    border-radius: 18px;
+    background: rgba(255, 252, 240, 0.95);
+    border: 2.5px solid #fbbf24;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.24);
+    cursor: pointer;
+    animation: siblingFloat 2.6s ease-in-out infinite;
+}
+
+.town-sibling-pet-img {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+}
+
+.town-sibling-info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.22;
+}
+
+.town-sibling-badge {
+    font-size: 12px;
+    font-weight: 900;
+    color: #4c1d95;
+}
+
+.town-sibling-cta {
+    font-size: 11px;
+    font-weight: 800;
+    color: #d97706;
+}
+
+@keyframes siblingFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
 /* 竖屏或窄屏平板优雅自适应兜底 */
 @media (max-width: 920px) {
     html, body {

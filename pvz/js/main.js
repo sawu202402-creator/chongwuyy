@@ -12,6 +12,9 @@ import { createPlant } from './plants.js?v=20261113_v2';
 import { Zombie } from './zombies.js?v=20261113_v2';
 import { SmartChalkboard } from '../../shared/smartChalkboard.js';
 import { sharedSpeech } from '../../shared/audioTTS.js';
+import { ENGLISH_LEVELS, WORD_PACKS, ALL_WORDS } from '../../shared/englishEngine.js';
+import { DAILY_BADGE_CAP_OPTIONS, DEFAULT_DAILY_BADGE_CAP } from '../../pet/js/config.js';
+import { requireParentGate } from '../../shared/parentGate.js';
 
 window.createPlant = createPlant;
 window.Zombie = Zombie;
@@ -24,6 +27,7 @@ class GameApp {
         this.profileManager = profileManager;
         this.soundEngine = soundEngine;
         this.inputBuffer = '';
+        this.gameSpeed = 1;
         this.lastTime = performance.now();
         this._hudCache = {};
         this._cardDomCache = [];
@@ -36,6 +40,9 @@ class GameApp {
         this.selectedRange = 20;
         this.selectedMultiplier = 5;
         this.selectedPresetGrade = 'grade1_2';
+        this.selectedEnLevel = 'level2_match';
+        this.selectedEnPack = 'all';
+        this.selectedDailyBadgeCap = DEFAULT_DAILY_BADGE_CAP;
         this.activeDiffTab = 'custom'; // 'custom' | 'preset'
         this.viewingRecordsKidId = null;
 
@@ -58,6 +65,7 @@ class GameApp {
             comboCount: document.getElementById('comboCount'),
             btnEndlessMode: document.getElementById('btnEndlessMode'),
             btnSelectLevel: document.getElementById('btnSelectLevel'),
+            btnSpeedToggle: document.getElementById('btnSpeedToggle'),
             btnFullscreen: document.getElementById('btnFullscreen'),
             btnPause: document.getElementById('btnPause'),
             btnMute: document.getElementById('btnMute'),
@@ -123,6 +131,9 @@ class GameApp {
             chkOptFillBlank: document.getElementById('chkOptFillBlank'),
             chkOptCarryBorrow: document.getElementById('chkOptCarryBorrow'),
             presetGradeCards: document.getElementById('presetGradeCards'),
+            pvzEnLevelGrid: document.getElementById('pvzEnLevelGrid'),
+            pvzEnPackSelect: document.getElementById('pvzEnPackSelect'),
+            pvzDailyCapGrid: document.getElementById('pvzDailyCapGrid'),
             btnSaveUserProfile: document.getElementById('btnSaveUserProfile'),
             btnCancelUserProfile: document.getElementById('btnCancelUserProfile'),
 
@@ -158,6 +169,12 @@ class GameApp {
             hostType: 'pvz',
             mathEngine: this.mathEngine,
             profileManager: this.profileManager,
+            shouldConfirmExit: () => Boolean(
+                this.pvzEngine &&
+                !this.pvzEngine.isGameOver &&
+                !this.pvzEngine.isVictory &&
+                this.pvzEngine.waveIndex >= 1
+            ),
             onSoundResume: () => soundEngine.resume(),
             onEnglishBattleResult: (battleRes, meta) => {
                 if (this.pvzEngine) {
@@ -291,7 +308,9 @@ class GameApp {
         Object.values(GAME_CONFIG.plants).forEach(p => {
             if (p.icon) criticalSet.add(p.icon);
         });
-        this.getLevelAssets('1-1').forEach(a => criticalSet.add(a));
+        const savedLvl = (profileManager.getLastPvzLevel && profileManager.getLastPvzLevel()) || '1-1';
+        const initialLevelId = GAME_CONFIG.levels[savedLvl] ? savedLvl : '1-1';
+        this.getLevelAssets(initialLevelId).forEach(a => criticalSet.add(a));
 
         await assetsLoader.preloadAll(Array.from(criticalSet), (loaded, total, pct) => {
             if (this.dom.loadingBarFill) this.dom.loadingBarFill.style.width = `${pct}%`;
@@ -313,8 +332,12 @@ class GameApp {
         // 绑定 UI 交互
         this.bindDOMEvents();
         this.initProfileModalControls();
-        this.renderCardsList();
-        this.syncQuestionToBlackboard();
+        if (initialLevelId !== '1-1') {
+            this.loadNewLevel(initialLevelId, { skipConfirm: true });
+        } else {
+            this.renderCardsList();
+            this.syncQuestionToBlackboard();
+        }
 
         // 第二梯队：仅在非低内存设备上利用空闲时间温和预热后续世界资源；手机端在切关/选卡时按关卡精准加载，避免一次性驻留 250+ 动态 GIF 撑爆移动端显存
         const isConstrainedMobile = (typeof navigator !== 'undefined' && navigator.deviceMemory && navigator.deviceMemory <= 4) ||
@@ -357,7 +380,7 @@ class GameApp {
         this.lastTime = currentTime;
 
         if (this.pvzEngine) {
-            this.pvzEngine.update(dt);
+            this.pvzEngine.update(dt * (this.gameSpeed || 1));
             this.pvzEngine.render();
             this.updateHUD();
             this.updateCardCooldowns();
@@ -734,6 +757,15 @@ class GameApp {
             }
         });
 
+        if (this.dom.btnSpeedToggle) {
+            this.dom.btnSpeedToggle.addEventListener('click', () => {
+                this.gameSpeed = this.gameSpeed === 2 ? 1 : 2;
+                this.dom.btnSpeedToggle.innerText = this.gameSpeed === 2 ? '🔥 2x' : '⚡ 1x';
+                this.dom.btnSpeedToggle.classList.toggle('speed-2x', this.gameSpeed === 2);
+                soundEngine.playPlant();
+            });
+        }
+
         if (this.dom.btnFullscreen) {
             this.dom.btnFullscreen.addEventListener('click', () => this.toggleFullscreen());
             document.addEventListener('fullscreenchange', () => this.syncFullscreenBtn());
@@ -807,9 +839,11 @@ class GameApp {
             this.dom.scoreRecordsModal.style.display = 'none';
         });
         this.dom.btnClearKidHistory.addEventListener('click', () => {
-            const cur = this.viewingRecordsKidId || profileManager.getActiveUser().id;
-            profileManager.clearUserHistory(cur);
-            this.renderScoreRecords(cur);
+            requireParentGate(() => {
+                const cur = this.viewingRecordsKidId || profileManager.getActiveUser().id;
+                profileManager.clearUserHistory(cur);
+                this.renderScoreRecords(cur);
+            }, { profileManager, title: '🔒 家长确认：清空战报与错题' });
         });
 
         // 选卡台按钮事件
@@ -1019,12 +1053,15 @@ class GameApp {
         this.dom.btnDeleteKid.addEventListener('click', () => {
             if (this.editingKidId && this.editingKidId !== 'NEW') {
                 const targetUser = profileManager.getUser(this.editingKidId);
-                if (targetUser && confirm(`确定要删除【${targetUser.name}】的档案吗？`)) {
-                    profileManager.deleteUser(this.editingKidId);
-                    this.editingKidId = profileManager.getActiveUser().id;
-                    this.updateProfileUI();
-                    this.renderProfileModalForm();
-                }
+                if (!targetUser) return;
+                requireParentGate(() => {
+                    if (confirm(`确定要删除【${targetUser.name}】的档案吗？`)) {
+                        profileManager.deleteUser(this.editingKidId);
+                        this.editingKidId = profileManager.getActiveUser().id;
+                        this.updateProfileUI();
+                        this.renderProfileModalForm();
+                    }
+                }, { profileManager, title: '🔒 家长确认：删除孩子档案' });
             }
         });
 
@@ -1059,7 +1096,9 @@ class GameApp {
         });
 
         this.dom.btnSaveUserProfile.addEventListener('click', () => {
-            this.saveUserProfileSettings();
+            requireParentGate(() => {
+                this.saveUserProfileSettings();
+            }, { profileManager, title: '🔒 家长验证：保存难度与上限设置' });
         });
 
         // 战报选项卡切换
@@ -1101,6 +1140,10 @@ class GameApp {
                 this.editingKidId = u.id;
                 profileManager.setActiveUser(u.id);
                 this.updateProfileUI();
+                const targetLvl = u.lastPvzLevel || '1-1';
+                if (this.pvzEngine && this.pvzEngine.waveIndex < 1 && GAME_CONFIG.levels[targetLvl] && this.pvzEngine.levelId !== targetLvl) {
+                    this.loadNewLevel(targetLvl, { skipConfirm: true });
+                }
                 this.renderProfileModalForm();
             });
             this.dom.kidProfilesList.appendChild(btn);
@@ -1214,6 +1257,55 @@ class GameApp {
             });
             this.dom.presetGradeCards.appendChild(card);
         });
+
+        // 10. 渲染英语题型、默认词包与每日徽章上限（四端 100% 对齐）
+        const enConf = targetUser ? (targetUser.englishConfig || {}) : {};
+        this.selectedEnLevel = enConf.level || 'level2_match';
+        this.selectedEnPack = enConf.packId || 'all';
+        this.selectedDailyBadgeCap = (targetUser && targetUser.dailyBadgeCap) || DEFAULT_DAILY_BADGE_CAP;
+
+        if (this.dom.pvzEnLevelGrid) {
+            this.dom.pvzEnLevelGrid.innerHTML = '';
+            Object.values(ENGLISH_LEVELS).forEach(lv => {
+                const pill = document.createElement('button');
+                pill.type = 'button';
+                pill.className = `range-pill range-pill-btn ${lv.id === this.selectedEnLevel ? 'selected' : ''}`;
+                pill.innerText = lv.name;
+                pill.addEventListener('click', () => {
+                    this.selectedEnLevel = lv.id;
+                    this.dom.pvzEnLevelGrid.querySelectorAll('.range-pill, .range-pill-btn').forEach(p => p.classList.remove('selected'));
+                    pill.classList.add('selected');
+                });
+                this.dom.pvzEnLevelGrid.appendChild(pill);
+            });
+        }
+
+        if (this.dom.pvzEnPackSelect) {
+            this.dom.pvzEnPackSelect.innerHTML = [
+                `<option value="all">📚 全部12主题 (${ALL_WORDS.length}词)</option>`,
+                ...WORD_PACKS.map(pk => `<option value="${pk.id}">${pk.icon} ${pk.name}</option>`)
+            ].join('');
+            this.dom.pvzEnPackSelect.value = this.selectedEnPack;
+            this.dom.pvzEnPackSelect.onchange = () => {
+                this.selectedEnPack = this.dom.pvzEnPackSelect.value;
+            };
+        }
+
+        if (this.dom.pvzDailyCapGrid) {
+            this.dom.pvzDailyCapGrid.innerHTML = '';
+            DAILY_BADGE_CAP_OPTIONS.forEach(cap => {
+                const pill = document.createElement('button');
+                pill.type = 'button';
+                pill.className = `range-pill range-pill-btn ${cap === this.selectedDailyBadgeCap ? 'selected' : ''}`;
+                pill.innerText = cap === 30 ? `每日上限 ${cap}🏅(推荐)` : `每日上限 ${cap}🏅`;
+                pill.addEventListener('click', () => {
+                    this.selectedDailyBadgeCap = cap;
+                    this.dom.pvzDailyCapGrid.querySelectorAll('.range-pill, .range-pill-btn').forEach(p => p.classList.remove('selected'));
+                    pill.classList.add('selected');
+                });
+                this.dom.pvzDailyCapGrid.appendChild(pill);
+            });
+        }
     }
 
     saveUserProfileSettings() {
@@ -1237,11 +1329,21 @@ class GameApp {
             allowCarryBorrow: this.dom.chkOptCarryBorrow.checked,
             allowFillBlank: this.dom.chkOptFillBlank.checked
         };
+        const englishConfig = {
+            level: this.selectedEnLevel || 'level2_match',
+            packId: (this.dom.pvzEnPackSelect && this.dom.pvzEnPackSelect.value) || this.selectedEnPack || 'all'
+        };
+        const dailyBadgeCap = this.selectedDailyBadgeCap || DEFAULT_DAILY_BADGE_CAP;
 
         if (this.editingKidId === 'NEW') {
-            profileManager.addUser({ name, avatar, difficulty });
+            const created = profileManager.addUser({ name, avatar, difficulty, englishConfig });
+            if (profileManager.updateUserSettings) {
+                profileManager.updateUserSettings(created.id, { dailyBadgeCap });
+            }
+        } else if (profileManager.updateUserSettings) {
+            profileManager.updateUserSettings(this.editingKidId, { name, avatar, dailyBadgeCap, difficulty, englishConfig });
         } else {
-            profileManager.updateUser(this.editingKidId, { name, avatar, difficulty });
+            profileManager.updateUser(this.editingKidId, { name, avatar, difficulty, englishConfig });
         }
 
         this.updateProfileUI();
@@ -1306,22 +1408,32 @@ class GameApp {
             });
         }
 
-        // 3. 渲染错题攻坚本
-        const mistakes = user.mistakes || [];
+        // 3. 渲染错题攻坚本（数学 + 英语双科错题）
+        const mathMistakes = user.mathMistakes || user.mistakes || [];
+        const enMistakes = user.englishMistakes || [];
         this.dom.mistakesListBox.innerHTML = '';
-        if (mistakes.length === 0) {
+        if (mathMistakes.length === 0 && enMistakes.length === 0) {
             this.dom.mistakesListBox.innerHTML = `
                 <div style="text-align:center; padding:35px 20px; color:#2ecc71; font-weight:700; font-size:16px;">
-                    🎉 太棒了！当前没有任何错题记录，${user.name} 是个心算小天才！
+                    🎉 太棒了！当前没有任何数学或英语错题记录，${user.name} 超厉害！（也可在游戏大厅一键重练消错题哦）
                 </div>
             `;
         } else {
-            mistakes.forEach(m => {
+            mathMistakes.forEach(m => {
                 const item = document.createElement('div');
                 item.className = 'mistake-item';
                 item.innerHTML = `
-                    <span class="mistake-formula">${m.formula}</span>
+                    <span class="mistake-formula">🧮 ${m.formula}</span>
                     <span class="mistake-answer">正确答案：<strong>${m.expected}</strong></span>
+                `;
+                this.dom.mistakesListBox.appendChild(item);
+            });
+            enMistakes.forEach(em => {
+                const item = document.createElement('div');
+                item.className = 'mistake-item';
+                item.innerHTML = `
+                    <span class="mistake-formula">🔤 ${em.emoji || '📘'} ${em.word}</span>
+                    <span class="mistake-answer">释义：<strong>${em.zh || ''}</strong></span>
                 `;
                 this.dom.mistakesListBox.appendChild(item);
             });
@@ -1372,6 +1484,8 @@ class GameApp {
             this.dom.levelGrid.appendChild(card);
         });
 
+        const pvzRecords = (profileManager.getPvzRecords && profileManager.getPvzRecords()) || {};
+
         const worlds = [
             { id: 1, name: '☀️ 第一大关：白天草坪 (1-1 ~ 1-10)' },
             { id: 2, name: '🌙 第二大关：黑夜墓地 (2-1 ~ 2-10)' },
@@ -1381,6 +1495,9 @@ class GameApp {
         ];
 
         worlds.forEach(w => {
+            const worldLvlIds = Object.keys(GAME_CONFIG.levels).filter(id => GAME_CONFIG.levels[id].world === w.id);
+            const clearedInWorld = worldLvlIds.filter(id => pvzRecords[id] && pvzRecords[id].cleared).length;
+
             const groupHeader = document.createElement('div');
             groupHeader.className = 'level-group-header';
             groupHeader.style.gridColumn = '1 / -1';
@@ -1391,18 +1508,24 @@ class GameApp {
             groupHeader.style.fontWeight = 'bold';
             groupHeader.style.fontSize = '14px';
             groupHeader.style.color = '#f1c40f';
-            groupHeader.innerText = w.name;
+            groupHeader.style.display = 'flex';
+            groupHeader.style.justifyContent = 'space-between';
+            groupHeader.style.alignItems = 'center';
+            groupHeader.innerHTML = `<span>${w.name}</span><span style="font-size:12px; color:#ffeaa7;">${activeUser.avatar || '🐰'} ${activeUser.name || ''} 通关 ${clearedInWorld}/${worldLvlIds.length} 🏆</span>`;
             this.dom.levelGrid.appendChild(groupHeader);
 
-            Object.keys(GAME_CONFIG.levels).filter(id => GAME_CONFIG.levels[id].world === w.id).forEach(lvlId => {
+            worldLvlIds.forEach(lvlId => {
                 const conf = GAME_CONFIG.levels[lvlId];
                 const waveCount = Array.isArray(conf.waves) ? conf.waves.length : 0;
                 const flagCount = waveCount >= 20 ? 2 : 1;
+                const rec = pvzRecords[lvlId];
+                const isCleared = Boolean(rec && rec.cleared);
                 const card = document.createElement('div');
-                card.className = `level-card ${lvlId === this.pvzEngine.levelId ? 'active' : ''}`;
+                card.className = `level-card ${lvlId === this.pvzEngine.levelId ? 'active' : ''} ${isCleared ? 'cleared' : ''}`;
                 card.innerHTML = `
                     <div class="level-card-id">${lvlId} <span style="font-size:10px;opacity:0.78;">(${waveCount}波·${flagCount}🚩)</span></div>
                     <div class="level-card-name">${conf.title.split('：')[1] || conf.title}</div>
+                    ${isCleared ? `<div class="level-cleared-badge">🏆 已通关</div>` : ''}
                 `;
                 card.addEventListener('click', () => {
                     this.dom.levelModal.style.display = 'none';
@@ -1566,12 +1689,21 @@ class GameApp {
 
     loadNewLevel(lvlId, options = {}) {
         if (!this.pvzEngine) return;
+        const skipConfirm = Boolean(options && options.skipConfirm);
+        if (!skipConfirm && lvlId !== this.pvzEngine.levelId && !this.pvzEngine.isGameOver && !this.pvzEngine.isVictory && this.pvzEngine.waveIndex >= 2) {
+            if (!window.confirm(`当前正在第 ${this.pvzEngine.levelId} 关战斗中，确定切换关卡吗？（已获徽章与学习数据已自动保存）`)) {
+                return;
+            }
+        }
         if (this.dom.seedChooserModal) {
             this.dom.seedChooserModal.style.display = 'none';
         }
         // 按当前关卡精准预加载背景、出战植物与本关波次僵尸，兼顾流畅切换与低内存占用
         assetsLoader.preloadAll(this.getLevelAssets(lvlId), null, 8);
         this.pvzEngine.loadLevel(lvlId);
+        if (profileManager.setLastPvzLevel) {
+            profileManager.setLastPvzLevel(lvlId);
+        }
         this._hudCache = {};
         if (this.dom.btnPause) this.dom.btnPause.innerText = '⏸️';
         this.renderCardsList();
@@ -1617,9 +1749,13 @@ class GameApp {
         const maxCombo = mathEngine.maxCombo;
 
         if (evt === 'victory') {
-            // 记录战报
+            // 记录战报与孩子独立通关奖杯
+            const clearedLvl = (data && data.levelId) || this.pvzEngine.levelId;
+            if (profileManager.recordPvzLevelClear && clearedLvl && !String(clearedLvl).startsWith('endless')) {
+                profileManager.recordPvzLevelClear(clearedLvl, accuracy);
+            }
             profileManager.recordGameRound({
-                levelId: data.levelId,
+                levelId: clearedLvl,
                 total,
                 correct,
                 accuracy,

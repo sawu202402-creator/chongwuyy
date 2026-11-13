@@ -4,8 +4,8 @@
  * 严格按照官方原版武器朝向、底座属性、攻击模式与特色动画定制
  */
 
-import { TOWER_TYPES } from './config.js?v=20261113_carrot_concise_v1';
-import { sound } from './audio.js?v=20261113_carrot_concise_v1';
+import { TOWER_TYPES } from './config.js?v=20261113_opt_v1';
+import { sound } from './audio.js?v=20261113_opt_v1';
 
 const TOWER_ASSET_VER = '20260925_fb_upright_v4';
 function loadImg(src) {

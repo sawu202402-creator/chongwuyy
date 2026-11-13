@@ -14,8 +14,8 @@
     <meta name="apple-mobile-web-app-title" content="萌宠店长">
     <link rel="manifest" href="site.webmanifest">
     <meta name="theme-color" content="#7c5cfc">
-    <link rel="stylesheet" href="css/style.css?v=20261113_3in1_v1">
-    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261113_3in1_v1">
+    <link rel="stylesheet" href="css/style.css?v=20261113_opt_v1">
+    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261113_opt_v1">
 </head>
 <body>
     <!-- 全屏飞行徽章与彩虹礼花粒子画布 -->
@@ -125,6 +125,15 @@
                                 <small id="townCountHint">已入驻 1 家店铺 ▸</small>
                             </div>
                         </button>
+
+                        <!-- 右下角双宝互相串门彩蛋入口 -->
+                        <button class="sibling-visit-home-pill" id="btnSiblingVisitorHome" type="button" style="display:none;">
+                            <img src="assets/pets/frog.png" alt="串门萌宠" class="sibling-visit-mini-img" id="siblingHomePetImg" />
+                            <div class="sibling-visit-txt">
+                                <strong id="siblingHomeTitle">🐸 川川来串门啦</strong>
+                                <small id="siblingHomeSub">💌 点我打招呼领 +2⭐</small>
+                            </div>
+                        </button>
                     </div>
 
                     <!-- 下半部分：三大成长账本 (对标参考图5：得分记录 | 徽章流水 | 毕业记录) -->
@@ -224,6 +233,15 @@
                             <button class="town-ctrl-pill blue" id="btnTownPlaceActiveShop" type="button">📍 放置当前店铺</button>
                             <button class="town-ctrl-pill orange" id="btnTownDecorMode" type="button">🎡 装扮小镇景观</button>
                         </div>
+
+                        <!-- 小镇右下角双宝串门互动浮窗 -->
+                        <button class="town-sibling-visitor" id="townSiblingVisitor" type="button" style="display:none;">
+                            <img src="assets/pets/frog.png" alt="串门伙伴" class="town-sibling-pet-img" id="townSiblingPetImg" />
+                            <div class="town-sibling-info">
+                                <span class="town-sibling-badge" id="townSiblingTitle">🐸 川川带着荷叶小青蛙来串门</span>
+                                <span class="town-sibling-cta" id="townSiblingCta">💌 点击打招呼领 +2⭐ 友谊星</span>
+                            </div>
+                        </button>
                     </div>
                 </div>
 
@@ -547,6 +565,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=20261113_v3"></script>
+    <script type="module" src="js/main.js?v=20261113_opt_v1"></script>
 </body>
 </html>

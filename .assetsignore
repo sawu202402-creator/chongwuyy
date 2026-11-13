@@ -1,9 +1,9 @@
 .git
 .gitignore
-.assetsignore
-.idea
-.vscode
-.wrangler
 node_modules
+package.json
+package-lock.json
 scripts
 wrangler.jsonc
+*.md
+.DS_Store

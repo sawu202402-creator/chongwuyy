@@ -24,6 +24,7 @@ import { soundEngine } from './audio.js';
 import { mathEngine, MathEngine } from './mathEngine.js';
 import { englishEngine, EnglishEngine, WORD_PACKS, ALL_WORDS } from './englishEngine.js';
 import { profileManager } from './profileManager.js';
+import { requireParentGate } from '../../shared/parentGate.js';
 
 // ==================== 全屏高帧率飞行徽章与礼花粒子引擎 ====================
 class CelebrationFX {
@@ -191,6 +192,18 @@ class PetWonderTownApp {
 
     syncEnginesWithActiveUser() {
         const u = profileManager.getActiveUser();
+        if (mathEngine.setMistakesProvider) {
+            mathEngine.setMistakesProvider(() => profileManager.getActiveUser()?.mathMistakes || []);
+        }
+        if (englishEngine.setMistakesProvider) {
+            englishEngine.setMistakesProvider(() => {
+                const cur = profileManager.getActiveUser();
+                return {
+                    wordMastery: cur?.wordMastery || {},
+                    englishMistakes: cur?.englishMistakes || []
+                };
+            });
+        }
         mathEngine.setConfig(u.mathConfig);
         englishEngine.setConfig(u.englishConfig);
         if (u.englishConfig?.packId && u.englishConfig.packId !== 'all') {
@@ -207,8 +220,91 @@ class PetWonderTownApp {
         this.renderSelectorView();
         this.renderTownMapView();
         this.renderGachaView();
+        this.renderSiblingVisitor();
         this.updateReviewCountBadge();
         this.renderBoardFooter();
+    }
+
+    renderSiblingVisitor() {
+        const visitor = profileManager.getSiblingVisitor ? profileManager.getSiblingVisitor() : null;
+        const homeBtn = document.getElementById('btnSiblingVisitorHome');
+        const townBtn = document.getElementById('townSiblingVisitor');
+        if (!visitor) {
+            if (homeBtn) homeBtn.style.display = 'none';
+            if (townBtn) townBtn.style.display = 'none';
+            return;
+        }
+
+        if (homeBtn) {
+            homeBtn.style.display = 'flex';
+            homeBtn.classList.toggle('has-gift', !visitor.giftClaimedToday);
+            const img = document.getElementById('siblingHomePetImg');
+            const title = document.getElementById('siblingHomeTitle');
+            const sub = document.getElementById('siblingHomeSub');
+            if (img) img.src = visitor.petMeta.img;
+            if (title) title.textContent = `${visitor.siblingAvatar} ${visitor.siblingName}来串门`;
+            if (sub) {
+                sub.textContent = visitor.giftClaimedToday
+                    ? `💞 ${visitor.petMeta.name} Lv.${visitor.petLevel} 陪你玩`
+                    : `💌 点我打招呼领 +2⭐`;
+            }
+        }
+
+        if (townBtn) {
+            townBtn.style.display = 'flex';
+            const tImg = document.getElementById('townSiblingPetImg');
+            const tTitle = document.getElementById('townSiblingTitle');
+            const tCta = document.getElementById('townSiblingCta');
+            if (tImg) tImg.src = visitor.petMeta.img;
+            if (tTitle) tTitle.textContent = `${visitor.siblingAvatar} ${visitor.siblingName}带着【${visitor.petMeta.name} Lv.${visitor.petLevel}】来串门`;
+            if (tCta) {
+                tCta.textContent = visitor.giftClaimedToday
+                    ? `✨ 今日友谊星礼已领 · 点击互动问好`
+                    : `💌 点击打招呼领 +2⭐ 友谊星`;
+            }
+        }
+    }
+
+    handleSiblingVisitTap(evt) {
+        const visitor = profileManager.getSiblingVisitor ? profileManager.getSiblingVisitor() : null;
+        if (!visitor) return;
+        const cx = (evt && evt.clientX) || window.innerWidth * 0.52;
+        const cy = (evt && evt.clientY) || window.innerHeight * 0.62;
+        soundEngine.speakEnglish(visitor.petMeta.enGreeting || 'Hello friend!', false);
+
+        const res = profileManager.claimSiblingVisitGift ? profileManager.claimSiblingVisitGift() : { ok: false };
+        if (res.ok) {
+            soundEngine.playLevelUp();
+            this.fx.spawnBurst(cx, cy, 38);
+            const badgeBox = document.getElementById('hudBadgeBox');
+            if (evt?.currentTarget && badgeBox && res.rewardRes?.grantedBadges > 0) {
+                this.fx.flyBadges(evt.currentTarget, badgeBox, res.rewardRes.grantedBadges);
+            }
+            this.renderAll();
+            const extraBadgeMsg = res.rewardRes?.grantedBadges > 0
+                ? `<div style="margin-top:6px; color:#d97706; font-weight:900;">🎉 集满3颗星，直接合成 +${res.rewardRes.grantedBadges} 枚荣誉徽章 🏅！</div>`
+                : `<div style="margin-top:6px; color:#7c5cfc; font-weight:800;">⭐ 已存入 +2 颗今日学习星（再答对 1 题即可合成徽章）！</div>`;
+            this.showQuickModal(
+                '💌 双宝串门惊喜礼物！',
+                `<div style="text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px; padding:6px 0;">
+                    <img src="${visitor.petMeta.img}" alt="${visitor.petMeta.name}" style="width:108px; height:108px; object-fit:contain;" />
+                    <div style="font-size:16px; font-weight:900; color:#4c1d95;">
+                        ${visitor.siblingAvatar} ${visitor.siblingName}的【${visitor.petMeta.name} Lv.${visitor.petLevel}】来串门啦！
+                    </div>
+                    <div style="font-size:13px; color:#5b4f7a;">
+                        “嗨！我是${visitor.siblingName}养在【${visitor.shopName}】的小伙伴，送你今日友谊星星！”
+                    </div>
+                    ${extraBadgeMsg}
+                </div>`
+            );
+        } else {
+            soundEngine.playFeed();
+            this.fx.spawnBurst(cx, cy, 16);
+            this.showQuickToast(
+                `${visitor.siblingAvatar} ${visitor.siblingName}的小伙伴向你挥手`,
+                `🐾 <strong>${visitor.petMeta.name} (Lv.${visitor.petLevel})</strong> 说：“"${visitor.petMeta.enGreeting}"”<br/>${res.msg || '明天再来领串门小星星吧！'}`
+            );
+        }
     }
 
     renderTopHud() {
@@ -1792,6 +1888,14 @@ class PetWonderTownApp {
             soundEngine.playTap();
             this.switchWorldView('town');
         };
+        const btnSibHome = document.getElementById('btnSiblingVisitorHome');
+        if (btnSibHome) {
+            btnSibHome.onclick = (e) => this.handleSiblingVisitTap(e);
+        }
+        const btnSibTown = document.getElementById('townSiblingVisitor');
+        if (btnSibTown) {
+            btnSibTown.onclick = (e) => this.handleSiblingVisitTap(e);
+        }
 
         // 主页三大成长账本切换 (得分记录 | 徽章流水 | 毕业记录)
         document.querySelectorAll('.rec-tab-btn').forEach(btn => {
@@ -2045,16 +2149,25 @@ class PetWonderTownApp {
         };
 
         document.getElementById('btnDeleteKid').onclick = () => {
-            if (profileManager.deleteUser(this.editingUserId)) {
-                soundEngine.playTap();
-                const cur = profileManager.getActiveUser();
-                this.syncEnginesWithActiveUser();
-                this.loadUserIntoDraft(cur);
-                this.renderAll();
-            }
+            const target = profileManager.getUser(this.editingUserId);
+            if (!target) return;
+            requireParentGate(() => {
+                if (!window.confirm(`确定要删除【${target.name}】的档案吗？`)) return;
+                if (profileManager.deleteUser(this.editingUserId)) {
+                    soundEngine.playTap();
+                    const cur = profileManager.getActiveUser();
+                    this.syncEnginesWithActiveUser();
+                    this.loadUserIntoDraft(cur);
+                    this.renderAll();
+                }
+            }, { profileManager, title: '🔒 家长确认：删除小店长档案' });
         };
 
-        document.getElementById('btnSaveProfile').onclick = () => this.saveProfileModal();
+        document.getElementById('btnSaveProfile').onclick = () => {
+            requireParentGate(() => {
+                this.saveProfileModal();
+            }, { profileManager, title: '🔒 家长验证：保存难度与上限设置' });
+        };
 
         // 单词收集册 vs 错题本选项卡
         document.querySelectorAll('.rep-tab-btn').forEach(btn => {

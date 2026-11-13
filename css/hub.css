@@ -144,6 +144,23 @@ html, body {
 .hub-btn-report {
     background: linear-gradient(180deg, #a29bfe 0%, #6c5ce7 100%);
     color: #fff;
+    position: relative;
+}
+
+.hub-btn-backup {
+    background: linear-gradient(180deg, #74b9ff 0%, #0984e3 100%);
+    color: #fff;
+}
+
+.hub-mistake-dot {
+    background: #ff4757;
+    color: #fff;
+    border: 1.5px solid #fff;
+    border-radius: 999px;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: 900;
+    line-height: 16px;
 }
 
 .hub-btn-settings {
@@ -706,4 +723,161 @@ html, body {
     .card-body { padding: 10px 14px 12px; }
     .card-game-title { font-size: 18px; }
     .card-play-btn { padding: 8px 12px; font-size: 15px; }
+}
+
+/* ==================== 5. 错题重练消消乐与存档备份中心 ==================== */
+.hub-report-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.hub-btn-start-practice {
+    background: linear-gradient(180deg, #ff9f43 0%, #ee5253 100%);
+    color: #fff;
+    border: 2.5px solid #4e342e;
+    border-radius: 999px;
+    padding: 7px 16px;
+    font-family: inherit;
+    font-size: 13.5px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #4e342e;
+}
+
+.hub-practice-stage {
+    background: linear-gradient(160deg, #214d38 0%, #163627 100%);
+    border: 4px solid #8d5524;
+    border-radius: 22px;
+    padding: 14px 18px;
+    margin-bottom: 12px;
+    color: #fff;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+.hub-prac-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 800;
+    color: #ffeaa7;
+    margin-bottom: 8px;
+}
+
+.hub-prac-question {
+    font-size: 26px;
+    font-weight: 900;
+    text-align: center;
+    padding: 10px 12px;
+    background: rgba(0, 0, 0, 0.24);
+    border-radius: 14px;
+    margin-bottom: 10px;
+    letter-spacing: 0.5px;
+}
+
+.hub-prac-input-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 8px;
+}
+
+.hub-prac-ans-display {
+    min-width: 140px;
+    height: 40px;
+    border-radius: 12px;
+    border: 2px solid #ffeaa7;
+    background: rgba(255, 255, 255, 0.95);
+    color: #2d3436;
+    font-size: 21px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+}
+
+.hub-prac-keypad {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 6px;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+.hub-prac-key {
+    height: 38px;
+    border-radius: 10px;
+    border: 2px solid #4e342e;
+    background: #fff9e6;
+    color: #3d2200;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 2px 0 #4e342e;
+}
+
+.hub-prac-en-opts {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.hub-prac-en-btn {
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.hub-prac-en-btn.correct {
+    background: #00b894;
+    border-color: #fff;
+}
+
+.hub-prac-en-btn.wrong {
+    background: #d63031;
+    border-color: #fff;
+}
+
+.hub-prac-feedback {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 800;
+    min-height: 20px;
+    margin-top: 8px;
+    color: #55efc4;
+}
+
+.hub-backup-textarea {
+    width: 100%;
+    height: 76px;
+    border-radius: 12px;
+    border: 2px solid #dcdde1;
+    padding: 8px 10px;
+    font-family: monospace;
+    font-size: 12px;
+    resize: none;
+    user-select: text;
+    background: #f8f9fa;
+    color: #2d3436;
+}
+
+.hub-backup-msg {
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 800;
+    color: #00b894;
+    min-height: 18px;
 }

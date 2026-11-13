@@ -11,17 +11,20 @@ import {
     MATH_RANGES, 
     MULTIPLIER_RANGES,
     DEFAULT_USER_PROFILES 
-} from './config.js?v=20261113_carrot_concise_v1';
-import { LEVEL_CONFIGS } from './map.js?v=20261113_carrot_concise_v1';
-import { sound } from './audio.js?v=20261113_carrot_concise_v1';
-import { assetsManager } from './assetsLoader.js?v=20261113_carrot_concise_v1';
-import { MathEngine } from './mathEngine.js?v=20261113_carrot_concise_v1';
-import { GameEngine } from './gameEngine.js?v=20261113_carrot_concise_v1';
-import { MapEditor } from './editor.js?v=20261113_carrot_concise_v1';
-import { LevelSelectManager } from './levelSelect.js?v=20261113_carrot_concise_v1';
+} from './config.js?v=20261113_opt_v1';
+import { LEVEL_CONFIGS, ensureStageConfigLoaded } from './map.js?v=20261113_opt_v1';
+import { sound } from './audio.js?v=20261113_opt_v1';
+import { assetsManager } from './assetsLoader.js?v=20261113_opt_v1';
+import { MathEngine } from './mathEngine.js?v=20261113_opt_v1';
+import { GameEngine } from './gameEngine.js?v=20261113_opt_v1';
+import { MapEditor } from './editor.js?v=20261113_opt_v1';
+import { LevelSelectManager } from './levelSelect.js?v=20261113_opt_v1';
 import { profileManager } from '../../shared/unifiedProfile.js';
 import { SmartChalkboard } from '../../shared/smartChalkboard.js';
 import { sharedSpeech } from '../../shared/audioTTS.js';
+import { ENGLISH_LEVELS, WORD_PACKS, ALL_WORDS } from '../../shared/englishEngine.js';
+import { DAILY_BADGE_CAP_OPTIONS } from '../../pet/js/config.js';
+import { requireParentGate } from '../../shared/parentGate.js';
 
 // DOM 元素
 const canvas = document.getElementById('battleCanvas');
@@ -459,6 +462,11 @@ const smartBoard = new SmartChalkboard({
     mathEngine,
     profileManager,
     onSoundResume: () => sound.resumeContext(),
+    shouldConfirmExit: () => Boolean(
+        gameEngine &&
+        (gameEngine.state === 'WAVE_RUNNING' || gameEngine.state === 'PREP') &&
+        gameEngine.wave >= 2
+    ),
     onEnglishBattleResult: (battleRes, meta) => {
         if (battleRes.correct) {
             feedbackMsg.className = 'bb-feedback correct';
@@ -1320,7 +1328,17 @@ window.addEventListener('resize', () => fitToScreen());
 window.addEventListener('orientationchange', () => {
     setTimeout(() => fitToScreen(), 200);
 });
-export const levelSelectManager = new LevelSelectManager(sound, (stageNum) => {
+export const levelSelectManager = new LevelSelectManager(sound, async (stageNum) => {
+    if (
+        gameEngine &&
+        (gameEngine.state === 'WAVE_RUNNING' || gameEngine.state === 'PREP') &&
+        gameEngine.wave >= 2 &&
+        stageNum !== gameEngine.currentLevel
+    ) {
+        if (!confirm('当前关卡已战斗多波，确定要放弃本局进度切换到新关卡吗？')) {
+            return;
+        }
+    }
     startModal.classList.remove('show');
     endModal.classList.remove('show');
     const user = profileManager.getActiveUser();
@@ -1329,7 +1347,7 @@ export const levelSelectManager = new LevelSelectManager(sound, (stageNum) => {
     }
     syncUserProfileUI();
     updateQuestionUI();
-    switchLevel(stageNum);
+    await switchLevel(stageNum, true);
 });
 
 function openLevelSelectModal() {
@@ -1343,9 +1361,95 @@ function closeLevelSelectModal() {
     levelSelectManager.close();
 }
 
-// 关卡切换调度函数 (支持 1 ~ 48 全关卡)
-function switchLevel(lvl) {
+// 防御塔能力图鉴与新解锁炮塔引导弹窗
+const btnTowerAlmanac = document.getElementById('btnTowerAlmanac');
+const towerAlmanacModal = document.getElementById('towerAlmanacModal');
+const towerAlmanacTitle = document.getElementById('towerAlmanacTitle');
+const towerAlmanacSub = document.getElementById('towerAlmanacSub');
+const towerAlmanacGrid = document.getElementById('towerAlmanacGrid');
+const btnCloseTowerAlmanac = document.getElementById('btnCloseTowerAlmanac');
+
+function openTowerAlmanac(highlightKeys = null, isNewUnlock = false) {
+    if (!towerAlmanacModal || !towerAlmanacGrid) return;
+    const keysToShow = (Array.isArray(highlightKeys) && highlightKeys.length > 0)
+        ? highlightKeys
+        : Object.keys(TOWER_TYPES);
+
+    if (towerAlmanacTitle) {
+        towerAlmanacTitle.textContent = isNewUnlock
+            ? '✨ 解锁新防御塔啦！'
+            : '📖 保卫萝卜 · 18种防御塔全图鉴';
+    }
+    if (towerAlmanacSub) {
+        const curAllowed = new Set(gameEngine?.map?.currentLevelConfig?.availableTowers || []);
+        towerAlmanacSub.textContent = isNewUnlock
+            ? '快看看本关新登场的强力伙伴有什么独门本领吧！'
+            : `绿框标注为本关可直接建造的炮塔（打碎深海贝壳/宝箱还可能爆出隐藏神塔哦！）`;
+        towerAlmanacGrid.innerHTML = keysToShow.map(k => {
+            const t = TOWER_TYPES[k];
+            if (!t) return '';
+            const iconSrc = officialTowerIcons[t.id] || '';
+            const inThisStage = curAllowed.has(k);
+            return `
+                <div style="display:flex;gap:10px;align-items:center;background:#fffdf6;border:2.5px solid ${inThisStage ? '#2ed573' : '#e5d5b5'};border-radius:16px;padding:10px 12px;text-align:left;">
+                    <img src="${iconSrc}" alt="${t.name}" style="width:52px;height:52px;object-fit:contain;flex-shrink:0;" />
+                    <div>
+                        <div style="font-size:15px;font-weight:900;color:#3d2200;">
+                            ${t.symbol} ${t.name}
+                            <span style="font-size:12px;color:#e67e22;">🪙${t.cost}</span>
+                            ${inThisStage ? '<span style="font-size:11px;background:#e8f8f5;color:#00b894;padding:1px 6px;border-radius:99px;">本关可用</span>' : ''}
+                        </div>
+                        <div style="font-size:12px;color:#636e72;line-height:1.35;margin-top:3px;">${t.desc}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    towerAlmanacModal.classList.add('show');
+}
+
+if (btnTowerAlmanac) {
+    btnTowerAlmanac.addEventListener('click', () => {
+        sound.resumeContext();
+        sound.play('MenuSelect');
+        openTowerAlmanac(null, false);
+    });
+}
+if (btnCloseTowerAlmanac) {
+    btnCloseTowerAlmanac.addEventListener('click', () => {
+        sound.resumeContext();
+        towerAlmanacModal?.classList.remove('show');
+    });
+}
+if (towerAlmanacModal) {
+    towerAlmanacModal.addEventListener('click', (e) => {
+        if (e.target === towerAlmanacModal) towerAlmanacModal.classList.remove('show');
+    });
+}
+
+function checkNewTowerAlmanacForStage(lvl) {
+    const cfg = LEVEL_CONFIGS[lvl];
+    if (!cfg || !Array.isArray(cfg.availableTowers)) return;
+    const u = profileManager.getActiveUser();
+    // 第1关默认将初始双塔标记为已认识，不额外遮挡开局倒计时；从第2关起遇到新炮塔弹出趣味图鉴卡！
+    if ((u?.carrotSeenTowers?.length || 0) === 0 && lvl === 1) {
+        profileManager.markCarrotTowersSeen(cfg.availableTowers);
+        return;
+    }
+    const newlySeen = profileManager.markCarrotTowersSeen(cfg.availableTowers);
+    if (newlySeen.length > 0) {
+        openTowerAlmanac(newlySeen, true);
+    }
+}
+
+// 关卡切换调度函数 (支持 1 ~ 48 全关卡按需分片秒载)
+async function switchLevel(lvl, checkNewTowers = false, persistToProfile = true) {
     sound.resumeContext();
+    await ensureStageConfigLoaded(lvl);
+    if (persistToProfile) {
+        profileManager.setLastCarrotStage(lvl);
+    }
+    levelSelectManager.activeStageNum = lvl;
     gameEngine.loadLevel(lvl);
     renderBubbleButtons();
     if (mapEditor && mapEditor.isEditing) {
@@ -1366,6 +1470,9 @@ function switchLevel(lvl) {
     });
     rabbitTalk.textContent = `第 ${displayLevelName} 关加油！🥕`;
     frogTalk.textContent = `呱！${displayLevelName} 关开战！`;
+    if (checkNewTowers) {
+        checkNewTowerAlmanacForStage(lvl);
+    }
 }
 
 // 绑定关卡弹窗触发
@@ -1391,11 +1498,11 @@ if (btnToggleEditor) {
 }
 
 if (btnNextLevel) {
-    btnNextLevel.addEventListener('click', () => {
+    btnNextLevel.addEventListener('click', async () => {
         sound.resumeContext();
         endModal.classList.remove('show');
         const nextLvl = gameEngine.currentLevel < 48 ? gameEngine.currentLevel + 1 : 1;
-        switchLevel(nextLvl);
+        await switchLevel(nextLvl, true);
     });
 }
 
@@ -1408,6 +1515,9 @@ let modalEditRange = 20;
 let modalEditMultiplier = 5;
 let modalEditTab = 'custom';
 let modalEditPreset = 'grade1_2';
+let modalEditEnLevel = 'level2_match';
+let modalEditEnPack = 'all';
+let modalEditDailyCap = 30;
 
 function syncUserProfileUI() {
     const user = profileManager.getActiveUser();
@@ -1477,6 +1587,11 @@ function renderKidProfilesBar() {
             updateQuestionUI();
             populateUserForm(u, false);
             renderKidProfilesBar();
+            // 同步切换到该小朋友上次挑战的保卫萝卜关卡
+            const targetStage = u.lastCarrotStage || 1;
+            if (gameEngine && gameEngine.currentLevel !== targetStage && gameEngine.state !== 'WAVE_RUNNING') {
+                switchLevel(targetStage, false, false);
+            }
         });
         kidProfilesList.appendChild(tab);
     });
@@ -1488,6 +1603,9 @@ function populateUserForm(user, isNew = false) {
     modalEditRange = user.difficulty?.range || 20;
     modalEditMultiplier = user.difficulty?.maxMultiplier || 5;
     modalEditPreset = user.difficulty?.presetGrade || 'grade1_2';
+    modalEditEnLevel = user.englishConfig?.level || 'level2_match';
+    modalEditEnPack = user.englishConfig?.packId || 'all';
+    modalEditDailyCap = user.dailyBadgeCap || 30;
 
     // 填入名字
     if (inputKidName) {
@@ -1613,6 +1731,54 @@ function populateUserForm(user, isNew = false) {
             presetGradeCards.appendChild(card);
         });
     }
+
+    // 渲染少儿英语题型、词包与每日徽章上限（与大厅/萌宠店/PVZ 100%对齐）
+    const enLevelGrid = document.getElementById('carrotEnLevelGrid');
+    if (enLevelGrid) {
+        enLevelGrid.innerHTML = '';
+        Object.values(ENGLISH_LEVELS).forEach(lvl => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `range-chip ${lvl.id === modalEditEnLevel ? 'selected' : ''}`;
+            btn.textContent = lvl.name;
+            btn.addEventListener('click', () => {
+                modalEditEnLevel = lvl.id;
+                enLevelGrid.querySelectorAll('.range-chip').forEach(c => c.classList.remove('selected'));
+                btn.classList.add('selected');
+            });
+            enLevelGrid.appendChild(btn);
+        });
+    }
+
+    const enPackSelect = document.getElementById('carrotEnPackSelect');
+    if (enPackSelect) {
+        const packOpts = [
+            `<option value="all">📚 全部12主题 (${ALL_WORDS.length}词)</option>`,
+            ...WORD_PACKS.map(p => `<option value="${p.id}">${p.icon} ${p.name}</option>`)
+        ].join('');
+        enPackSelect.innerHTML = packOpts;
+        enPackSelect.value = modalEditEnPack;
+        enPackSelect.onchange = () => {
+            modalEditEnPack = enPackSelect.value;
+        };
+    }
+
+    const capGrid = document.getElementById('carrotDailyCapGrid');
+    if (capGrid) {
+        capGrid.innerHTML = '';
+        DAILY_BADGE_CAP_OPTIONS.forEach(cap => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `range-chip ${cap === modalEditDailyCap ? 'selected' : ''}`;
+            btn.textContent = `每日上限 ${cap}🏅`;
+            btn.addEventListener('click', () => {
+                modalEditDailyCap = cap;
+                capGrid.querySelectorAll('.range-chip').forEach(c => c.classList.remove('selected'));
+                btn.classList.add('selected');
+            });
+            capGrid.appendChild(btn);
+        });
+    }
 }
 
 function openUserProfileModal(targetUserId = null) {
@@ -1681,18 +1847,27 @@ function saveUserProfileModal() {
         };
     }
 
+    const englishConfig = {
+        level: modalEditEnLevel || 'level2_match',
+        packId: modalEditEnPack || 'all'
+    };
+
     if (isNew) {
         const created = profileManager.addUser({
             name,
             avatar,
-            difficulty: diff
+            difficulty: diff,
+            englishConfig
         });
+        profileManager.updateUserSettings(created.id, { dailyBadgeCap: modalEditDailyCap });
         profileManager.setActiveUser(created.id);
     } else {
-        profileManager.updateUser(editingUserId, {
+        profileManager.updateUserSettings(editingUserId, {
             name,
             avatar,
-            difficulty: diff
+            dailyBadgeCap: modalEditDailyCap,
+            difficulty: diff,
+            englishConfig
         });
         profileManager.setActiveUser(editingUserId);
     }
@@ -1751,16 +1926,18 @@ if (btnDeleteKid) btnDeleteKid.addEventListener('click', () => {
     if (editingUserId && editingUserId !== '__NEW__') {
         const target = profileManager.getUser(editingUserId);
         if (!target) return;
-        if (confirm(`确定要删除小朋友【${target.name}】的档案吗？`)) {
-            profileManager.deleteUser(editingUserId);
-            const active = profileManager.getActiveUser();
-            editingUserId = active.id;
-            mathEngine.setDifficulty(active.difficulty);
-            syncUserProfileUI();
-            updateQuestionUI();
-            populateUserForm(active, false);
-            renderKidProfilesBar();
-        }
+        requireParentGate(() => {
+            if (confirm(`确定要删除小朋友【${target.name}】的档案吗？`)) {
+                profileManager.deleteUser(editingUserId);
+                const active = profileManager.getActiveUser();
+                editingUserId = active.id;
+                mathEngine.setDifficulty(active.difficulty);
+                syncUserProfileUI();
+                updateQuestionUI();
+                populateUserForm(active, false);
+                renderKidProfilesBar();
+            }
+        }, { profileManager, actionLabel: '删除档案需家长确认' });
     }
 });
 if (questionHint) questionHint.addEventListener('click', () => openUserProfileModal());
@@ -1771,7 +1948,12 @@ if (btnBbKidGear) btnBbKidGear.addEventListener('click', (e) => {
 });
 if (btnCloseProfileModal) btnCloseProfileModal.addEventListener('click', closeUserProfileModal);
 if (btnCancelUserProfile) btnCancelUserProfile.addEventListener('click', closeUserProfileModal);
-if (btnSaveUserProfile) btnSaveUserProfile.addEventListener('click', saveUserProfileModal);
+if (btnSaveUserProfile) btnSaveUserProfile.addEventListener('click', () => {
+    requireParentGate(() => saveUserProfileModal(), {
+        profileManager,
+        actionLabel: '保存难度与每日上限修改'
+    });
+});
 if (tabBtnCustom) tabBtnCustom.addEventListener('click', () => switchProfileTab('custom'));
 if (tabBtnPreset) tabBtnPreset.addEventListener('click', () => switchProfileTab('preset'));
 if (userProfileModal) {
@@ -1780,34 +1962,40 @@ if (userProfileModal) {
     });
 }
 
-// 难度选择 (StartModal 快捷卡片)
+// 难度选择 (StartModal 快捷卡片 — 家长守护验证防误点改简单)
 diffCards.forEach(card => {
     card.addEventListener('click', () => {
-        diffCards.forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
         const diffKey = card.dataset.diff;
-        const pLvl = DIFFICULTY_LEVELS[diffKey];
-        const newDiff = {
-            mode: 'preset',
-            presetGrade: diffKey,
-            maxMultiplier: pLvl?.defaultMultiplier || 5
-        };
-        profileManager.updateActiveUser({ difficulty: newDiff });
-        mathEngine.setDifficulty(newDiff);
-        syncUserProfileUI();
-        updateQuestionUI();
+        const curDiff = profileManager.getActiveUser()?.difficulty;
+        if (curDiff?.mode === 'preset' && curDiff?.presetGrade === diffKey) return;
+        requireParentGate(() => {
+            diffCards.forEach(c => c.classList.remove('selected'));
+            card.classList.add('selected');
+            const pLvl = DIFFICULTY_LEVELS[diffKey];
+            const newDiff = {
+                mode: 'preset',
+                presetGrade: diffKey,
+                maxMultiplier: pLvl?.defaultMultiplier || 5
+            };
+            profileManager.updateActiveUser({ difficulty: newDiff });
+            mathEngine.setDifficulty(newDiff);
+            syncUserProfileUI();
+            updateQuestionUI();
+        }, { profileManager, actionLabel: '切换预设年级难度需家长确认' });
     });
 });
 
 // 开始游戏
-btnStartGame.addEventListener('click', () => {
+btnStartGame.addEventListener('click', async () => {
     sound.resumeContext();
     startModal.classList.remove('show');
     const user = profileManager.getActiveUser();
     mathEngine.setDifficulty(user.difficulty);
     syncUserProfileUI();
     updateQuestionUI();
+    await ensureStageConfigLoaded(gameEngine.currentLevel || 1);
     gameEngine.startNewGame();
+    checkNewTowerAlmanacForStage(gameEngine.currentLevel || 1);
 });
 
 // 再来一局
@@ -1857,6 +2045,14 @@ window.addEventListener('pageshow', (e) => {
 fitToScreen();
 mathEngine.nextQuestion();
 updateQuestionUI();
+
+// 自动恢复当前宝贝上次挑战的保卫萝卜关卡
+const resumeStage = initialUser?.lastCarrotStage || 1;
+if (resumeStage > 1) {
+    switchLevel(resumeStage, false, false);
+} else {
+    switchLevel(1, false, false);
+}
 
 assetsManager.loadAll().then(() => {
     console.log('Carrot Fantasy 商业级贴图资源已全部就绪！');

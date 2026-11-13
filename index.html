@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>奇趣数英游乐园 · 三合一儿童学习大厅 (iPad版)</title>
-    <meta name="description" content="小豌豆与川川的专属三合一数英游乐园！奇妙萌宠店长 + 保卫兔蛙塔防 + 植物大战僵尸，统一档案、每日徽章上限、乘除应用题、数据统计图与少儿英语背单词！">
+    <meta name="description" content="小豌豆与川川的专属三合一数英游乐园！奇妙萌宠店长 + 保卫兔蛙塔防 + 植物大战僵尸，统一档案、每日徽章上限、错题重练、乘除应用题、数据统计图与216词少儿英语！">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -16,7 +16,7 @@
     <meta name="theme-color" content="#7c5cfc">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/hub.css?v=20261113_3in1_v1">
+    <link rel="stylesheet" href="css/hub.css?v=20261113_opt_v1">
 </head>
 <body>
     <div class="hub-app" id="hubApp">
@@ -26,23 +26,28 @@
                 <img src="apple-touch-icon.png" alt="Logo" class="hub-brand-logo" />
                 <div>
                     <div class="hub-brand-title">🎠 奇趣数英游乐园 · 三合一学习大厅</div>
-                    <div class="hub-brand-sub">三款游戏共用同一套难度、错题单词本与每日萌宠徽章！</div>
+                    <div class="hub-brand-sub">双宝独立闯关奖杯 · 216词分级英语 · 错题重练 · 跨游互通！</div>
                 </div>
             </div>
 
-            <!-- 小豌豆 / 川川 一键切换胶囊 -->
+            <!-- 小豌豆 / 川川 一键免密切换胶囊 -->
             <div class="hub-kids-switcher" id="hubKidsSwitcher">
                 <!-- 由 js/hub.js 动态渲染 -->
             </div>
 
             <div class="hub-header-actions">
-                <button type="button" class="hub-action-pill hub-btn-report" id="btnHubReport">
+                <button type="button" class="hub-action-pill hub-btn-report" id="btnHubReport" title="查看错题本、单词掌握度并一键重练消灭错题">
                     <span>📒</span>
-                    <span>统一错题·单词本</span>
+                    <span>错题重练·单词本</span>
+                    <span class="hub-mistake-dot" id="hubMistakeBadge" style="display:none;">0</span>
                 </button>
-                <button type="button" class="hub-action-pill hub-btn-settings" id="btnHubSettings">
-                    <span>⚙️</span>
-                    <span>数英难度·上限</span>
+                <button type="button" class="hub-action-pill hub-btn-backup" id="btnHubBackup" title="导出/导入存档备份码，多iPad同步防丢失">
+                    <span>📦</span>
+                    <span>存档备份</span>
+                </button>
+                <button type="button" class="hub-action-pill hub-btn-settings" id="btnHubSettings" title="家长守护验证后设置数英难度与每日上限">
+                    <span>🔒</span>
+                    <span>家长设置</span>
                 </button>
                 <button type="button" class="hub-action-pill hub-btn-fullscreen" id="btnHubFullscreen" title="全屏沉浸模式">⛶</button>
             </div>
@@ -59,7 +64,7 @@
                         <span class="banner-diff-pill" id="bannerEnSummary">🔤 英语：看图识词</span>
                     </div>
                     <div class="banner-sub-hint" id="bannerSubHint">
-                        ✨ 在下方任意一款游戏答对数学、应用题、图表或背单词，都能自动累积今日萌宠徽章回小镇喂兔兔与小青蛙！
+                        ✨ 在下方任意游戏答题闯关均可累积今日萌宠徽章，历史错题还会在闯关时智能重温哦！
                     </div>
                 </div>
             </div>
@@ -103,7 +108,7 @@
                 <div class="card-hero-art">
                     <img src="pet/assets/town/town_bg.jpg" alt="海滨小镇" class="card-bg-cover" />
                     <span class="card-ribbon-tag">🐾 电子萌宠养成 · 小镇开店</span>
-                    <span class="card-new-upgrade-pill">🐰🐸 双首发免费</span>
+                    <span class="card-new-upgrade-pill">💌 双宝串门彩蛋</span>
                     <div class="card-characters-cluster">
                         <img src="pet/assets/pets/rabbit.png" alt="垂耳兔" class="hero-char-img" />
                         <img src="pet/assets/shops/supermarket_lv5.png" alt="阳光超市" class="hero-char-img secondary" />
@@ -113,12 +118,12 @@
                 <div class="card-body">
                     <div>
                         <h2 class="card-game-title">奇妙萌宠店长：数英星语镇</h2>
-                        <p class="card-game-desc">用各游戏赚来的徽章投喂垂耳兔、小青蛙与神兽，升至 Lv.5 毕业去海滨小镇开甜品店、汉堡店，抽太空盲盒！</p>
+                        <p class="card-game-desc">用各游戏赚来的徽章投喂垂耳兔、小青蛙与神兽，升至 Lv.5 毕业去海滨小镇开甜品店，小豌豆与川川还能互相串门送礼！</p>
                         <div class="card-subjects-row">
                             <span class="subj-badge subj-calc">⚡ 心算口算</span>
                             <span class="subj-badge subj-word">📖 乘除应用题</span>
                             <span class="subj-badge subj-data">📊 数据统计图</span>
-                            <span class="subj-badge subj-en">🔤 英语背单词</span>
+                            <span class="subj-badge subj-en">🔤 12主题背单词</span>
                         </div>
                     </div>
                     <div>
@@ -136,17 +141,17 @@
                 <div class="card-hero-art">
                     <img src="carrot/assets/official/stage1_full_map.png" alt="森林塔防地图" class="card-bg-cover" />
                     <span class="card-ribbon-tag">🥕 4大主题48关 · 策略塔防</span>
-                    <span class="card-new-upgrade-pill">✨ 新增应用题/图表/英语</span>
+                    <span class="card-new-upgrade-pill">🥇 独立金萝卜奖章</span>
                     <div class="card-characters-cluster">
                         <img src="carrot/assets/official/towers/icons/sun_icon.png" alt="太阳花塔" class="hero-char-img secondary" />
-                        <img src="carrot/assets/official/select/trophy_carrot.png" alt="金萝卜奖杯" class="hero-char-img" />
+                        <img src="carrot/assets/official/trophy_carrot.png" alt="金萝卜奖杯" class="hero-char-img" />
                         <img src="carrot/assets/official/towers/icons/rocket_icon.png" alt="火箭塔" class="hero-char-img secondary" />
                     </div>
                 </div>
                 <div class="card-body">
                     <div>
                         <h2 class="card-game-title">保卫兔子与青蛙！奇趣塔防</h2>
-                        <p class="card-game-desc">就地弹出气泡召唤太阳花、火箭塔！小黑板现已全面升级口算、乘除应用题、图表与背单词，答对掉金币破怪兽护盾！</p>
+                        <p class="card-game-desc">48关简洁秒选 + 新炮塔解锁图鉴！小黑板全通口算、乘除应用题、图表与216词英语，每位宝贝独立记录金萝卜与全清奖章！</p>
                         <div class="card-subjects-row">
                             <span class="subj-badge subj-calc">⚡ 弱点破盾口算</span>
                             <span class="subj-badge subj-word">📖 乘除应用(1.5倍G)</span>
@@ -156,8 +161,8 @@
                     </div>
                     <div>
                         <div class="card-live-progress" id="liveStatCarrot">
-                            <span>⚔️ 累计答对：0题</span>
-                            <span>🏅 同步掉萌宠徽章</span>
+                            <span>🥕 闯关 0/48 · 🥇0</span>
+                            <span>🎯 答对 0 题</span>
                         </div>
                         <div class="card-play-btn btn-play-carrot">出击兔蛙塔防 🏹</div>
                     </div>
@@ -169,7 +174,7 @@
                 <div class="card-hero-art">
                     <img src="pvz/assets/backgrounds/day_5row_viewport.jpg" alt="后院草坪" class="card-bg-cover" />
                     <span class="card-ribbon-tag">🌻 50关全场景 + 泳池无尽</span>
-                    <span class="card-new-upgrade-pill">✨ 新增应用题/图表/英语</span>
+                    <span class="card-new-upgrade-pill">⚡ 新增2倍速·通关杯</span>
                     <div class="card-characters-cluster">
                         <img src="pvz/assets/plants/sunflower.gif" alt="向日葵" class="hero-char-img secondary" />
                         <img src="pvz/assets/plants/peashooter.gif" alt="豌豆射手" class="hero-char-img" />
@@ -179,7 +184,7 @@
                 <div class="card-body">
                     <div>
                         <h2 class="card-game-title">植物大战僵尸：数英大作战</h2>
-                        <p class="card-game-desc">白天、黑夜、泳池、浓雾、屋顶与生存无尽！右侧黑板自由切换口算、应用题、统计图与英语闯关，召唤大阳光与全屏大招！</p>
+                        <p class="card-game-desc">白天、黑夜、泳池、浓雾、屋顶50关通关奖杯 + 2x二倍速爽快种花！右侧黑板答数英召唤大阳光与全屏雷击大招！</p>
                         <div class="card-subjects-row">
                             <span class="subj-badge subj-calc">⚡ 阳光口算</span>
                             <span class="subj-badge subj-word">📖 应用题破铁桶</span>
@@ -189,8 +194,8 @@
                     </div>
                     <div>
                         <div class="card-live-progress" id="liveStatPvz">
-                            <span>♾️ 无尽最高：0旗</span>
-                            <span>🏅 同步掉萌宠徽章</span>
+                            <span>🌻 冒险 0/50 · ♾️0旗</span>
+                            <span>🔤 掌握 0 词</span>
                         </div>
                         <div class="card-play-btn btn-play-pvz">保卫后院草坪 🌻</div>
                     </div>
@@ -199,11 +204,11 @@
         </main>
     </div>
 
-    <!-- ==================== 模态窗 1：全局统一小朋友档案 & 数英难度/每日上限设置 ==================== -->
+    <!-- ==================== 模态窗 1：全局统一小朋友档案 & 数英难度/每日上限/家长锁设置 ==================== -->
     <div class="hub-modal-overlay" id="hubSettingsModal">
         <div class="hub-modal-card">
             <div class="hub-modal-header">
-                <div class="hub-modal-title">⚙️ 全局小朋友档案 · 数英难度与每日上限设置</div>
+                <div class="hub-modal-title">⚙️ 家长管理中心 · 数英难度与每日上限设置</div>
                 <button type="button" class="hub-close-btn" id="btnCloseHubSettings">✕</button>
             </div>
 
@@ -224,7 +229,8 @@
             </div>
 
             <div class="hub-form-section">
-                <div class="hub-sec-label">3. 数学口算与应用题难度配置：</div>
+                <div class="hub-sec-label">3. 数学口算与应用题难度配置（完整同步进退位与凑数填空开关）：</div>
+                <div class="hub-pill-row" id="hubMathPresetRow" style="margin-bottom:8px;"></div>
                 <div class="hub-pill-row" id="hubMathOpsRow" style="margin-bottom:8px;">
                     <button type="button" class="hub-opt-pill" data-op="add">➕ 加法</button>
                     <button type="button" class="hub-opt-pill" data-op="sub">➖ 减法</button>
@@ -232,13 +238,23 @@
                     <button type="button" class="hub-opt-pill" data-op="div">➗ 除法</button>
                 </div>
                 <div class="hub-pill-row" id="hubMathRangeRow" style="margin-bottom:8px;"></div>
-                <div class="hub-pill-row" id="hubMathMultRow"></div>
+                <div class="hub-pill-row" id="hubMathMultRow" style="margin-bottom:8px;"></div>
+                <div class="hub-pill-row" id="hubMathExtraRow"></div>
             </div>
 
             <div class="hub-form-section">
-                <div class="hub-sec-label">4. 少儿英语默认题型与主题词包：</div>
+                <div class="hub-sec-label">4. 少儿英语默认题型与主题词包（12大主题·216核心词）：</div>
                 <div class="hub-pill-row" id="hubEnLevelRow" style="margin-bottom:8px;"></div>
                 <div class="hub-pill-row" id="hubEnPackRow"></div>
+            </div>
+
+            <div class="hub-form-section">
+                <div class="hub-sec-label">5. 🔒 家长防偷改守护锁（小朋友切账号免密，改难度/上限需验证）：</div>
+                <div class="hub-pill-row">
+                    <button type="button" class="hub-opt-pill" id="btnToggleParentLock">🔒 守护锁：已开启</button>
+                    <span style="font-size:12.5px;font-weight:800;color:#636e72;">可选4位PIN码(留空则用乘加口算题)：</span>
+                    <input type="text" id="hubInputParentPin" class="hub-name-input" style="width:110px;" maxlength="4" inputmode="numeric" placeholder="如 8866" />
+                </div>
             </div>
 
             <div class="hub-save-bar">
@@ -247,7 +263,7 @@
         </div>
     </div>
 
-    <!-- ==================== 模态窗 2：全局统一错题本 · 单词掌握册 · 跨游战报 ==================== -->
+    <!-- ==================== 模态窗 2：全局统一错题重练消消乐 · 单词掌握册 · 跨游战报 ==================== -->
     <div class="hub-modal-overlay" id="hubReportModal">
         <div class="hub-modal-card">
             <div class="hub-modal-header">
@@ -256,15 +272,58 @@
             </div>
 
             <div class="hub-report-tabs" id="hubReportTabs">
-                <button type="button" class="hub-rep-tab active" data-rtab="math">📕 数学错题本</button>
-                <button type="button" class="hub-rep-tab" data-rtab="english">🔤 英语生词与掌握度</button>
-                <button type="button" class="hub-rep-tab" data-rtab="records">🏅 跨游徽章与战报记录</button>
+                <button type="button" class="hub-rep-tab active" data-rtab="math">📕 数学错题重练</button>
+                <button type="button" class="hub-rep-tab" data-rtab="english">🔤 英语词库与弱项重练</button>
+                <button type="button" class="hub-rep-tab" data-rtab="records">🏅 跨游徽章与战报</button>
             </div>
 
+            <!-- 错题重练消消乐互动舞台（激活重练时展开） -->
+            <div class="hub-practice-stage" id="hubPracticeStage" style="display:none;"></div>
+
+            <div id="hubReportToolbar" class="hub-report-toolbar"></div>
             <div class="hub-list-container" id="hubReportList"></div>
         </div>
     </div>
 
-    <script type="module" src="js/hub.js?v=20261113_3in1_v1"></script>
+    <!-- ==================== 模态窗 3：存档备份码 / JSON 导入导出防丢中心 ==================== -->
+    <div class="hub-modal-overlay" id="hubBackupModal">
+        <div class="hub-modal-card" style="max-width: 640px;">
+            <div class="hub-modal-header">
+                <div class="hub-modal-title">📦 双宝存档防丢备份 · 跨 iPad 迁移中心</div>
+                <button type="button" class="hub-close-btn" id="btnCloseHubBackup">✕</button>
+            </div>
+
+            <div class="hub-form-section">
+                <div class="hub-sec-label">📤 导出当前设备存档（包含小豌豆与川川全部萌宠、徽章、金萝卜、通关杯与单词星级）：</div>
+                <div class="hub-pill-row" style="margin-bottom:8px;">
+                    <button type="button" class="hub-primary-btn" id="btnCopyBackupCode" style="padding:7px 16px;font-size:13.5px;">📋 一键生成并复制备份码</button>
+                    <button type="button" class="hub-opt-pill selected" id="btnDownloadBackupJson">💾 下载 .json 备份文件</button>
+                </div>
+                <textarea id="hubBackupCodeOutput" class="hub-backup-textarea" readonly placeholder="点击上方【一键生成并复制备份码】，可通过微信/备忘录/隔空投送发到另一台 iPad！"></textarea>
+            </div>
+
+            <div class="hub-form-section">
+                <div class="hub-sec-label">📥 恢复存档到本设备（需家长守护验证）：</div>
+                <textarea id="hubBackupCodeInput" class="hub-backup-textarea" placeholder="在此粘贴 CWYY1: 开头的备份码，或点击下方选择备份文件..."></textarea>
+                <div class="hub-pill-row" style="margin-top:8px; justify-content:space-between;">
+                    <div>
+                        <input type="file" id="hubBackupFileInput" accept=".json,application/json,text/plain" style="display:none;" />
+                        <button type="button" class="hub-opt-pill" id="btnPickBackupFile">📂 选择 .json 备份文件导入</button>
+                    </div>
+                    <button type="button" class="hub-primary-btn" id="btnApplyBackupImport" style="padding:7px 18px;font-size:13.5px;">🔄 验证并恢复存档</button>
+                </div>
+                <div id="hubBackupStatusMsg" class="hub-backup-msg"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/hub.js?v=20261113_opt_v1"></script>
+    <script>
+        if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(() => {});
+            });
+        }
+    </script>
 </body>
 </html>

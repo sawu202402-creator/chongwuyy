@@ -24,8 +24,8 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20261113_3in1_v1">
-    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261113_3in1_v1">
+    <link rel="stylesheet" href="css/style.css?v=20261113_opt_v1">
+    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261113_opt_v1">
 </head>
 <body>
 
@@ -63,10 +63,11 @@
                 </div>
             </div>
 
-            <!-- 右侧：关卡选择、无尽模式、全屏、暂停、音效 -->
+            <!-- 右侧：关卡选择、无尽模式、倍速、全屏、暂停、音效 -->
             <div class="hud-right-group">
                 <button class="btn-jelly-pill btn-jelly-pill-endless" id="btnEndlessMode" title="进入原版经典【生存：泳池无尽模式】">♾️ 无尽</button>
                 <button class="btn-jelly-pill btn-jelly-pill-level" id="btnSelectLevel" title="更换关卡 (1-1 ~ 5-10 & 无尽模式)">🗺️ 第 1-1 关 ▾</button>
+                <button class="btn-jelly-pill btn-jelly-speed" id="btnSpeedToggle" title="点击切换 1x / 2x 战斗倍速">⚡ 1x</button>
                 <button class="btn-jelly-circle" id="btnFullscreen" title="点击切换全屏沉浸模式 (隐藏浏览器边框)">⛶</button>
                 <button class="btn-jelly-circle" id="btnPause" title="暂停/继续游戏">⏸️</button>
                 <button class="btn-jelly-circle" id="btnMute" title="开启/关闭声音">🔊</button>
@@ -357,6 +358,21 @@
                 </div>
             </div>
 
+            <!-- 同步设置：英语学习与每日萌宠徽章上限 -->
+            <div class="setting-block" style="margin-top:10px; border-top:1px dashed rgba(255,255,255,0.22); padding-top:10px;">
+                <div class="setting-title">🔤 英语学习模式与默认词包（三端实时互通）：</div>
+                <div class="ranges-grid" id="pvzEnLevelGrid" style="margin-bottom:8px;"></div>
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <span style="font-size:13px; color:#f9e79f; font-weight:700;">默认主题词包：</span>
+                    <select id="pvzEnPackSelect" class="pvz-en-pack-select"></select>
+                </div>
+            </div>
+
+            <div class="setting-block" style="margin-top:8px;">
+                <div class="setting-title">🏅 每日萌宠徽章获取上限（防沉迷自律调节）：</div>
+                <div class="ranges-grid" id="pvzDailyCapGrid"></div>
+            </div>
+
             <!-- 底部保存按钮 -->
             <div class="modal-actions-row" style="margin-top:14px;">
                 <button class="btn-big-wood" id="btnSaveUserProfile" style="background: linear-gradient(135deg, #2ecc71, #27ae60);">保存并应用 ✔️</button>
@@ -440,6 +456,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=20261113_3in1_v1"></script>
+    <script type="module" src="js/main.js?v=20261113_opt_v1"></script>
 </body>
 </html>

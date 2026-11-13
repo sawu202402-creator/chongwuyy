@@ -1,0 +1,32 @@
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
+
+/sw.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/js/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/css/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/shared/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/carrot/js/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/pvz/js/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/pet/js/*
+  Cache-Control: public, max-age=0, must-revalidate
+
+/carrot/assets/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+/pvz/assets/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
+/pet/assets/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400

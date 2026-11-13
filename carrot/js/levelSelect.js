@@ -4,8 +4,9 @@
  * 同时完整保留保卫萝卜1经典双勋章记录：金/银/铜萝卜 + 道具全清奖章
  */
 
-import { LEVEL_CONFIGS } from './map.js?v=20261113_carrot_concise_v1';
-import { TOWER_TYPES } from './config.js?v=20261113_carrot_concise_v1';
+import { LEVEL_CONFIGS } from './map.js?v=20261113_opt_v1';
+import { TOWER_TYPES } from './config.js?v=20261113_opt_v1';
+import { profileManager } from '../../shared/unifiedProfile.js';
 
 export const THEMES_DATA = [
     {
@@ -63,32 +64,22 @@ export class LevelSelectManager {
     constructor(soundEngine, onStartLevelCallback) {
         this.sound = soundEngine;
         this.onStartLevel = onStartLevelCallback;
-        this.activeStageNum = 1;
+        this.activeStageNum = profileManager.getActiveUser()?.lastCarrotStage || 1;
         this.filterTheme = 'ALL'; // 'ALL' | 0 | 1 | 2 | 3
 
-        this.records = this.loadRecords();
         this.initDOM();
     }
 
+    get records() {
+        return profileManager.getCarrotRecords();
+    }
+
     loadRecords() {
-        try {
-            const raw = localStorage.getItem(PROGRESS_STORAGE_KEY);
-            if (raw) {
-                const parsed = JSON.parse(raw);
-                if (parsed && typeof parsed === 'object') return parsed;
-            }
-        } catch (e) {
-            console.warn('Failed to load level progress:', e);
-        }
-        return {};
+        return profileManager.getCarrotRecords();
     }
 
     saveRecords() {
-        try {
-            localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(this.records));
-        } catch (e) {
-            console.error('Failed to save records:', e);
-        }
+        profileManager.save();
     }
 
     /**
@@ -117,13 +108,12 @@ export class LevelSelectManager {
         const bestCarrot = nextRank >= prevRank ? earnedCarrot : prev.carrot;
         const bestAllClear = Boolean(prev.allClear || allPropsCleared);
 
-        this.records[stageNum] = {
+        profileManager.setCarrotStageRecord(stageNum, {
             cleared: true,
             carrot: bestCarrot,
             allClear: bestAllClear,
             bestLives: Math.max(Number(prev.bestLives) || 0, typeof livesLeftOrBool === 'number' ? livesLeftOrBool : maxLives)
-        };
-        this.saveRecords();
+        });
         return {
             earnedCarrot,
             allPropsCleared: Boolean(allPropsCleared),
@@ -218,7 +208,9 @@ export class LevelSelectManager {
                 if (rec.allClear) allClearCount++;
             }
         }
-        this.summaryEl.textContent = `🥕 通关 ${clearedCount}/48 · 🥇 金萝卜 ${goldCount}/48 · 💎 全清 ${allClearCount}/48`;
+        const u = profileManager.getActiveUser();
+        const kidTag = u ? `${u.avatar || '🐰'}${u.name} · ` : '';
+        this.summaryEl.textContent = `${kidTag}🥕 通关 ${clearedCount}/48 · 🥇 金萝卜 ${goldCount}/48 · 💎 全清 ${allClearCount}/48`;
     }
 
     renderGrid() {

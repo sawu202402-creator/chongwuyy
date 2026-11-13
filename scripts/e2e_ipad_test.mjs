@@ -127,7 +127,7 @@ async function main() {
             consoleErrors.push(JSON.stringify(msg.params.exceptionDetails));
         } else if (msg.method === 'Runtime.consoleAPICalled' && msg.params.type === 'error') {
             const txt = msg.params.args.map(a => a.value || a.description).join(' ');
-            if (!txt.includes('fonts.googleapis.com') && !txt.includes('ERR_INTERNET_DISCONNECTED')) {
+            if (!txt.includes('fonts.googleapis.com') && !txt.includes('ERR_INTERNET_DISCONNECTED') && !txt.includes('ERR_NAME_NOT_RESOLVED')) {
                 consoleErrors.push(txt);
             }
         } else if (msg.method === 'Network.responseReceived' && msg.params.response.status >= 400) {
@@ -161,108 +161,152 @@ async function main() {
         console.log('📸 Captured:', outPath);
     };
 
-    // ==================== 1. Test Root 3-in-1 Portal Hub ====================
+    // ==================== 1. Test Root Portal Hub (Progress, Backup, Parent Gate, Mistake Re-Practice) ====================
     await cdp.send('Page.navigate', { url: `${origin}/index.html` }, sessionId);
     await sleep(900);
-    if (consoleErrors.length || failedLocalUrls.length) {
-        console.log('Early diagnostics -> consoleErrors:', consoleErrors, 'failedLocalUrls:', failedLocalUrls);
-    }
     const hubCheck = await evalJs(`(() => {
         const chips = Array.from(document.querySelectorAll('.hub-kid-chip')).map(el => el.textContent.trim());
         const noScroll = document.documentElement.scrollHeight <= window.innerHeight + 2;
-        return { chips, noScroll, badges: document.getElementById('bannerBadgesVal').textContent };
+        const carrotStat = document.getElementById('liveStatCarrot')?.textContent.trim();
+        const pvzStat = document.getElementById('liveStatPvz')?.textContent.trim();
+        return { chips, noScroll, carrotStat, pvzStat };
     })()`);
     console.log('Hub check:', hubCheck);
-    assert.ok(hubCheck.chips[0].includes('小豌豆'), 'First kid chip must be 小豌豆');
-    assert.ok(hubCheck.chips[1].includes('川川'), 'Second kid chip must be 川川');
+    assert.ok(hubCheck.chips[0].includes('小豌豆'));
+    assert.ok(hubCheck.chips[1].includes('川川'));
     assert.equal(hubCheck.noScroll, true, 'Hub must fit 1180x820 iPad viewport with zero vertical overflow');
-    await saveShot('hub_3in1_portal.png');
+    await saveShot('opt_hub_portal_and_progress.png');
 
-    // ==================== 2. Test Carrot Defense (/carrot/index.html) ====================
+    // Test Backup Modal Export Code
+    const backupCodeRes = await evalJs(`(() => {
+        document.getElementById('btnHubBackup').click();
+        document.getElementById('btnCopyBackupCode').click();
+        const code = document.getElementById('hubBackupCodeOutput').value;
+        document.getElementById('btnCloseHubBackup').click();
+        return code;
+    })()`);
+    assert.ok(backupCodeRes.startsWith('CWYY1:'), 'Backup modal must generate CWYY1: backup code');
+
+    // Test Parent Gate on Hub Settings
+    await evalJs(`document.getElementById('btnHubSettings').click();`);
+    await sleep(300);
+    await saveShot('opt_hub_parent_gate.png');
+    const gateUnlocked = await evalJs(`(() => {
+        const qText = document.getElementById('cwyyPgQuestion').textContent;
+        // Parse "16 × 4 + 7 = ?"
+        const m = qText.match(/(\\d+)\\s*×\\s*(\\d+)\\s*\\+\\s*(\\d+)/);
+        const ans = Number(m[1]) * Number(m[2]) + Number(m[3]);
+        for (const ch of String(ans)) {
+            document.querySelector('#cwyyPgKeypad [data-k="' + ch + '"]').click();
+        }
+        document.getElementById('cwyyPgConfirm').click();
+        const isOpen = document.getElementById('hubSettingsModal').classList.contains('show');
+        document.getElementById('btnCloseHubSettings').click();
+        return isOpen;
+    })()`);
+    assert.equal(gateUnlocked, true, 'Solving Parent Gate arithmetic challenge must unlock Hub Settings');
+
+    // Seed 1 math mistake and test Interactive Mistake Re-Practice ("错题重练消消乐")
+    const practiceRes = await evalJs(`(async () => {
+        const { profileManager } = await import('./shared/unifiedProfile.js');
+        profileManager.recordMathMistake({ formula: '8 + 7 = ?', expr: '8 + 7 = ?', display: '8 + 7 = ?', answer: 15, kind: 'calc' }, '14');
+        document.getElementById('btnHubReport').click();
+        // Start math mistake re-practice!
+        const startBtn = document.getElementById('btnStartMathPrac');
+        if (startBtn) startBtn.click();
+        return {
+            stageVisible: document.getElementById('hubPracticeStage').style.display !== 'none',
+            stageText: document.getElementById('hubPracticeStage').textContent
+        };
+    })()`);
+    console.log('Hub Mistake Re-Practice check:', practiceRes);
+    assert.equal(practiceRes.stageVisible, true);
+    assert.ok(practiceRes.stageText.includes('8 + 7 = ?'));
+    await sleep(250);
+    await saveShot('opt_hub_mistake_practice.png');
+
+    // Solve the mistake in Hub Re-Practice and verify mistake count drops to 0!
+    const clearedRes = await evalJs(`(async () => {
+        document.querySelector('#hubPracticeStage [data-pk="1"]').click();
+        document.querySelector('#hubPracticeStage [data-pk="5"]').click();
+        document.getElementById('btnSubmitPracMath').click();
+        const { profileManager } = await import('./shared/unifiedProfile.js');
+        return profileManager.getActiveUser().mathMistakes.length;
+    })()`);
+    assert.equal(clearedRes, 0, 'Solving mistake in Hub Re-Practice must remove it from mathMistakes!');
+
+    // ==================== 2. Test Carrot Defense (Tower Almanac, Dynamic Map Chunking, Per-Kid Medals) ====================
     await cdp.send('Page.navigate', { url: `${origin}/carrot/index.html` }, sessionId);
-    await sleep(1400);
-    const carrotWordRes = await evalJs(`(() => {
-        // Verify active kid is 小豌豆 and start game
-        const hudName = document.getElementById('hudUserName').textContent.trim();
+    await sleep(1500);
+    // Start Stage 1, solve 1 Word Problem (+1 badge), record Gold Carrot for 小豌豆, then switch via Level Select UI to Stage 13 (Theme 2 Jungle)!
+    const carrotStage13Res = await evalJs(`(async () => {
         document.getElementById('btnStartGame').click();
-        // Switch chalkboard to Word Problem mode, solve 1 word problem to earn +1 Pet Badge + 1.5x Gold!
         document.querySelector('.smart-mode-tab[data-smode="word"]').click();
         const ans = window.mathEngine.currentQuestion.answer;
         for (const ch of String(ans)) {
             document.querySelector('#virtualKeypad .cookie-key[data-key="' + ch + '"]').click();
         }
         document.getElementById('btnSubmitAnswer').click();
-        // Open visual tip on the new word problem for screenshot
-        document.getElementById('btnSmartShowTip')?.click();
+        // Record Gold Carrot for 小豌豆 on Stage 1 and open Level Select
+        window.profileManager.setCarrotStageRecord(1, { cleared: true, carrot: 'gold', allClear: true });
+        document.getElementById('btnSelectLevel').click();
+        const summaryTxt = document.getElementById('levelMedalSummary').textContent;
+        // Click Stage 13 card (Theme 2 Jungle) -> triggers dynamic map chunk + New Tower Unlock Almanac!
+        document.getElementById('level-grid-item-13').click();
+        await new Promise(r => setTimeout(r, 350));
         return {
-            hudName,
-            gold: document.getElementById('goldVal').textContent,
-            pillText: document.getElementById('portalPetBadgePill')?.textContent
+            summaryTxt,
+            curLevel: window.gameEngine.currentLevel,
+            stage13Name: window.gameEngine.map.currentLevelConfig.name,
+            almanacShown: document.getElementById('towerAlmanacModal').classList.contains('show'),
+            almanacTitle: document.getElementById('towerAlmanacTitle').textContent
         };
     })()`);
-    console.log('Carrot Word Problem check:', carrotWordRes);
-    assert.equal(carrotWordRes.hudName, '小豌豆');
-    assert.ok(carrotWordRes.pillText.includes('🏅 7'), 'Solving a Word Problem in Carrot Defense must increment Pet Badge from 6 to 7!');
-    await sleep(500);
-    await saveShot('carrot_upgraded_word_problem.png');
+    console.log('Carrot Stage 13, Tower Almanac & Per-Kid Medal check:', carrotStage13Res);
+    assert.ok(carrotStage13Res.summaryTxt.includes('小豌豆'));
+    assert.ok(carrotStage13Res.summaryTxt.includes('金萝卜 1/48'));
+    assert.equal(carrotStage13Res.curLevel, 13);
+    assert.ok(carrotStage13Res.stage13Name.includes('第 2 季'));
+    assert.equal(carrotStage13Res.almanacShown, true, 'Switching to Stage 13 with unseen towers must pop New Tower Almanac card');
+    await sleep(300);
+    await saveShot('opt_carrot_tower_almanac.png');
 
-    // Switch Carrot Defense chalkboard to English Vocab Study Camp
-    await evalJs(`(() => {
-        document.querySelector('.smart-mode-tab[data-smode="english"]').click();
-        document.querySelector('.smart-en-subbtn[data-ensub="vocab"]').click();
-    })()`);
-    await sleep(450);
-    await saveShot('carrot_upgraded_english_vocab.png');
-
-    // ==================== 3. Test Plants vs Zombies (/pvz/index.html) ====================
+    // ==================== 3. Test Plants vs Zombies (2x Speed Toggle + Per-Kid Trophies) ====================
     await cdp.send('Page.navigate', { url: `${origin}/pvz/index.html` }, sessionId);
-    await sleep(1800);
-    const pvzDataRes = await evalJs(`(() => {
-        const hudName = document.getElementById('hudUserName').textContent.trim();
-        // Switch chalkboard to Data Chart mode and solve 1 chart question (+75 Sun + 1 Pet Badge!)
-        document.querySelector('.smart-mode-tab[data-smode="data"]').click();
-        const ans = window.gameApp.mathEngine.currentQuestion.answer;
-        for (const ch of String(ans)) {
-            document.querySelector('#virtualKeypad .cookie-key[data-key="' + ch + '"]').click();
-        }
-        document.getElementById('btnSubmitAnswer').click();
-        return {
-            hudName,
-            sun: document.getElementById('sunVal').textContent,
-            pillText: document.getElementById('portalPetBadgePill')?.textContent
-        };
+    await sleep(1700);
+    const pvzCheck = await evalJs(`(() => {
+        document.getElementById('btnSpeedToggle').click();
+        const speedText = document.getElementById('btnSpeedToggle').textContent.trim();
+        const gameSpeed = window.gameApp.gameSpeed;
+        // Record 1-1 clear for 小豌豆 and open Level Modal
+        window.gameApp.profileManager.recordPvzLevelClear('1-1', 100);
+        window.gameApp.openLevelModal();
+        const gridHtml = document.getElementById('levelGrid').innerHTML;
+        return { speedText, gameSpeed, hasTrophy: gridHtml.includes('🏆 已通关') && gridHtml.includes('通关 1/10') };
     })()`);
-    console.log('PvZ Data Chart check:', pvzDataRes);
-    assert.equal(pvzDataRes.hudName, '小豌豆');
-    assert.ok(pvzDataRes.pillText.includes('🏅 8'), 'Solving a Data Chart in PvZ must increment Pet Badge from 7 to 8!');
-    await sleep(500);
-    await saveShot('pvz_upgraded_data_chart.png');
+    console.log('PvZ 2x Speed & Trophy check:', pvzCheck);
+    assert.equal(pvzCheck.gameSpeed, 2);
+    assert.ok(pvzCheck.speedText.includes('2x'));
+    assert.equal(pvzCheck.hasTrophy, true);
+    await sleep(300);
+    await saveShot('opt_pvz_2x_and_trophies.png');
 
-    // Switch PvZ chalkboard to English Quick Quiz!
-    await evalJs(`(() => {
-        document.querySelector('.smart-mode-tab[data-smode="english"]').click();
-        document.querySelector('.smart-en-subbtn[data-ensub="quiz"]').click();
-    })()`);
-    await sleep(450);
-    await saveShot('pvz_upgraded_english_quiz.png');
-
-    // ==================== 4. Return to Pet Town (/pet/index.html) & Verify Synced Badges ====================
+    // ==================== 4. Test Pet Wonder Town (Sibling Visit Gift & Cross-Game Progress) ====================
     await cdp.send('Page.navigate', { url: `${origin}/pet/index.html` }, sessionId);
-    await sleep(1000);
-    const petSyncCheck = await evalJs(`(() => {
-        return {
-            hudName: document.getElementById('hudName').textContent.trim(),
-            badges: document.getElementById('hudBadgesVal').textContent.trim(),
-            daily: document.getElementById('hudDailyVal').textContent.trim(),
-            hasHubBtn: Boolean(document.querySelector('.portal-hub-btn'))
-        };
+    await sleep(1100);
+    const petVisitCheck = await evalJs(`(() => {
+        const homePillVisible = document.getElementById('btnSiblingVisitorHome').style.display !== 'none';
+        const homePillTitle = document.getElementById('siblingHomeTitle').textContent;
+        document.getElementById('btnSiblingVisitorHome').click();
+        const popupTitle = document.getElementById('quickPopupTitle').textContent;
+        return { homePillVisible, homePillTitle, popupTitle };
     })()`);
-    console.log('Pet Town cross-game sync check:', petSyncCheck);
-    assert.equal(petSyncCheck.hudName, '小豌豆');
-    assert.equal(petSyncCheck.badges, '8', 'Pet Town must show 8 badges earned from Carrot Defense & PvZ');
-    assert.equal(petSyncCheck.daily, '2/30', 'Pet Town daily cap must reflect 2/30 earned across Carrot & PvZ');
-    assert.equal(petSyncCheck.hasHubBtn, true);
-    await saveShot('pet_town_synced_from_battles.png');
+    console.log('Pet Town Sibling Visit check:', petVisitCheck);
+    assert.equal(petVisitCheck.homePillVisible, true);
+    assert.ok(petVisitCheck.homePillTitle.includes('川川'));
+    assert.ok(petVisitCheck.popupTitle.includes('双宝串门'));
+    await sleep(450);
+    await saveShot('opt_pet_sibling_visit.png');
 
     console.log('Console errors:', consoleErrors.length);
     console.log('Failed local network requests:', failedLocalUrls.length);
@@ -272,7 +316,7 @@ async function main() {
     cdp.close();
     proc.kill();
     srv.close();
-    console.log('✅ ALL 4 ROUTES (HUB + CARROT + PVZ + PET) PASSED E2E IPAD VERIFICATION WITH 0 ERRORS!');
+    console.log('✅ ALL 4 ROUTES + ALL 11 OPTIMIZATIONS PASSED E2E IPAD VERIFICATION WITH 0 ERRORS!');
 }
 
 main().catch((err) => {

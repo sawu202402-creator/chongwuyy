@@ -1,4 +1,4 @@
-import { sound } from './audio.js?v=20261113_carrot_concise_v1';
+import { sound } from './audio.js?v=20261113_opt_v1';
 
 const BULLET_ASSET_VER = '20260925_all18_v1';
 function loadImg(src) {

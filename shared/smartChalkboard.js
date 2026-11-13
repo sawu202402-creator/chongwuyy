@@ -21,6 +21,20 @@ export class SmartChalkboard {
         this.profileManager = opts.profileManager;
         this.onEnglishBattleResult = opts.onEnglishBattleResult || (() => {});
         this.onSoundResume = opts.onSoundResume || (() => {});
+        this.shouldConfirmExit = opts.shouldConfirmExit || (() => false);
+
+        if (this.mathEngine && typeof this.mathEngine.setMistakesProvider === 'function') {
+            this.mathEngine.setMistakesProvider(() => this.profileManager.getActiveUser()?.mathMistakes || []);
+        }
+        if (typeof englishEngine.setMistakesProvider === 'function') {
+            englishEngine.setMistakesProvider(() => {
+                const u = this.profileManager.getActiveUser();
+                return {
+                    wordMastery: u?.wordMastery || {},
+                    englishMistakes: u?.englishMistakes || []
+                };
+            });
+        }
 
         this.mode = 'calc'; // 'calc' | 'word' | 'data' | 'english'
         this.enSubMode = 'quiz'; // 'quiz' | 'vocab'
@@ -53,6 +67,11 @@ export class SmartChalkboard {
             hubLink.className = 'portal-hub-btn';
             hubLink.title = '返回三合一数英游乐园大厅（切换萌宠店长 / 兔蛙塔防 / 植物大战僵尸）';
             hubLink.innerHTML = '<span>🏠</span><span>大厅</span>';
+            hubLink.addEventListener('click', (e) => {
+                if (this.shouldConfirmExit() && !confirm('当前战斗正在进行中，确定要离开本局返回游乐园大厅吗？')) {
+                    e.preventDefault();
+                }
+            });
             hudLeft.insertBefore(hubLink, hudLeft.firstChild);
 
             const petPill = document.createElement('a');
@@ -60,6 +79,11 @@ export class SmartChalkboard {
             petPill.href = '../pet/index.html';
             petPill.className = 'portal-pet-badge-pill';
             petPill.title = '点击前往《奇妙萌宠店长》用徽章投喂兔兔和小青蛙！';
+            petPill.addEventListener('click', (e) => {
+                if (this.shouldConfirmExit() && !confirm('当前战斗正在进行中，确定要前往《萌宠店长》吗？（已获得的徽章已实时保存）')) {
+                    e.preventDefault();
+                }
+            });
             hudLeft.appendChild(petPill);
             this.petBadgePillEl = petPill;
         } else {
@@ -167,6 +191,22 @@ export class SmartChalkboard {
             this.enPackSelectEl.value = this.selectedPackId;
         }
         this.updateTopBadgePill();
+        this._syncBottomDiffTag();
+        if (user.preferredSmartMode && user.preferredSmartMode !== this.mode) {
+            this.switchMode(user.preferredSmartMode, false);
+        }
+    }
+
+    _syncBottomDiffTag() {
+        const diffEl = document.getElementById('bbKidDiffBadge') || document.getElementById('bbKidDiffTag');
+        if (!diffEl) return;
+        const u = this.profileManager.getActiveUser();
+        if (!u) return;
+        if (this.mode === 'english') {
+            diffEl.textContent = EnglishEngine.formatSummary(u.englishConfig);
+        } else if (this.mathEngine && typeof this.mathEngine.getDifficultySummary === 'function') {
+            diffEl.textContent = this.mathEngine.getDifficultySummary();
+        }
     }
 
     updateTopBadgePill() {
@@ -188,10 +228,14 @@ export class SmartChalkboard {
         return this.mode === 'english';
     }
 
-    switchMode(newMode) {
+    switchMode(newMode, persistPref = true) {
         if (!['calc', 'word', 'data', 'english'].includes(newMode)) return;
         this.mode = newMode;
         this.showVisualTip = false;
+        if (persistPref && typeof this.profileManager.setPreferredSmartMode === 'function') {
+            this.profileManager.setPreferredSmartMode(newMode);
+        }
+        this._syncBottomDiffTag();
 
         if (this.tabsWrap) {
             this.tabsWrap.querySelectorAll('.smart-mode-tab').forEach(btn => {
@@ -506,7 +550,7 @@ export class SmartChalkboard {
             sharedSpeech.speakEnglish(w.word, false);
         });
         this.enStageEl.querySelector('#btnEnSpeakSlow')?.addEventListener('click', () => {
-            sharedSpeech.speakEnglish(w.word, true);
+            sharedSpeech.speakEnglish(w.word, true, w.phonics);
         });
         this.enStageEl.querySelector('#btnEnPrevWord')?.addEventListener('click', () => {
             if (sess.studyIdx > 0) {
@@ -582,7 +626,7 @@ export class SmartChalkboard {
                 sharedSpeech.speakEnglish(q.speakText || w.word, false);
             });
             this.enStageEl.querySelector('#btnEnQuizSlow')?.addEventListener('click', () => {
-                sharedSpeech.speakEnglish(q.speakText || w.word, true);
+                sharedSpeech.speakEnglish(q.speakText || w.word, true, w.phonics);
             });
 
             this.enStageEl.querySelectorAll('.smart-en-opt-btn').forEach(btn => {
@@ -709,7 +753,8 @@ export class SmartChalkboard {
         this.profileManager.updateWordProgress(wordObj, isCorrect, isCampFinish ? 2 : 1);
 
         // 2. 同步写入战场连击与金币/阳光/破盾结算
-        const evalRes = englishEngine.evaluateResult(isCorrect, wordObj, false);
+        const isReviewWord = !isVocabMode && Boolean(englishEngine.currentQuiz?.isReview);
+        const evalRes = englishEngine.evaluateResult(isCorrect, wordObj, isReviewWord);
         const battleRes = this.mathEngine.recordEnglishBattleAttempt({
             isCorrect,
             wordObj,
