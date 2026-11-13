@@ -14,7 +14,7 @@
     <meta name="apple-mobile-web-app-title" content="萌宠店长">
     <link rel="manifest" href="site.webmanifest">
     <meta name="theme-color" content="#7c5cfc">
-    <link rel="stylesheet" href="css/style.css?v=20261113_v1">
+    <link rel="stylesheet" href="css/style.css?v=20261113_v3">
 </head>
 <body>
     <!-- 全屏飞行徽章与彩虹礼花粒子画布 -->
@@ -36,11 +36,16 @@
                 <div class="hud-currency-pill" id="hudBadgeBox" title="可用荣誉徽章">
                     <span class="curr-icon">🏅</span>
                     <span class="curr-label">可用</span>
-                    <span class="curr-val" id="hudBadgesVal">20</span>
+                    <span class="curr-val" id="hudBadgesVal">6</span>
                 </div>
+                <button class="hud-currency-pill hud-daily-pill" id="hudDailyCapBox" type="button" title="今日获取徽章进度（点击查看规则或调整上限）">
+                    <span class="curr-icon" id="hudDailyIcon">⏳</span>
+                    <span class="curr-label">今日</span>
+                    <span class="curr-val" id="hudDailyVal">0/30</span>
+                </button>
                 <div class="hud-currency-pill hud-ticket-pill" id="hudTicketBox" title="惊喜盲盒扭蛋券">
                     <span class="curr-icon">🎟️</span>
-                    <span class="curr-val" id="hudTicketsVal">1</span>
+                    <span class="curr-val" id="hudTicketsVal">0</span>
                 </div>
             </div>
 
@@ -235,14 +240,14 @@
                             <div class="gacha-machine-base">
                                 <button class="btn-gacha-pull" id="btnPullGacha" type="button">
                                     🎉 扭一扭开盲盒！
-                                    <small id="gachaCostHint">(优先消耗 1 张🎟️盲盒券，或 18🏅)</small>
+                                    <small id="gachaCostHint">(优先消耗 1 张🎟️盲盒券，或 35🏅)</small>
                                 </button>
                             </div>
                         </div>
 
                         <div class="gacha-right-showcase">
                             <h2 class="gacha-title">🎁 太空与童话隐藏款一览</h2>
-                            <p class="gacha-desc">右侧答题每达成 <strong>5 连对</strong> 或 <strong>萌宠升至 Lv.5 毕业</strong>，即可免费获赠 1 张 🎟️ 盲盒扭蛋券！必优先抽出尚未拥有的隐藏神兽与装扮！</p>
+                            <p class="gacha-desc">每日完成首组 <strong>5词背单词通关</strong>、答题达成 <strong>15 连对</strong> 或 <strong>萌宠升至 Lv.5 毕业</strong>，即可免费获赠 1 张 🎟️ 盲盒扭蛋券！必优先抽出尚未拥有的隐藏神兽与装扮！</p>
                             <div class="hidden-pets-preview" id="gachaHiddenPreview">
                                 <!-- JS 渲染4只隐藏款萌宠收集状态 + 已拥有配饰 -->
                             </div>
@@ -448,6 +453,10 @@
                         <label>专属头像：</label>
                         <div class="avatar-picker-row" id="modalAvatarGrid"></div>
                     </div>
+                    <div class="pf-row">
+                        <label>⏳ 每日徽章上限（防刷腻·养成每日习惯）：</label>
+                        <div class="pill-radio-row" id="dailyCapPills"></div>
+                    </div>
                 </div>
 
                 <!-- 数学与英语双栏设置 -->
@@ -536,6 +545,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=20261113_v2"></script>
+    <script type="module" src="js/main.js?v=20261113_v3"></script>
 </body>
 </html>

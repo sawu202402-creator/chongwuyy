@@ -13,6 +13,8 @@ import {
     SHOP_LEVEL_MAX_EXP,
     SHOP_UPGRADE_BADGE_COST,
     GACHA_BADGE_COST,
+    DEFAULT_DAILY_BADGE_CAP,
+    DAILY_BADGE_CAP_OPTIONS,
     TOWN_PLOTS,
     TOWN_DECORS,
     getPetById,
@@ -168,6 +170,7 @@ class PetWonderTownApp {
         // 个人档案弹窗临时编辑状态
         this.editingUserId = null;
         this.draftAvatar = '🐰';
+        this.draftDailyCap = DEFAULT_DAILY_BADGE_CAP;
         this.draftMathMode = 'custom';
         this.draftMathPreset = 'grade1_2';
         this.draftMathRange = 20;
@@ -207,10 +210,20 @@ class PetWonderTownApp {
 
     renderTopHud() {
         const u = profileManager.getActiveUser();
+        const daily = profileManager.getDailyStatus(u);
         document.getElementById('hudAvatar').textContent = u.avatar;
         document.getElementById('hudName').textContent = u.name;
         document.getElementById('hudBadgesVal').textContent = u.badges;
         document.getElementById('hudTicketsVal').textContent = u.gachaTickets || 0;
+
+        const dailyBox = document.getElementById('hudDailyCapBox');
+        const dailyIcon = document.getElementById('hudDailyIcon');
+        const dailyVal = document.getElementById('hudDailyVal');
+        if (dailyBox && dailyVal) {
+            dailyBox.classList.toggle('capped', daily.isCapped);
+            dailyIcon.textContent = daily.isCapped ? '🌟' : '⏳';
+            dailyVal.textContent = `${daily.earned}/${daily.cap}`;
+        }
     }
 
     renderBoardFooter() {
@@ -798,22 +811,28 @@ class PetWonderTownApp {
                 title: recTitle,
                 subjectTag: tagMap[res.question.kind] || '数学天地',
                 badges: res.badgeEarned,
-                exp: res.expEarned,
+                stars: res.starEarned,
                 gotTicket: res.gotGachaTicket,
                 combo: res.combo,
                 isMath: true
             });
 
-            fb.textContent = res.gotGachaTicket
-                ? `🎉 太棒啦！+${res.badgeEarned}🏅 并获赠 1 张 🎟️ 神秘盲盒券！`
-                : `🌟 答对啦！奖励 +${res.badgeEarned} 🏅 徽章与萌宠成长值！`;
+            if (award.alreadyAtCap) {
+                fb.textContent = `🌟 答对啦！今日徽章已集满 (${award.dailyEarned}/${award.dailyCap})，当前练习继续巩固熟练度哦！`;
+            } else if (award.actualTicket) {
+                fb.textContent = `🎉 15连对大满贯！+${award.actualBadges}🏅 并获赠 1 张 🎟️ 神秘盲盒券！`;
+            } else if (award.actualBadges > 0) {
+                fb.textContent = `🌟 棒极啦！荣获 +${award.actualBadges} 🏅 徽章（今日 ${award.dailyEarned}/${award.dailyCap}）！`;
+                this.fx.flyBadges(document.getElementById('btnSubmitMath'), document.getElementById('heroMainSprite'), award.actualBadges);
+            } else {
+                fb.textContent = `⭐ 答对集星！学习星 ${award.starProgress}/3（再集 ${3 - award.starProgress} 星合成 1 枚🏅）！`;
+            }
 
-            this.fx.flyBadges(document.getElementById('btnSubmitMath'), document.getElementById('heroMainSprite'), res.badgeEarned);
             this.triggerPetHappyReaction();
             this.renderAll();
 
-            if (award.levelUpEvent) {
-                this.celebrateLevelUp(award.levelUpEvent);
+            if (award.reachedCapNow) {
+                this.celebrateDailyCapReached(award.dailyCap);
             }
 
             mathEngine.nextQuestion();
@@ -1073,18 +1092,25 @@ class PetWonderTownApp {
                 title: `🔤 英语答对单词【${q.wordObj.word} · ${q.wordObj.zh}】`,
                 subjectTag: '少儿英语',
                 badges: res.badgeEarned,
-                exp: res.expEarned,
+                stars: res.starEarned,
                 gotTicket: res.gotGachaTicket,
                 combo: res.combo,
                 isMath: false
             });
 
-            fb.textContent = `🎉 Awesome! ${q.wordObj.word} (${q.wordObj.zh}) +${res.badgeEarned}🏅！`;
-            this.fx.flyBadges(document.getElementById('panelEnglish'), document.getElementById('heroMainSprite'), res.badgeEarned);
+            if (award.alreadyAtCap) {
+                fb.textContent = `🎉 Awesome! ${q.wordObj.word} (${q.wordObj.zh}) · 今日徽章已满 (${award.dailyEarned}/${award.dailyCap})！`;
+            } else if (award.actualBadges > 0) {
+                fb.textContent = `🎉 Awesome! ${q.wordObj.word} (${q.wordObj.zh}) +${award.actualBadges}🏅（今日 ${award.dailyEarned}/${award.dailyCap}）！`;
+                this.fx.flyBadges(document.getElementById('panelEnglish'), document.getElementById('heroMainSprite'), award.actualBadges);
+            } else {
+                fb.textContent = `⭐ Awesome! 学习星 ${award.starProgress}/3（再集 ${3 - award.starProgress} 星合成 +1🏅）！`;
+            }
+
             this.triggerPetHappyReaction();
             this.renderAll();
 
-            if (award.levelUpEvent) this.celebrateLevelUp(award.levelUpEvent);
+            if (award.reachedCapNow) this.celebrateDailyCapReached(award.dailyCap);
 
             setTimeout(() => this.advanceEnglishStep(), 700);
         } else {
@@ -1108,30 +1134,32 @@ class PetWonderTownApp {
             if (sess.quizIdx < sess.quizQueue.length) {
                 this.renderEnglishQuizQuestion(sess.quizQueue[sess.quizIdx], true);
             } else {
-                // 完成整组 5 词背诵通关！颁发重磅打卡徽章大奖！
+                // 完成整组 5 词背诵通关！颁发稳健打卡奖励（+3枚徽章；每日首轮通关赠送1张盲盒券）
                 sess.phase = 'done';
                 sess.words.forEach(w => profileManager.updateWordProgress(w, true, 2));
                 soundEngine.playLevelUp();
-                const bonus = 12;
+                const dailyBefore = profileManager.getDailyStatus();
+                const isFirstCampToday = dailyBefore.vocabCampCount === 0;
+                const bonus = 3;
                 const award = profileManager.awardLearningProgress({
                     title: `👑 完成「${sess.packName}」5个新单词背诵通关打卡！`,
                     subjectTag: '魔法背单词',
                     badges: bonus,
-                    exp: 15,
-                    gotTicket: true,
+                    gotTicket: isFirstCampToday,
+                    isVocabCampFinish: true,
                     combo: englishEngine.combo,
                     isMath: false
                 });
                 this.fx.spawnBurst(window.innerWidth * 0.5, window.innerHeight * 0.45, 45);
                 this.renderAll();
-                if (award.levelUpEvent) {
-                    this.celebrateLevelUp(award.levelUpEvent);
-                } else {
-                    this.showQuickToast(
-                        '👑 背单词打卡大满贯！',
-                        `太厉害啦！你成功背会了【${sess.words.map(w => w.word).join(', ')}】5个单词，额外荣获 <strong>+${bonus} 🏅 徽章 + 1 张 🎟️ 盲盒券</strong>！`
-                    );
-                }
+                const badgeNote = award.actualBadges > 0
+                    ? `额外荣获 <strong>+${award.actualBadges} 🏅 徽章</strong>（今日 ${award.dailyEarned}/${award.dailyCap}）`
+                    : `今日徽章已集满（${award.dailyEarned}/${award.dailyCap}），5个单词熟练度已全部点亮`;
+                const ticketNote = award.actualTicket ? ` + <strong>1 张 🎟️ 盲盒券</strong>` : '';
+                this.showQuickToast(
+                    '👑 背单词打卡大满贯！',
+                    `太厉害啦！你成功背会了【${sess.words.map(w => w.word).join(', ')}】5个单词，${badgeNote}${ticketNote}！`
+                );
                 this.initVocabCampForPack(this.activeWordPackId, false);
             }
         } else {
@@ -1231,6 +1259,22 @@ class PetWonderTownApp {
         }
     }
 
+    celebrateDailyCapReached(cap) {
+        soundEngine.playLevelUp();
+        this.fx.spawnBurst(window.innerWidth * 0.5, window.innerHeight * 0.4, 45);
+        this.showQuickModal(
+            '🏆 今日徽章能量已集满！',
+            `<div style="text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;">
+                <div style="font-size:48px;">🌟🐰🐸🌟</div>
+                <div style="font-size:17px; font-weight:900; color:#4f359b;">太棒啦！今天已经赚满 ${cap} / ${cap} 枚徽章！</div>
+                <p style="font-size:13px; color:#5e547d; line-height:1.6;">
+                    快用徽章去喂萌宠或扩建店铺吧！小动物们吃饱后要睡香香消化啦～<br/>
+                    <strong>明天零点后又能继续赚徽章升级！</strong>（今天依然可以自由练习算术和背单词巩固熟练度哦）
+                </p>
+            </div>`
+        );
+    }
+
     openDressupModal() {
         const u = profileManager.getActiveUser();
         const curAcc = u.pets[u.activePetId]?.accessory || 'none';
@@ -1270,6 +1314,7 @@ class PetWonderTownApp {
     loadUserIntoDraft(u) {
         this.editingUserId = u.id;
         this.draftAvatar = u.avatar || '🐰';
+        this.draftDailyCap = u.dailyBadgeCap || DEFAULT_DAILY_BADGE_CAP;
         const mc = u.mathConfig || {};
         this.draftMathMode = mc.mode || 'custom';
         this.draftMathPreset = mc.presetGrade || 'grade1_2';
@@ -1331,6 +1376,23 @@ class PetWonderTownApp {
             };
             avGrid.appendChild(b);
         });
+
+        // 2.5 每日徽章获取上限选择胶囊
+        const capGrid = document.getElementById('dailyCapPills');
+        if (capGrid) {
+            capGrid.innerHTML = '';
+            DAILY_BADGE_CAP_OPTIONS.forEach(c => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = `radio-pill-btn ${this.draftDailyCap === c ? 'active' : ''}`;
+                b.textContent = c === 30 ? `${c}枚/天(推荐)` : `${c}枚/天`;
+                b.onclick = () => {
+                    this.draftDailyCap = c;
+                    this.renderProfileModalControls();
+                };
+                capGrid.appendChild(b);
+            });
+        }
 
         // 3. 数学自定义 vs 预设选项卡
         document.getElementById('btnMathTabCustom').classList.toggle('active', this.draftMathMode === 'custom');
@@ -1447,6 +1509,7 @@ class PetWonderTownApp {
         profileManager.updateUserSettings(this.editingUserId, {
             name: document.getElementById('inputKidName').value,
             avatar: this.draftAvatar,
+            dailyBadgeCap: this.draftDailyCap,
             mathConfig,
             englishConfig
         });
@@ -1582,6 +1645,35 @@ class PetWonderTownApp {
                 this.switchWorldView(btn.dataset.view);
             };
         });
+
+        // 点击顶部「今日上限进度」胶囊查看规则或跳转调整
+        const dailyCapBtn = document.getElementById('hudDailyCapBox');
+        if (dailyCapBtn) {
+            dailyCapBtn.onclick = () => {
+                soundEngine.playTap();
+                const u = profileManager.getActiveUser();
+                const d = profileManager.getDailyStatus(u);
+                this.showQuickModal(
+                    '⏳ 每日成长与徽章规则',
+                    `<div style="display:flex; flex-direction:column; gap:10px; font-size:13px; color:#423666; line-height:1.6;">
+                        <div style="background:#f3f0ff; padding:10px 12px; border-radius:12px; font-weight:800;">
+                            📅 今日已获徽章：<strong style="color:#6a38d9; font-size:16px;">${d.earned} / ${d.cap} 🏅</strong>
+                            &nbsp;｜&nbsp; 当前集星：<strong style="color:#d97706;">⭐ ${d.starProgress} / 3</strong>
+                        </div>
+                        <div>• <strong>集星兑章</strong>：口算与英语单题每答对 3 题（集满 3 颗学习星）合成 <strong>+1 枚徽章</strong>；乘除应用题与数据图每题 <strong>+1 枚</strong>；错题本攻克每题 <strong>+2 枚</strong>。</div>
+                        <div>• <strong>防厌倦每日上限</strong>：每天最多赚取 <strong>${d.cap} 枚徽章</strong>（约需坚持打卡 5～6 天可将一只萌宠养至 Lv.5 毕业），细水长流更有期待感！</div>
+                        <button type="button" id="btnAdjustCapJump" class="btn-purple-wide" style="width:100%; margin-top:4px;">⚙️ 家长调整每日徽章上限</button>
+                    </div>`
+                );
+                const jumpBtn = document.getElementById('btnAdjustCapJump');
+                if (jumpBtn) {
+                    jumpBtn.onclick = () => {
+                        this.closeModal('modalQuickPopup');
+                        this.openProfileModal();
+                    };
+                }
+            };
+        }
 
         // 全屏与静音按钮
         document.getElementById('btnFullscreen').onclick = () => {

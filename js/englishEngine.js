@@ -319,16 +319,20 @@ export class EnglishEngine {
 
     evaluateResult(isCorrect, wordObj, isReview = false) {
         let badgeEarned = 0;
+        let starEarned = 0;
         let expEarned = 0;
         let gotGachaTicket = false;
 
         if (isCorrect) {
             this.combo++;
             if (this.combo > this.maxCombo) this.maxCombo = this.combo;
-            const comboBonus = this.combo >= 5 ? 3 : (this.combo >= 3 ? 1 : 0);
-            badgeEarned = (2 + comboBonus) * (isReview ? 2 : 1);
-            expEarned = isReview ? 6 : 4;
-            if (this.combo > 0 && this.combo % 5 === 0) {
+            if (isReview) {
+                badgeEarned = 2;
+            } else {
+                // 单道英语闯关集星制：每满 3 颗学习星合成 1 枚徽章（6连对以上每题 2 星）
+                starEarned = this.combo >= 6 ? 2 : 1;
+            }
+            if (this.combo > 0 && this.combo % 15 === 0) {
                 gotGachaTicket = true;
             }
         } else {
@@ -341,6 +345,7 @@ export class EnglishEngine {
             combo: this.combo,
             maxCombo: this.maxCombo,
             badgeEarned,
+            starEarned,
             expEarned,
             gotGachaTicket
         };

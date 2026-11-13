@@ -52,7 +52,7 @@ for (let i = 0; i < 1400; i++) {
     assert.ok(Number.isInteger(q.answer) && q.answer >= 0, `Custom question invalid: ${JSON.stringify(q)}`);
     const res = me.checkAnswer(q.answer);
     assert.equal(res.isCorrect, true);
-    assert.ok(res.badgeEarned >= 2);
+    assert.ok(res.badgeEarned >= 1 || res.starEarned >= 1);
 }
 console.log('   ✅ MathEngine 5,000-question stress test passed with 0 errors!');
 
@@ -82,13 +82,24 @@ const u = pm.getActiveUser();
 assert.equal(u.pets.rabbit.unlocked, true, 'Rabbit must be unlocked by default');
 assert.equal(u.pets.frog.unlocked, true, 'Frog must be unlocked by default');
 
-// Simulate earning badges and feeding rabbit to Lv.5 graduation
-pm.awardLearningProgress({ title: '测试10连对', subjectTag: '数学', badges: 60, exp: 0, gotTicket: true, combo: 10, isMath: true });
+// Verify Daily Badge Cap (default 30/day) & multi-day graduation pacing!
+const day1Res = pm.awardLearningProgress({ title: 'Day1 测试打卡', subjectTag: '数学', badges: 50, stars: 0, gotTicket: true, combo: 15, isMath: true });
+assert.equal(day1Res.actualBadges, 30, 'Day 1 must clamp earned badges to daily cap of 30');
+assert.equal(day1Res.reachedCapNow, true);
+
+const overCapRes = pm.awardLearningProgress({ title: 'Day1 超额练习', subjectTag: '数学', badges: 5, stars: 3, combo: 16, isMath: true });
+assert.equal(overCapRes.actualBadges, 0, 'Further answers on the same day must grant 0 badges');
+assert.equal(overCapRes.alreadyAtCap, true);
+
+// Simulate 6 days of consistent daily check-ins to graduate Rabbit to Lv.5!
 let graduated = false;
-for (let i = 0; i < 12; i++) {
-    const r = pm.feedActivePet();
-    if (r.levelUpEvent && r.levelUpEvent.newlyGraduated) graduated = true;
-    if (pm.getActiveUser().pets.rabbit.level >= 5) break;
+for (let day = 2; day <= 7; day++) {
+    u.dailyState.dateKey = `2026-01-0${day}`; // simulate next day reset
+    pm.awardLearningProgress({ title: `Day${day} 每日打卡`, subjectTag: '数学', badges: 30, combo: 5, isMath: true });
+    while (u.badges >= 5 && u.pets.rabbit.level < 5) {
+        const r = pm.feedActivePet();
+        if (r.levelUpEvent && r.levelUpEvent.newlyGraduated) graduated = true;
+    }
 }
 assert.equal(pm.getActiveUser().pets.rabbit.level, 5);
 assert.equal(graduated, true);

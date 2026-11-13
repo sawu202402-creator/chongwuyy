@@ -28,30 +28,35 @@ export const PET_CATEGORIES = [
     }
 ];
 
-// 宠物升级经验阶梯 (Lv.1 -> Lv.5 满级毕业)
-// Lv.1(0->15), Lv.2(0->25), Lv.3(0->35), Lv.4(0->45), Lv.5(已毕业!)
+// 宠物升级经验阶梯 (1徽章=1成长值，配合每日30枚上限，约需坚持打卡5~6天升至Lv.5满级毕业！)
+// Lv.1(0->20), Lv.2(0->35), Lv.3(0->50), Lv.4(0->65), Lv.5(已毕业! 累计170点)
 export const PET_LEVEL_MAX_EXP = {
-    1: 15,
-    2: 25,
-    3: 35,
-    4: 45,
-    5: 45
+    1: 20,
+    2: 35,
+    3: 50,
+    4: 65,
+    5: 65
 };
 
 export const FEED_BADGE_COST = 5;    // 每次投喂美食消耗 5 枚徽章
-export const FEED_EXP_GAIN = 15;     // 每次投喂增加 15 点成长值
+export const FEED_EXP_GAIN = 5;      // 每次投喂稳步增加 5 点成长值 (1徽章 = 1成长值)
 
 export const SHOP_LEVEL_MAX_EXP = {
-    1: 20,
-    2: 30,
-    3: 40,
-    4: 45,
-    5: 45
+    1: 24,
+    2: 42,
+    3: 60,
+    4: 78,
+    5: 78
 };
 
 export const SHOP_UPGRADE_BADGE_COST = 6; // 每次进货扩建消耗 6 枚徽章
-export const SHOP_UPGRADE_EXP_GAIN = 15;  // 每次进货增加 15 点店铺繁荣度
-export const GACHA_BADGE_COST = 18;       // 无扭蛋券时消耗 18 徽章可抽一次惊喜盲盒
+export const SHOP_UPGRADE_EXP_GAIN = 6;   // 每次进货增加 6 点店铺繁荣度
+export const GACHA_BADGE_COST = 35;       // 无扭蛋券时消耗 35 徽章可抽一次惊喜盲盒
+
+// 每日防刷腻习惯养成上限配置 (自然日零点自动重置，可在家长设置中按孩子调整)
+export const DEFAULT_DAILY_BADGE_CAP = 30;
+export const DAILY_BADGE_CAP_OPTIONS = [15, 25, 30, 45, 60];
+export const DAILY_TICKET_CAP = 2;        // 每日最多掉落 2 张免费盲盒券
 
 export const PETS_CATALOG = [
     // ================= 1. 绿野部落 (兔子与青蛙双C位首发免费!) =================
@@ -100,7 +105,7 @@ export const PETS_CATALOG = [
         category: 'forest',
         emoji: '🐶',
         img: 'assets/pets/shiba.png',
-        unlockCost: 20,
+        unlockCost: 45,
         isStarter: false,
         foodName: '香烤牛奶骨头饼',
         foodIcon: '🦴',
@@ -118,7 +123,7 @@ export const PETS_CATALOG = [
         category: 'forest',
         emoji: '🐼',
         img: 'assets/pets/panda.png',
-        unlockCost: 25,
+        unlockCost: 55,
         isStarter: false,
         foodName: '鲜嫩春笋团子',
         foodIcon: '🎋',
@@ -138,7 +143,7 @@ export const PETS_CATALOG = [
         category: 'mythical',
         emoji: '🐯',
         img: 'assets/pets/tiger.png',
-        unlockCost: 35,
+        unlockCost: 80,
         isStarter: false,
         foodName: '星光能量肉排',
         foodIcon: '🍖',
@@ -156,7 +161,7 @@ export const PETS_CATALOG = [
         category: 'mythical',
         emoji: '🦄',
         img: 'assets/pets/unicorn.png',
-        unlockCost: 40,
+        unlockCost: 90,
         isStarter: false,
         foodName: '彩虹棉花糖云',
         foodIcon: '🍭',
@@ -174,7 +179,7 @@ export const PETS_CATALOG = [
         category: 'mythical',
         emoji: '🌱',
         img: 'assets/pets/succulent.png',
-        unlockCost: 30,
+        unlockCost: 65,
         isStarter: false,
         foodName: '七彩晨露甘霖',
         foodIcon: '💧',
@@ -192,7 +197,7 @@ export const PETS_CATALOG = [
         category: 'mythical',
         emoji: '🪙',
         img: 'assets/pets/pixiu.png',
-        unlockCost: 45,
+        unlockCost: 100,
         isStarter: false,
         foodName: '金灿灿福气果',
         foodIcon: '🍊',
@@ -366,11 +371,11 @@ export const PET_ACCESSORIES = [
 
 // 萌宠小镇可免费/微徽章布置的景观装饰物 (装扮小镇功能)
 export const TOWN_DECORS = [
-    { id: 'fountain', name: '音乐喷泉', icon: '⛲', cost: 8 },
-    { id: 'ferris', name: '彩虹摩天轮', icon: '🎡', cost: 12 },
-    { id: 'carousel', name: '童话旋转木马', icon: '🎠', cost: 10 },
-    { id: 'sakura', name: '浪漫樱花树', icon: '🌸', cost: 6 },
-    { id: 'camping', name: '野餐小帐篷', icon: '⛺', cost: 6 }
+    { id: 'fountain', name: '音乐喷泉', icon: '⛲', cost: 18 },
+    { id: 'ferris', name: '彩虹摩天轮', icon: '🎡', cost: 28 },
+    { id: 'carousel', name: '童话旋转木马', icon: '🎠', cost: 22 },
+    { id: 'sakura', name: '浪漫樱花树', icon: '🌸', cost: 12 },
+    { id: 'camping', name: '野餐小帐篷', icon: '⛺', cost: 12 }
 ];
 
 // 横屏 16:9 海滨铁道萌宠小镇 11 块黄金草坪街区坐标 (像素级对齐 town_bg.jpg 等距绿茵地块)

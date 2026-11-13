@@ -13,12 +13,32 @@ import {
     SHOP_UPGRADE_BADGE_COST,
     SHOP_UPGRADE_EXP_GAIN,
     GACHA_BADGE_COST,
+    DEFAULT_DAILY_BADGE_CAP,
+    DAILY_TICKET_CAP,
     TOWN_DECORS,
     getPetById,
     getShopById
 } from './config.js';
 
-const STORAGE_KEY = 'chongwuyy_pet_town_profiles_v1';
+const STORAGE_KEY = 'chongwuyy_pet_town_profiles_v2';
+
+function todayDateKey() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function createFreshDailyState() {
+    return {
+        dateKey: todayDateKey(),
+        badgesEarned: 0,
+        ticketsEarned: 0,
+        starProgress: 0,
+        vocabCampCount: 0
+    };
+}
 
 function nowTimeStr() {
     const d = new Date();
@@ -66,8 +86,10 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
         id,
         name,
         avatar,
-        badges: 20,         // 初始赠送 20 枚启航徽章，方便小朋友立刻体验投喂互动
-        gachaTickets: 1,    // 初始赠送 1 张惊喜盲盒扭蛋券
+        badges: 6,          // 初始赠送 6 枚启航徽章，刚好体验首日第 1 次喂养互动
+        gachaTickets: 0,    // 盲盒券靠完成背单词打卡或 15 连对亲自赚取，更有成就感
+        dailyBadgeCap: DEFAULT_DAILY_BADGE_CAP, // 默认每日最多获取 30 枚徽章，防刷腻、养成每日打卡习惯
+        dailyState: createFreshDailyState(),
         stageMode: 'pet',   // 'pet' (养宠模式) | 'shop' (开店经营模式)
         activePetId: activePetId || 'rabbit',
         activeShopId: 'supermarket',
@@ -104,7 +126,7 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
                 timeStr: time,
                 title: `🎉 欢迎小店长入驻！领养萌宠【${petObj.name}】启航礼包`,
                 subjectTag: '新手启航',
-                deltaBadges: 20
+                deltaBadges: 6
             }
         ],
         badgeLedger: [
@@ -112,8 +134,8 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
                 id: 'led_1',
                 timeStr: time,
                 reason: '🎁 新手小店长启航奖章礼包',
-                delta: 20,
-                balanceAfter: 20
+                delta: 6,
+                balanceAfter: 6
             }
         ],
         graduations: [],
@@ -220,6 +242,8 @@ export class UserProfileManager {
             if (!Array.isArray(u.ownedAccessories)) u.ownedAccessories = ['none'];
             if (!Array.isArray(u.ownedDecors)) u.ownedDecors = [];
             if (!u.stats) u.stats = { totalMathCorrect: 0, totalEnglishCorrect: 0, totalWordsMastered: 0, bestCombo: 0 };
+            if (!u.dailyBadgeCap || u.dailyBadgeCap < 5) u.dailyBadgeCap = DEFAULT_DAILY_BADGE_CAP;
+            this._ensureDailyState(u);
         });
 
         if (!this.data.users.some(u => u.id === this.data.activeUserId)) {
@@ -267,15 +291,47 @@ export class UserProfileManager {
         return newUser;
     }
 
-    updateUserSettings(id, { name, avatar, mathConfig, englishConfig }) {
+    updateUserSettings(id, { name, avatar, dailyBadgeCap, mathConfig, englishConfig }) {
         const u = this.getUser(id);
         if (!u) return null;
         if (name !== undefined && name.trim()) u.name = name.trim();
         if (avatar !== undefined) u.avatar = avatar;
+        if (dailyBadgeCap !== undefined && Number(dailyBadgeCap) >= 5) {
+            u.dailyBadgeCap = Number(dailyBadgeCap);
+        }
         if (mathConfig) u.mathConfig = { ...u.mathConfig, ...mathConfig };
         if (englishConfig) u.englishConfig = { ...u.englishConfig, ...englishConfig };
         this.save();
         return u;
+    }
+
+    _ensureDailyState(user) {
+        const today = todayDateKey();
+        if (!user.dailyState || user.dailyState.dateKey !== today) {
+            user.dailyState = createFreshDailyState();
+        }
+        if (typeof user.dailyState.badgesEarned !== 'number') user.dailyState.badgesEarned = 0;
+        if (typeof user.dailyState.ticketsEarned !== 'number') user.dailyState.ticketsEarned = 0;
+        if (typeof user.dailyState.starProgress !== 'number') user.dailyState.starProgress = 0;
+        if (typeof user.dailyState.vocabCampCount !== 'number') user.dailyState.vocabCampCount = 0;
+        return user.dailyState;
+    }
+
+    getDailyStatus(user = null) {
+        const u = user || this.getActiveUser();
+        const ds = this._ensureDailyState(u);
+        const cap = u.dailyBadgeCap || DEFAULT_DAILY_BADGE_CAP;
+        const remaining = Math.max(0, cap - ds.badgesEarned);
+        return {
+            dateKey: ds.dateKey,
+            earned: ds.badgesEarned,
+            cap,
+            remaining,
+            isCapped: remaining <= 0,
+            starProgress: ds.starProgress,
+            ticketsEarned: ds.ticketsEarned,
+            vocabCampCount: ds.vocabCampCount
+        };
     }
 
     deleteUser(id) {
@@ -312,31 +368,64 @@ export class UserProfileManager {
         if (user.badgeLedger.length > 60) user.badgeLedger = user.badgeLedger.slice(0, 60);
     }
 
-    // ==================== 答题/背单词获得徽章与陪伴成长 ====================
-    awardLearningProgress({ title, subjectTag, badges, exp, gotTicket = false, combo = 0, isMath = true }) {
+    // ==================== 答题/背单词获得徽章与每日防刷腻上限控制 ====================
+    awardLearningProgress({ title, subjectTag, badges = 0, stars = 0, gotTicket = false, isVocabCampFinish = false, combo = 0, isMath = true }) {
         const u = this.getActiveUser();
-        if (badges > 0) {
-            this._pushLedger(u, title, badges);
-            this._pushScoreRecord(u, title, subjectTag, badges);
-        }
-        if (gotTicket) {
-            u.gachaTickets = (u.gachaTickets || 0) + 1;
-        }
+        const ds = this._ensureDailyState(u);
+        const cap = u.dailyBadgeCap || DEFAULT_DAILY_BADGE_CAP;
+
+        // 学习统计始终累计，哪怕今日徽章已满也可继续巩固练习
         if (isMath) u.stats.totalMathCorrect = (u.stats.totalMathCorrect || 0) + 1;
         else u.stats.totalEnglishCorrect = (u.stats.totalEnglishCorrect || 0) + 1;
         if (combo > (u.stats.bestCombo || 0)) u.stats.bestCombo = combo;
+        if (isVocabCampFinish) ds.vocabCampCount += 1;
 
-        // 每次答对顺带给予当前舞台宠物或店铺陪伴经验！
-        let levelUpEvent = null;
-        if (exp > 0) {
-            if (u.stageMode === 'shop') {
-                levelUpEvent = this._gainShopExp(u, u.activeShopId, exp);
-            } else {
-                levelUpEvent = this._gainPetExp(u, u.activePetId, exp);
+        const remainingBefore = Math.max(0, cap - ds.badgesEarned);
+        const alreadyAtCap = remainingBefore <= 0;
+        let actualBadges = 0;
+        let reachedCapNow = false;
+
+        if (!alreadyAtCap) {
+            if (stars > 0) {
+                ds.starProgress += stars;
+            }
+            const convertedFromStars = Math.floor(ds.starProgress / 3);
+            ds.starProgress = ds.starProgress % 3;
+
+            const candidateBadges = (badges || 0) + convertedFromStars;
+            actualBadges = Math.min(candidateBadges, remainingBefore);
+
+            if (actualBadges > 0) {
+                ds.badgesEarned += actualBadges;
+                this._pushLedger(u, title, actualBadges);
+                this._pushScoreRecord(u, title, subjectTag, actualBadges);
+            }
+            if (ds.badgesEarned >= cap) {
+                ds.starProgress = 0;
+                reachedCapNow = true;
             }
         }
+
+        let actualTicket = false;
+        if (gotTicket && ds.ticketsEarned < DAILY_TICKET_CAP) {
+            ds.ticketsEarned += 1;
+            u.gachaTickets = (u.gachaTickets || 0) + 1;
+            actualTicket = true;
+        }
+
+        // 宠物与店铺经验 100% 由小朋友亲手投喂/进货获得，不再后台自动白送，延长养成期待感！
         this.save();
-        return { user: u, levelUpEvent };
+        return {
+            user: u,
+            actualBadges,
+            starProgress: ds.starProgress,
+            dailyEarned: ds.badgesEarned,
+            dailyCap: cap,
+            reachedCapNow,
+            alreadyAtCap,
+            actualTicket,
+            levelUpEvent: null
+        };
     }
 
     // ==================== 宠物养成、投喂、解锁与毕业 ====================
@@ -604,7 +693,7 @@ export class UserProfileManager {
         } else {
             return {
                 ok: false,
-                msg: `需要 1 张盲盒券或 ${GACHA_BADGE_COST} 枚徽章才能扭蛋哦！（连续答对 5 题可直接免费送盲盒券！）`
+                msg: `需要 1 张盲盒券或 ${GACHA_BADGE_COST} 枚徽章才能扭蛋哦！（每日完成首组 5 词背诵或达成 15 连对可直接免费送盲盒券！）`
             };
         }
 

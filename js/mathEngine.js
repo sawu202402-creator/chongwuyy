@@ -580,6 +580,7 @@ export class MathEngine {
 
         this.totalAttempted++;
         let badgeEarned = 0;
+        let starEarned = 0;
         let expEarned = 0;
         let gotGachaTicket = false;
 
@@ -588,14 +589,19 @@ export class MathEngine {
             this.combo++;
             if (this.combo > this.maxCombo) this.maxCombo = this.combo;
 
-            // 基础徽章：应用题/数据题思考量更大奖励 3 枚，口算题奖励 2 枚；复习错题双倍！
-            const baseBadge = (q.kind === 'word' || q.kind === 'data') ? 3 : 2;
-            const comboBonus = this.combo >= 5 ? 3 : (this.combo >= 3 ? 1 : 0);
-            badgeEarned = (baseBadge + comboBonus) * (q.isReview ? 2 : 1);
-            expEarned = q.isReview ? 6 : 4;
+            if (q.isReview) {
+                // 攻克历史错题直接奖励 2 枚徽章
+                badgeEarned = 2;
+            } else if (q.kind === 'word' || q.kind === 'data') {
+                // 乘除应用题与销量数据图思考量更大：每题奖励 1 枚徽章（5连对以上奖励 2 枚）
+                badgeEarned = this.combo >= 5 ? 2 : 1;
+            } else {
+                // 基础心算口算：集星制（每满 3 颗学习星合成 1 枚徽章；6连对以上每题得 2 星）
+                starEarned = this.combo >= 6 ? 2 : 1;
+            }
 
-            // 每满 5 连击倍数（5, 10, 15...）额外掉落 1 张神秘盲盒扭蛋券！
-            if (this.combo > 0 && this.combo % 5 === 0) {
+            // 连续答对满 15 题的倍数才额外掉落 1 张盲盒扭蛋券（受每日上限约束）
+            if (this.combo > 0 && this.combo % 15 === 0) {
                 gotGachaTicket = true;
             }
         } else {
@@ -610,6 +616,7 @@ export class MathEngine {
             combo: this.combo,
             maxCombo: this.maxCombo,
             badgeEarned,
+            starEarned,
             expEarned,
             gotGachaTicket
         };
