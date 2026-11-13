@@ -1,0 +1,523 @@
+/**
+ * shared/smartChalkboard.css - 塔防(/carrot/)与植物大战僵尸(/pvz/)通用多学科升级小黑板 + 跨游顶栏导航样式
+ */
+
+/* ================= 1. 顶部跨游大厅快捷胶囊 ================= */
+.portal-hub-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(180deg, #ff7eb3 0%, #ff477e 100%);
+    color: #fff !important;
+    border: 2.5px solid #4e342e;
+    border-radius: 999px;
+    padding: 4px 11px;
+    font-size: 13px;
+    font-weight: 900;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #4e342e;
+    white-space: nowrap;
+    transition: transform 0.12s ease;
+    flex-shrink: 0;
+}
+
+.portal-hub-btn:hover {
+    transform: translateY(-1px) scale(1.03);
+}
+
+.portal-hub-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 1px 0 #4e342e;
+}
+
+.portal-pet-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(180deg, #fff6d6 0%, #ffe082 100%);
+    color: #5d3a00 !important;
+    border: 2.5px solid #4e342e;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 900;
+    text-decoration: none;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #4e342e;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: transform 0.12s ease;
+}
+
+.portal-pet-badge-pill:hover {
+    transform: translateY(-1px);
+}
+
+.portal-pet-badge-pill.is-capped {
+    background: linear-gradient(180deg, #d4fc79 0%, #96e6a1 100%);
+    color: #145a32 !important;
+}
+
+/* ================= 2. 小黑板顶部 4 学科模式切换条 ================= */
+.smart-mode-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.28);
+    padding: 4px;
+    border-radius: 12px;
+    border: 1.5px solid rgba(255, 255, 255, 0.14);
+}
+
+.smart-mode-tab {
+    border: none;
+    border-radius: 9px;
+    padding: 5px 2px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.82);
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.14s ease;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.smart-mode-tab:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.smart-mode-tab.active {
+    background: linear-gradient(180deg, #ffd32a 0%, #ff9f43 100%);
+    color: #3d2200;
+    box-shadow: 0 2px 0 #b35900;
+}
+
+.smart-mode-tab[data-smode="english"].active {
+    background: linear-gradient(180deg, #54a0ff 0%, #2e86de 100%);
+    color: #fff;
+    box-shadow: 0 2px 0 #1b4f72;
+}
+
+/* ================= 3. 应用题 & 数据统计图 黑板内嵌富排版 ================= */
+.smart-bb-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    margin-bottom: 5px;
+}
+
+.smart-bb-tag {
+    font-size: 11px;
+    font-weight: 800;
+    color: #ffeaa7;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.smart-bb-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.smart-mini-btn {
+    border: 1.5px solid rgba(255, 255, 255, 0.35);
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: background 0.12s ease;
+}
+
+.smart-mini-btn:hover {
+    background: rgba(255, 255, 255, 0.26);
+}
+
+.smart-word-story {
+    font-size: 13.5px;
+    line-height: 1.48;
+    color: #f8f9fa;
+    text-align: left;
+    background: rgba(0, 0, 0, 0.22);
+    border-radius: 10px;
+    padding: 7px 9px;
+}
+
+.smart-word-story .wp-hl {
+    color: #ffd32a;
+    font-weight: 900;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.smart-visual-tip {
+    margin-top: 5px;
+    padding: 5px 8px;
+    border-radius: 8px;
+    background: rgba(46, 213, 115, 0.18);
+    border: 1px dashed rgba(46, 213, 115, 0.65);
+    color: #b8ffda;
+    font-size: 11.5px;
+    font-weight: 800;
+    text-align: left;
+    line-height: 1.35;
+}
+
+.smart-chart-box {
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 10px;
+    padding: 6px 8px;
+    text-align: left;
+}
+
+.smart-chart-title {
+    font-size: 11.5px;
+    font-weight: 900;
+    color: #ffeaa7;
+    margin-bottom: 4px;
+    text-align: center;
+}
+
+.smart-chart-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 3px 0;
+    font-size: 11.5px;
+}
+
+.smart-chart-label {
+    width: 68px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: 800;
+    color: #fff;
+}
+
+.smart-chart-track {
+    flex: 1;
+    height: 13px;
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.smart-chart-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.3s ease;
+}
+
+.smart-chart-val {
+    width: 28px;
+    text-align: right;
+    font-weight: 900;
+    color: #ffd32a;
+    flex-shrink: 0;
+}
+
+.smart-chart-q {
+    margin-top: 5px;
+    font-size: 12.5px;
+    line-height: 1.38;
+    color: #fff;
+    text-align: left;
+}
+
+.smart-unit-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    background: #ffeaa7;
+    color: #4e342e;
+    border: 2.5px solid #4e342e;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+/* ================= 4. 少儿英语 (背单词 + 闪电闯关) 内嵌面板 ================= */
+.smart-english-panel {
+    display: none;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.smart-english-panel.active {
+    display: flex;
+}
+
+.smart-en-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px;
+}
+
+.smart-en-subtabs {
+    display: flex;
+    gap: 4px;
+    flex: 1;
+}
+
+.smart-en-subbtn {
+    flex: 1;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    background: rgba(0, 0, 0, 0.25);
+    color: #dfe6e9;
+    border-radius: 10px;
+    padding: 4px 6px;
+    font-size: 11.5px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.smart-en-subbtn.active {
+    background: linear-gradient(180deg, #00d2d3 0%, #0984e3 100%);
+    border-color: #fff;
+    color: #fff;
+}
+
+.smart-en-pack-select {
+    background: #2c3e50;
+    color: #fff;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 9px;
+    padding: 3px 5px;
+    font-size: 11px;
+    font-weight: 800;
+    max-width: 112px;
+}
+
+/* 单词学习卡 & 闯关题面 */
+.smart-en-card {
+    background: #2c3e50;
+    border: 2px dashed rgba(255, 255, 255, 0.28);
+    border-radius: 14px;
+    padding: 9px 10px;
+    color: #fff;
+    text-align: center;
+}
+
+.smart-en-progress {
+    font-size: 11px;
+    color: #74b9ff;
+    font-weight: 900;
+    margin-bottom: 3px;
+}
+
+.smart-en-emoji {
+    font-size: 40px;
+    line-height: 1.1;
+    margin: 2px 0;
+}
+
+.smart-en-word {
+    font-size: 25px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #fff;
+}
+
+.smart-en-phonics {
+    font-size: 14px;
+    font-weight: 900;
+    margin: 2px 0;
+}
+
+.smart-en-phonics .ph-vowel { color: #ff7675; }
+.smart-en-phonics .ph-blend { color: #ffeaa7; }
+.smart-en-phonics .ph-cons { color: #74b9ff; }
+.smart-en-phonics .ph-dot { color: rgba(255, 255, 255, 0.45); margin: 0 2px; }
+
+.smart-en-zh {
+    font-size: 14px;
+    font-weight: 900;
+    color: #55efc4;
+    margin-top: 2px;
+}
+
+.smart-en-sentence {
+    font-size: 11.5px;
+    color: #dfe6e9;
+    margin-top: 4px;
+    line-height: 1.3;
+}
+
+.smart-en-audio-row {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.smart-en-nav-row {
+    display: flex;
+    gap: 6px;
+}
+
+.smart-en-primary-btn {
+    flex: 1;
+    background: linear-gradient(180deg, #2ed573 0%, #10ac84 100%);
+    border: 2.5px solid #4e342e;
+    border-radius: 12px;
+    padding: 8px 10px;
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #4e342e;
+}
+
+.smart-en-secondary-btn {
+    background: rgba(255, 255, 255, 0.16);
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 12px;
+    padding: 8px 10px;
+    color: #fff;
+    font-size: 12.5px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+/* 2x2 选项网格 */
+.smart-en-options-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 7px;
+}
+
+.smart-en-opt-btn {
+    background: #fff;
+    border: 2.5px solid #4e342e;
+    border-radius: 12px;
+    padding: 8px 6px;
+    color: #2d3436;
+    font-family: inherit;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #4e342e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 58px;
+    transition: transform 0.1s ease, background 0.12s ease;
+}
+
+.smart-en-opt-btn:hover {
+    transform: translateY(-1px);
+    background: #fff9e6;
+}
+
+.smart-en-opt-btn.correct {
+    background: #b8ffda !important;
+    border-color: #00b894 !important;
+}
+
+.smart-en-opt-btn.wrong {
+    background: #ffd6d6 !important;
+    border-color: #d63031 !important;
+}
+
+.smart-en-opt-icon {
+    font-size: 26px;
+    line-height: 1.1;
+}
+
+.smart-en-opt-word {
+    font-size: 16px;
+    font-weight: 900;
+    color: #2d3436;
+}
+
+.smart-en-opt-sub {
+    font-size: 11px;
+    color: #636e72;
+    font-weight: 800;
+}
+
+/* 字母拼写槽与果冻字母块 */
+.smart-spell-slots {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 6px 0 4px 0;
+}
+
+.smart-spell-slot {
+    width: 30px;
+    height: 36px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 900;
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+}
+
+.smart-spell-slot.missing {
+    background: #fff;
+    color: #d35400;
+    border: 2.5px dashed #ff9f43;
+    cursor: pointer;
+}
+
+.smart-spell-slot.filled {
+    background: #ffeaa7;
+    color: #2d3436;
+    border: 2.5px solid #fdcb6e;
+}
+
+.smart-spell-tiles {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.smart-letter-tile {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #ffffff 0%, #f1f2f6 100%);
+    border: 2.5px solid #4e342e;
+    box-shadow: 0 3px 0 #4e342e;
+    font-size: 19px;
+    font-weight: 900;
+    color: #2d3436;
+    cursor: pointer;
+}
+
+.smart-letter-tile.used {
+    opacity: 0.32;
+    pointer-events: none;
+}
+
+/* 当处于应用题/数据图/英语模式时隐藏保卫萝卜底部冗长秘诀卡，防止溢出 iPad 高度 */
+.chalkboard-card.compact-rich-mode .bb-tips-card {
+    display: none !important;
+}
+
+#bbKidName, .btn-bb-gear {
+    white-space: nowrap;
+    flex-shrink: 0;
+}

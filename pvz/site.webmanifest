@@ -1,0 +1,41 @@
+{
+  "name": "植物大战僵尸：数学大作战 (Math vs Zombies)",
+  "short_name": "数学大作战",
+  "description": "专为小朋友打造的数学版植物大战僵尸！心算口算加减乘除，释放阳光与全屏觉醒大招，雷击破除僵尸数理护盾！",
+  "id": "/",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "fullscreen",
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "landscape",
+  "background_color": "#2c632d",
+  "theme_color": "#488b2c",
+  "icons": [
+    {
+      "src": "favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

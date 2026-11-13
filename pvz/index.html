@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, shrink-to-fit=no">
+    <title>植物大战僵尸：数学大作战 (Math vs Zombies)</title>
+    <meta name="description" content="专为小朋友打造的数学版植物大战僵尸！心算口算加减乘除，释放阳光与全屏觉醒大招，雷击破除僵尸数理护盾！">
+    <!-- 网站 Logo 与书签 / 桌面图标配置 -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <!-- iPad / iPhone Safari 收藏夹书签 & "添加到主屏幕" App 级高清大图标与纯净全屏配置 -->
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <link rel="apple-touch-icon-precomposed" sizes="180x180" href="apple-touch-icon-precomposed.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-touch-fullscreen" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="数学大作战">
+    <meta name="format-detection" content="telephone=no">
+    <!-- PWA Web App 清单 -->
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="theme-color" content="#488b2c">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css?v=20261113_3in1_v1">
+    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261113_3in1_v1">
+</head>
+<body>
+
+    <div id="game-app">
+        <!-- 顶部原木 HUD 状态栏 -->
+        <header class="wood-hud">
+            <!-- 左侧：小朋友名片、爱心 -->
+            <div class="hud-left-group">
+                <button class="btn-jelly-pill btn-jelly-user" id="btnUserProfile" title="点击切换小朋友档案与心算难度设置">
+                    <span class="user-avatar-emoji" id="hudUserAvatar">🐰</span>
+                    <span class="user-name-text" id="hudUserName">小豌豆</span>
+                    <span class="hud-gear-icon">⚙️</span>
+                </button>
+                <button class="btn-jelly-pill btn-jelly-records" id="btnScoreRecords" title="查看小朋友错题本与答题战报">
+                    <span>📊</span>
+                    <span class="records-btn-text">成长战报</span>
+                </button>
+                <div class="hud-pill hud-pill-lives" title="剩余爱心生命">
+                    <span>❤️</span>
+                    <span class="hud-val-text" id="livesVal">5</span>
+                </div>
+            </div>
+
+            <!-- 中间：波次水银进度条与连对勋章 -->
+            <div class="hud-center-group">
+                <div class="syringe-tube" title="关卡僵尸波次进度">
+                    <div class="syringe-fluid" id="syringeFluid" style="width: 0%;"></div>
+                </div>
+                <div class="hud-pill-wave-capsule">
+                    <span>🧟</span>
+                    <span id="waveVal">0/4</span>
+                </div>
+                <div class="combo-badge" id="comboBadge" style="display:none;">
+                    🔥 <span id="comboCount">x0</span>
+                </div>
+            </div>
+
+            <!-- 右侧：关卡选择、无尽模式、全屏、暂停、音效 -->
+            <div class="hud-right-group">
+                <button class="btn-jelly-pill btn-jelly-pill-endless" id="btnEndlessMode" title="进入原版经典【生存：泳池无尽模式】">♾️ 无尽</button>
+                <button class="btn-jelly-pill btn-jelly-pill-level" id="btnSelectLevel" title="更换关卡 (1-1 ~ 5-10 & 无尽模式)">🗺️ 第 1-1 关 ▾</button>
+                <button class="btn-jelly-circle" id="btnFullscreen" title="点击切换全屏沉浸模式 (隐藏浏览器边框)">⛶</button>
+                <button class="btn-jelly-circle" id="btnPause" title="暂停/继续游戏">⏸️</button>
+                <button class="btn-jelly-circle" id="btnMute" title="开启/关闭声音">🔊</button>
+            </div>
+        </header>
+
+        <!-- 游戏主要区域 (战区 + 右侧智慧小黑板) -->
+        <main class="main-stage">
+            <!-- 战区容器 -->
+            <section class="battlefield-wrapper">
+                <!-- 原版 1:1 植物卡牌银行 (Seed Bank: 阳光数显 + 卡槽 + 铲子座) -->
+                <div class="seed-bank-bar" id="plantCardBar">
+                    <!-- 左侧原版阳光银行 -->
+                    <div class="sun-bank-box" title="可用阳光储备">
+                        <span class="sun-bank-icon">☀️</span>
+                        <span class="sun-bank-val" id="sunVal">150</span>
+                    </div>
+
+                    <!-- 卡槽列表 -->
+                    <div class="cards-list" id="cardsList">
+                        <!-- 由 JS 动态渲染各关卡可用卡牌 -->
+                    </div>
+
+                    <!-- 2-5 锤僵尸特别试炼提示徽章 -->
+                    <div class="whack-mode-badge" id="whackModeBadge" style="display:none;" title="点击草坪上的僵尸直接挥锤痛击！">
+                        <img src="assets/ui/mallet.png" alt="木槌" class="whack-badge-icon" />
+                        <span>点击挥锤!</span>
+                    </div>
+
+                    <!-- 战前选卡台快捷按钮 -->
+                    <button class="seed-chooser-trigger-btn" id="btnOpenSeedChooser" type="button" style="display:none;" title="自由更换本关出战植物卡组">
+                        <span>🎴</span>
+                        <span>选卡</span>
+                    </button>
+
+                    <!-- 园艺铲子座 -->
+                    <div class="shovel-bank-slot" id="shovelSlot" title="点击拿取铲子挖除植物">
+                        <img src="assets/ui/shovel.png" alt="铲子" id="shovelImg" />
+                    </div>
+                </div>
+
+                <!-- 核心战场视窗 (900x600 真实草坪无畸变视窗) -->
+                <div class="canvas-container" id="canvasContainer">
+                    <!-- 底层 Canvas: 渲染背景、投掷物、爆炸冲击波与特效 -->
+                    <canvas id="battleCanvas" width="900" height="600"></canvas>
+
+                    <!-- 实体动画图层: 托管 60fps 动态 GIF (植物呼吸、向日葵微笑、僵尸走步与啃咬、断头) -->
+                    <div id="entityLayer" class="entity-layer"></div>
+
+                    <!-- 空中弹道与打击特效层: 位于植物/僵尸上方 (z-index: 35)、浓雾下方 (z-index: 45)，保证抛投弧线弹道、飞溅与爆炸绝不被花盆或僵尸遮挡 -->
+                    <canvas id="fxCanvas" class="fx-layer" width="900" height="600"></canvas>
+
+                    <!-- 前景浓雾与波次横幅图层: 覆盖在实体层上方 (z-index: 45)，保证第 4 大关浓雾真实遮挡植物与僵尸，并支持路灯花透光开洞 -->
+                    <canvas id="fogCanvas" class="fog-layer" width="900" height="600"></canvas>
+
+                    <!-- 前景阳光图层: 保证阳光始终位于植物和僵尸最前方 (z-index: 60) -->
+                    <div id="sunLayer" class="sun-layer"></div>
+
+                    <!-- 资源加载遮罩 -->
+                    <div class="loading-overlay" id="loadingOverlay">
+                        <div class="loading-card">
+                            <div class="loading-sun">☀️</div>
+                            <div class="loading-title">正在准备植物与草坪...</div>
+                            <div class="loading-bar-wrap">
+                                <div class="loading-bar-fill" id="loadingBarFill" style="width: 10%;"></div>
+                            </div>
+                            <div class="loading-hint" id="loadingHintText">资源加载中 10%</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 右侧：智慧小黑板算术法阵 -->
+            <aside class="chalkboard-card">
+                <!-- 萌宠加油助教 -->
+                <div class="chalkboard-mascots">
+                    <div class="mascot-peep" id="mascotPeep">
+                        <span class="mascot-emoji" id="mascotEmoji">🌻</span>
+                        <span class="mascot-talk" id="mascotTalk">算对掉大阳光！加油哦！</span>
+                    </div>
+                </div>
+
+                <!-- 黑板算式区 -->
+                <div class="blackboard-inner">
+                    <div class="bb-hint" id="questionHint">🎯 20以内加法速算</div>
+                    <div class="bb-formula" id="questionFormula">7 + 8 = ?</div>
+                </div>
+
+                <!-- 答案框与确认按钮 -->
+                <div class="bb-answer-box">
+                    <input type="text" id="answerInput" class="bb-input" placeholder="输入答案" autocomplete="off" readonly inputmode="none" />
+                    <button class="bb-btn-confirm" id="btnSubmitAnswer">确认 ↵</button>
+                </div>
+
+                <!-- 答题反馈信息 -->
+                <div class="bb-feedback" id="feedbackMsg">答对题奖励 +50 阳光，连对触发狂暴大招！</div>
+
+                <!-- 彩色果冻虚拟大按键 (适配儿童手指与 iPad 防误触) -->
+                <div class="cookie-keypad" id="virtualKeypad">
+                    <button class="cookie-key" data-key="1">1</button>
+                    <button class="cookie-key" data-key="2">2</button>
+                    <button class="cookie-key" data-key="3">3</button>
+                    <button class="cookie-key" data-key="4">4</button>
+                    <button class="cookie-key" data-key="5">5</button>
+                    <button class="cookie-key" data-key="6">6</button>
+                    <button class="cookie-key" data-key="7">7</button>
+                    <button class="cookie-key" data-key="8">8</button>
+                    <button class="cookie-key" data-key="9">9</button>
+                    <button class="cookie-key cookie-key-action" data-key="clear">清空</button>
+                    <button class="cookie-key" data-key="0">0</button>
+                    <button class="cookie-key cookie-key-action" data-key="backspace">⌫</button>
+                </div>
+
+                <!-- 小朋友出战难度指示 -->
+                <div class="bb-kid-footer" id="bbKidFooter" title="点击调整心算难度">
+                    <div class="bb-kid-info">
+                        <span id="bbKidAvatar">🐰</span>
+                        <span id="bbKidName">小豌豆</span>
+                        <span class="bb-diff-tag" id="bbKidDiffTag">20以内加减</span>
+                    </div>
+                    <button class="btn-bb-gear" id="btnBbKidGear">⚙️ 调整难度</button>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- 关卡选择模态弹窗 (1-1 ~ 1-10 全关卡) -->
+    <div class="modal-overlay" id="levelModal" style="display:none;">
+        <div class="wood-modal-card">
+            <div class="modal-title">🗺️ 选择出战关卡</div>
+            <div class="level-grid" id="levelGrid">
+                <!-- 由 JS 渲染 1-1 至 1-10 关卡卡片 -->
+            </div>
+            <button class="btn-big-wood btn-close-modal" id="btnCloseLevelModal">返回战场 ↩️</button>
+        </div>
+    </div>
+
+    <!-- 原版战前选卡台 (Seed Chooser) -->
+    <div class="modal-overlay" id="seedChooserModal" style="display:none;">
+        <div class="wood-modal-card seed-chooser-card">
+            <div class="seed-chooser-header">
+                <div class="seed-chooser-title-col">
+                    <div class="modal-title" id="seedChooserTitle" style="text-align:left;">🌱 战前选卡台 — 挑选出战植物</div>
+                    <div class="seed-chooser-sub" id="seedChooserSub">最多挑选 8 张卡牌出战（点击上方已选卡牌可移除，点击下方图鉴添加）</div>
+                </div>
+                <div class="seed-chooser-zombie-box">
+                    <div class="zombie-preview-label">🧟 本关来袭僵尸情报</div>
+                    <div class="zombie-preview-list" id="seedChooserZombies"></div>
+                </div>
+            </div>
+
+            <!-- 顶部已选 8 卡槽预览 -->
+            <div class="seed-selected-bar">
+                <span class="seed-bar-label">出战卡槽 (<span id="seedSelectedCount">0</span>/8)</span>
+                <div class="seed-selected-slots" id="seedSelectedSlots"></div>
+            </div>
+
+            <!-- 夜行蘑菇白天休眠提醒 -->
+            <div class="seed-sleep-warning" id="seedSleepWarning" style="display:none;">
+                💤 提醒：白天关卡携带夜行蘑菇，记得同时带上【咖啡豆】唤醒它们哦！
+            </div>
+
+            <!-- 可选植物池 -->
+            <div class="seed-pool-grid" id="seedPoolGrid"></div>
+
+            <div class="modal-actions-row">
+                <button class="btn-big-wood" id="btnRecommendDeck" type="button" style="background: linear-gradient(135deg, #3498db, #2980b9); border-color: #1f618d; font-size:14px;">⭐ 推荐阵容</button>
+                <button class="btn-big-wood" id="btnConfirmSeedDeck" type="button" style="background: linear-gradient(135deg, #2ecc71, #27ae60); border-color: #1e8449;">摇滚出击！ 🚀</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 小朋友档案与心算难度设置大弹窗 (完全对标 shuxue) -->
+    <div class="modal-overlay" id="userProfileModal" style="display:none;">
+        <div class="wood-modal-card profile-modal-card">
+            <div class="modal-title">🎒 小朋友档案与心算难度设置</div>
+            <p class="modal-desc">支持添加多个小朋友，为每位孩子独立挑选萌宠头像和定制口算题型！</p>
+
+            <!-- 1. 小朋友快捷列表与一键切换 / 新增 -->
+            <div class="kid-profiles-bar-wrapper">
+                <div class="kid-profiles-bar-header">
+                    <span class="kid-bar-title">👥 小朋友列表（点击切换）：</span>
+                    <button type="button" class="btn-add-kid-pill" id="btnAddNewKid">➕ 新增小朋友</button>
+                </div>
+                <div class="kid-profiles-chips-list" id="kidProfilesList">
+                    <!-- 由 JS 动态渲染所有小朋友卡片 -->
+                </div>
+            </div>
+
+            <!-- 2. 小朋友信息编辑表单 -->
+            <div class="profile-kid-card">
+                <div class="profile-card-header">
+                    <span class="profile-edit-mode-tag" id="profileEditModeTag">✏️ 正在编辑：小豌豆</span>
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" class="btn-del-kid" id="btnDeleteKid" style="display:none;" title="删除该小朋友档案">🗑️ 删除此档案</button>
+                    </div>
+                </div>
+                <div class="profile-row-item">
+                    <span class="profile-label">小勇士姓名：</span>
+                    <input type="text" id="inputKidName" class="profile-name-input" maxlength="8" placeholder="输入孩子名字 (如: 小豌豆)" value="小豌豆" />
+                </div>
+                <div class="profile-row-item" style="margin-top: 10px;">
+                    <span class="profile-label">挑选萌宠头像：</span>
+                    <div class="avatar-select-grid" id="avatarSelectGrid">
+                        <!-- 12款萌宠头像 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. 难度模式双选项卡切换：自由定制 vs 预设学段 -->
+            <div class="profile-tab-header">
+                <button class="profile-tab-btn active" id="tabBtnCustom" type="button">✨ 自定义加减乘除</button>
+                <button class="profile-tab-btn" id="tabBtnPreset" type="button">🎓 快捷预设年级</button>
+            </div>
+
+            <!-- 选项卡 1：自定义加减乘除 -->
+            <div class="profile-tab-content" id="tabContentCustom">
+                <div class="setting-block">
+                    <div class="setting-title">1. 选择训练的运算类型（可多选）：</div>
+                    <div class="ops-grid">
+                        <label class="op-checkbox-label">
+                            <input type="checkbox" id="chkOp_add" value="add" checked>
+                            <span class="op-box">
+                                <span class="op-symbol">➕</span>
+                                <span class="op-name">加法</span>
+                            </span>
+                        </label>
+                        <label class="op-checkbox-label">
+                            <input type="checkbox" id="chkOp_sub" value="sub" checked>
+                            <span class="op-box">
+                                <span class="op-symbol">➖</span>
+                                <span class="op-name">减法</span>
+                            </span>
+                        </label>
+                        <label class="op-checkbox-label">
+                            <input type="checkbox" id="chkOp_mul" value="mul">
+                            <span class="op-box">
+                                <span class="op-symbol">✖️</span>
+                                <span class="op-name">乘法</span>
+                            </span>
+                        </label>
+                        <label class="op-checkbox-label">
+                            <input type="checkbox" id="chkOp_div" value="div">
+                            <span class="op-box">
+                                <span class="op-symbol">➗</span>
+                                <span class="op-name">除法</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="setting-block">
+                    <div class="setting-title">2. 加减法数值范围限制：</div>
+                    <div class="ranges-grid" id="rangesGrid">
+                        <!-- 由 JS 渲染 10, 20, 50, 100, 1000 胶囊 -->
+                    </div>
+                </div>
+
+                <div class="setting-block" id="blockMultiplierLimit">
+                    <div class="setting-title">3. 乘法/除法因数上限（几以内的乘法）：</div>
+                    <div class="ranges-grid" id="multipliersGrid">
+                        <!-- 由 JS 渲染 5, 9, 12 胶囊 -->
+                    </div>
+                    <div style="font-size:12px; color:#f1c40f; margin-top:4px;">
+                        💡 例如选择 <strong>5 以内</strong> 时，最大乘法题目就是 <code>5 × 5 = 25</code>。
+                    </div>
+                </div>
+
+                <div class="setting-block">
+                    <div class="setting-title">4. 启发心算选项：</div>
+                    <div class="extra-toggles-list">
+                        <label class="toggle-option-label">
+                            <input type="checkbox" id="chkOptFillBlank" checked>
+                            <span class="toggle-text">🧩 包含凑数填空题 (例如 <code>8 + [ ? ] = 15</code>，培养逆向思维)</span>
+                        </label>
+                        <label class="toggle-option-label">
+                            <input type="checkbox" id="chkOptCarryBorrow" checked>
+                            <span class="toggle-text">⚡ 包含进位加法与退位减法 (适合攻坚提分)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 选项卡 2：快捷预设学段 -->
+            <div class="profile-tab-content" id="tabContentPreset" style="display:none;">
+                <div class="preset-grade-cards" id="presetGradeCards">
+                    <!-- 由 JS 渲染 1~2年级, 3~4年级, 5~6年级 卡片 -->
+                </div>
+            </div>
+
+            <!-- 底部保存按钮 -->
+            <div class="modal-actions-row" style="margin-top:14px;">
+                <button class="btn-big-wood" id="btnSaveUserProfile" style="background: linear-gradient(135deg, #2ecc71, #27ae60);">保存并应用 ✔️</button>
+                <button class="btn-big-wood" id="btnCancelUserProfile" style="background: linear-gradient(135deg, #7f8c8d, #34495e);">取消 ✖️</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 小朋友答题战报与错题攻坚大弹窗 (完全对标 shuxue) -->
+    <div class="modal-overlay" id="scoreRecordsModal" style="display:none;">
+        <div class="wood-modal-card score-report-modal-card">
+            <div class="modal-title">📊 宝贝口算成长战报与错题本</div>
+            <p class="modal-desc">记录小朋友每一局的答题轨迹、正确率、连击与攻坚错题</p>
+
+            <!-- 小朋友筛选器 -->
+            <div class="records-kid-selector" id="recordsKidSelector"></div>
+
+            <!-- 双选项卡：历史做题战报 vs 错题攻坚本 -->
+            <div class="profile-tab-header">
+                <button class="profile-tab-btn active" id="tabBtnHistoryList" type="button">📜 历史答题战报</button>
+                <button class="profile-tab-btn" id="tabBtnMistakesBook" type="button">📖 错题攻坚本</button>
+            </div>
+
+            <div class="records-tab-content" id="recordsHistoryContent">
+                <div class="history-list-box" id="historyListBox"></div>
+            </div>
+
+            <div class="records-tab-content" id="recordsMistakesContent" style="display:none;">
+                <div class="mistakes-list-box" id="mistakesListBox"></div>
+            </div>
+
+            <div class="modal-actions-row" style="margin-top:14px;">
+                <button class="btn-big-wood" id="btnClearKidHistory" style="background: #e74c3c; font-size:14px;">清空当前战报 🧹</button>
+                <button class="btn-big-wood" id="btnCloseRecordsModal">返回战场 ↩️</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 胜利结算弹窗 -->
+    <div class="modal-overlay" id="victoryModal" style="display:none;">
+        <div class="wood-modal-card victory-card">
+            <div class="victory-trophy-icon" id="victoryIcon">🏆</div>
+            <div class="modal-title" style="color:#27ae60;">🎉 胜利！保卫草坪大获全胜！</div>
+            <div class="reward-box" id="victoryRewardBox">
+                <div class="reward-title">🎁 解锁新植物奖励！</div>
+                <div class="reward-text" id="victoryRewardText">恭喜解锁：向日葵！</div>
+            </div>
+            <div class="report-stats">
+                <div class="stat-item">
+                    <span class="stat-label">心算答题数</span>
+                    <span class="stat-val" id="reportTotalQ">18</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">正确率</span>
+                    <span class="stat-val" id="reportAccuracy">100%</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">最高连击</span>
+                    <span class="stat-val" id="reportMaxCombo">🔥 x8</span>
+                </div>
+            </div>
+            <div class="modal-actions-row" style="flex-wrap:wrap;">
+                <a href="../pet/index.html" class="btn-big-wood" style="text-decoration:none; background: linear-gradient(135deg, #f39c12, #d35400);">🐾 去萌宠店用徽章</a>
+                <button class="btn-big-wood" id="btnNextLevel">出击下一关！ 🚀</button>
+                <button class="btn-big-wood" id="btnReplayVictory">再战一次 🔄</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 失败重试弹窗 -->
+    <div class="modal-overlay" id="defeatModal" style="display:none;">
+        <div class="wood-modal-card defeat-card">
+            <div class="defeat-icon" id="defeatModalIcon">🧟⛺</div>
+            <div class="modal-title" id="defeatModalTitle" style="color:#e67e22;">僵尸在院子里开野餐派对啦！</div>
+            <p id="defeatModalDesc" style="font-size:15px; color:#bdc3c7; margin:10px 0;">没关系，戴夫留下了更多阳光！我们重新调整防线再来一次！</p>
+            <div class="modal-actions-row" style="flex-wrap:wrap;">
+                <a href="../index.html" class="btn-big-wood" style="text-decoration:none; background: linear-gradient(135deg, #ff7eb3, #ff477e);">🏠 游戏大厅</a>
+                <button class="btn-big-wood" id="btnRetryLevel">重新出击！ 🚀</button>
+                <button class="btn-big-wood" id="btnSelectLevelFromDefeat">选择其他关卡 🗺️</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js?v=20261113_3in1_v1"></script>
+</body>
+</html>

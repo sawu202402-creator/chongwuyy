@@ -1,0 +1,41 @@
+{
+  "name": "保卫兔子与青蛙！- 小学数学奇趣塔防",
+  "short_name": "数学塔防",
+  "description": "保卫萝卜风萌系小学数学策略塔防游戏。心算口算加减乘除，就地召唤兔兔胡萝卜弩和青蛙荷叶泡泡塔，守卫小动物家园！",
+  "id": "/",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "fullscreen",
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "landscape",
+  "background_color": "#2c632d",
+  "theme_color": "#63a339",
+  "icons": [
+    {
+      "src": "favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
