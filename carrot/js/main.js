@@ -11,14 +11,14 @@ import {
     MATH_RANGES, 
     MULTIPLIER_RANGES,
     DEFAULT_USER_PROFILES 
-} from './config.js?v=20261022_authentic_props_v9';
-import { LEVEL_CONFIGS } from './map.js?v=20261022_authentic_props_v9';
-import { sound } from './audio.js?v=20261022_authentic_props_v9';
-import { assetsManager } from './assetsLoader.js?v=20261022_authentic_props_v9';
-import { MathEngine } from './mathEngine.js?v=20261113_3in1_v1';
-import { GameEngine } from './gameEngine.js?v=20261022_authentic_props_v9';
-import { MapEditor } from './editor.js?v=20261022_authentic_props_v9';
-import { LevelSelectManager } from './levelSelect.js?v=20261022_authentic_props_v9';
+} from './config.js?v=20261113_carrot_concise_v1';
+import { LEVEL_CONFIGS } from './map.js?v=20261113_carrot_concise_v1';
+import { sound } from './audio.js?v=20261113_carrot_concise_v1';
+import { assetsManager } from './assetsLoader.js?v=20261113_carrot_concise_v1';
+import { MathEngine } from './mathEngine.js?v=20261113_carrot_concise_v1';
+import { GameEngine } from './gameEngine.js?v=20261113_carrot_concise_v1';
+import { MapEditor } from './editor.js?v=20261113_carrot_concise_v1';
+import { LevelSelectManager } from './levelSelect.js?v=20261113_carrot_concise_v1';
 import { profileManager } from '../../shared/unifiedProfile.js';
 import { SmartChalkboard } from '../../shared/smartChalkboard.js';
 import { sharedSpeech } from '../../shared/audioTTS.js';
@@ -34,11 +34,13 @@ const comboBadgeEl = document.getElementById('comboBadge');
 const comboCountEl = document.getElementById('comboCount');
 const btnMute = document.getElementById('btnMute');
 const btnPause = document.getElementById('btnPause');
+const btnSpeedToggle = document.getElementById('btnSpeedToggle');
 const btnFullscreen = document.getElementById('btnFullscreen');
 const gameAppEl = document.getElementById('game-app');
 const btnEditorGrid = document.getElementById('btnEditorGrid');
 const btnSelectLevel = document.getElementById('btnSelectLevel');
 const btnNextLevel = document.getElementById('btnNextLevel');
+const endMedalRow = document.getElementById('endMedalRow');
 
 // 关卡选择弹窗元素
 const levelSelectModal = document.getElementById('levelSelectModal');
@@ -530,13 +532,27 @@ function renderBubbleButtons() {
         btn.id = `bubble-btn-${tower.id}`;
         btn.title = `${tower.name} (${tower.cost}G)`;
         const iconSrc = officialTowerIcons[tower.id] || '';
+        btn.dataset.cost = String(tower.cost);
         btn.innerHTML = `
-            <img src="${iconSrc}" class="bubble-tower-img" alt="${tower.name}" />
+            <img src="${iconSrc}" class="bubble-tower-img" alt="${tower.name} (${tower.cost}G)" />
         `;
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             sound.resumeContext();
             if (activeSlotForBubble) {
+                if (gameEngine.gold < tower.cost) {
+                    sound.playSelectFault();
+                    gameEngine.projectileSystem.addFloatingText(
+                        activeSlotForBubble.x,
+                        activeSlotForBubble.y - 24,
+                        `金币不足 (${tower.cost}🪙)`,
+                        '#ff4757',
+                        15,
+                        true
+                    );
+                    rabbitTalk.textContent = `还差 ${tower.cost - gameEngine.gold} 金币！快答一道题吧！🪙`;
+                    return;
+                }
                 const built = gameEngine.buildTower(tower.id, activeSlotForBubble);
                 if (built) {
                     hideBubblePicker();
@@ -759,9 +775,17 @@ function onGameStateChange(status) {
         waveBanner.style.display = 'none';
     }
 
-    // 更新关卡指示
+    // 更新关卡指示与倍速/暂停状态
     if (btnSelectLevel && status.currentLevel) {
-        btnSelectLevel.textContent = `🗺️ 第 ${status.currentLevel} 关 ▾`;
+        btnSelectLevel.textContent = `🗺️ 第 ${getDisplayLevelName(status.currentLevel)} 关 ▾`;
+    }
+    if (btnSpeedToggle) {
+        const spd = status.gameSpeed || 1;
+        btnSpeedToggle.textContent = `⚡ ${spd}x`;
+        btnSpeedToggle.classList.toggle('speed-2x', spd === 2);
+    }
+    if (btnPause && status.state) {
+        btnPause.textContent = status.state === 'PAUSED' ? '▶️' : '⏸️';
     }
 
     updateBubbleCostState();
@@ -785,10 +809,38 @@ function onGameStateChange(status) {
 function showEndModal(isVictory) {
     endModal.classList.add('show');
     if (isVictory) {
-        const isPerfect = (gameEngine.lives >= (gameEngine.maxLives || 15));
-        levelSelectManager.recordLevelCompletion(gameEngine.map.currentLevelConfig.id, isPerfect);
-        endModalTitle.textContent = '🎉 乐园大胜利！';
-        endModalDesc.textContent = `你成功通过了${gameEngine.map.currentLevelConfig.name}！小白兔和小青蛙为你颁发了${isPerfect ? '金萝卜特级守护勋章 🥕' : '胜利勋章 🎖️'}！`;
+        const maxLives = gameEngine.maxLives || 10;
+        const livesLeft = gameEngine.lives;
+        const allCleared = Boolean(gameEngine.allPropsCleared);
+        const honor = levelSelectManager.recordLevelCompletion(
+            gameEngine.map.currentLevelConfig.id,
+            livesLeft,
+            maxLives,
+            allCleared
+        );
+
+        let carrotBadgeHtml = '';
+        let carrotName = '铜萝卜守护奖章 🥉🥕';
+        if (honor.earnedCarrot === 'gold') {
+            carrotName = '满血金萝卜特级奖杯 🥇🥕';
+            carrotBadgeHtml = `<span class="end-medal-pill end-medal-gold">🥇 金萝卜达成 (${livesLeft}/${maxLives}❤️ 无伤)</span>`;
+        } else if (honor.earnedCarrot === 'silver') {
+            carrotName = '闪耀银萝卜守护奖杯 🥈🥕';
+            carrotBadgeHtml = `<span class="end-medal-pill end-medal-silver">🥈 银萝卜达成 (${livesLeft}/${maxLives}❤️)</span>`;
+        } else {
+            carrotBadgeHtml = `<span class="end-medal-pill end-medal-bronze">🥉 铜萝卜通关 (${livesLeft}/${maxLives}❤️)</span>`;
+        }
+        if (allCleared) {
+            carrotBadgeHtml += `<span class="end-medal-pill end-medal-allclear">💎 道具全清奖章</span>`;
+        }
+
+        if (endMedalRow) {
+            endMedalRow.innerHTML = carrotBadgeHtml;
+            endMedalRow.style.display = 'flex';
+        }
+
+        endModalTitle.textContent = honor.earnedCarrot === 'gold' ? '🏆 金萝卜大胜利！' : '🎉 乐园大胜利！';
+        endModalDesc.textContent = `你成功守卫了${gameEngine.map.currentLevelConfig.name}！荣获【${carrotName}】${allCleared ? '与【道具全清水晶章】' : ''}！`;
         if (btnNextLevel) {
             btnNextLevel.style.display = 'inline-block';
             if (gameEngine.currentLevel < 48) {
@@ -796,12 +848,16 @@ function showEndModal(isVictory) {
                 const nextDisplay = getDisplayLevelName(nextLvl);
                 btnNextLevel.textContent = `挑战第 ${nextDisplay} 关 🚀`;
             } else {
-                btnNextLevel.textContent = '🏆 全主题大满贯通关！重返第 1 关 🔄';
+                btnNextLevel.textContent = '🏆 全主题大满贯通关！重返第 1-1 关 🔄';
             }
         }
     } else {
+        if (endMedalRow) {
+            endMedalRow.innerHTML = '';
+            endMedalRow.style.display = 'none';
+        }
         endModalTitle.textContent = '⚔️ 基地失守了';
-        endModalDesc.textContent = '怪兽抢走了胡萝卜，但你的心算能力突飞猛进，再来一局必胜！';
+        endModalDesc.textContent = '怪兽啃掉了阿波，但你的心算能力突飞猛进，再来一局必夺金萝卜！';
         if (btnNextLevel) {
             btnNextLevel.style.display = 'none';
         }
@@ -954,6 +1010,23 @@ canvas.addEventListener('click', (e) => {
         return;
     }
 
+    // 2.5 保卫萝卜1经典彩蛋：点击终点胡萝卜阿波，阿波摇晃眨眼并发出呆萌叫声！
+    if (gameEngine.map.isCarrotHit && gameEngine.map.isCarrotHit(px, py)) {
+        gameEngine.map.triggerCarrotWiggle(0.65);
+        sound.playCarrotTap();
+        gameEngine.projectileSystem.addFloatingText(
+            gameEngine.map.baseCrystal.x,
+            gameEngine.map.baseCrystal.y - 36,
+            `🥕 阿波元气满满! (${gameEngine.lives}/${gameEngine.maxLives || 10}❤️)`,
+            '#ff9f43',
+            15,
+            true
+        );
+        hideBubblePicker();
+        hideTowerManageBubbles();
+        return;
+    }
+
     // 3. 检查是否点击了空基座 (弹出保卫萝卜气泡建塔)
     const slot = gameEngine.map.findSlotAt(px, py);
     if (slot && !slot.occupied) {
@@ -1005,12 +1078,13 @@ canvas.addEventListener('mousemove', (e) => {
         return;
     }
 
-    // 是否悬停在防御塔或可用底座上
+    // 是否悬停在防御塔、胡萝卜阿波或可用底座上
     const hoverTower = gameEngine.towers.some(t => Math.hypot(t.x - px, t.y - py) <= 28);
+    const hoverCarrot = gameEngine.map.isCarrotHit && gameEngine.map.isCarrotHit(px, py);
     const hoverSlot = gameEngine.map.findSlotAt(px, py);
     gameEngine.map.hoveredSlot = (hoverSlot && !hoverSlot.occupied) ? hoverSlot : null;
 
-    if (hoverTower || hoverSlot) {
+    if (hoverTower || hoverCarrot || hoverSlot) {
         canvas.style.cursor = 'pointer';
         return;
     }
@@ -1119,9 +1193,19 @@ btnMute.addEventListener('click', () => {
 });
 
 btnPause.addEventListener('click', () => {
+    sound.resumeContext();
     gameEngine.togglePause();
     btnPause.textContent = gameEngine.state === 'PAUSED' ? '▶️' : '⏸️';
 });
+
+if (btnSpeedToggle) {
+    btnSpeedToggle.addEventListener('click', () => {
+        sound.resumeContext();
+        const spd = gameEngine.toggleSpeed();
+        btnSpeedToggle.textContent = `⚡ ${spd}x`;
+        btnSpeedToggle.classList.toggle('speed-2x', spd === 2);
+    });
+}
 
 if (btnEditorGrid) {
     btnEditorGrid.addEventListener('click', () => {
@@ -1237,14 +1321,21 @@ window.addEventListener('orientationchange', () => {
     setTimeout(() => fitToScreen(), 200);
 });
 export const levelSelectManager = new LevelSelectManager(sound, (stageNum) => {
-    switchLevel(stageNum);
     startModal.classList.remove('show');
-    gameEngine.startNewGame();
+    endModal.classList.remove('show');
+    const user = profileManager.getActiveUser();
+    if (user && user.difficulty) {
+        mathEngine.setDifficulty(user.difficulty);
+    }
+    syncUserProfileUI();
+    updateQuestionUI();
+    switchLevel(stageNum);
 });
 
 function openLevelSelectModal() {
     sound.resumeContext();
-    const currentLvl = gameEngine?.map?.currentLevelConfig?.id || 1;
+    sound.play('MenuSelect');
+    const currentLvl = gameEngine?.map?.currentLevelConfig?.id || gameEngine?.currentLevel || 1;
     levelSelectManager.open(currentLvl);
 }
 
@@ -1252,7 +1343,7 @@ function closeLevelSelectModal() {
     levelSelectManager.close();
 }
 
-// 关卡切换调度函数 (支持 1 ~ 12 关)
+// 关卡切换调度函数 (支持 1 ~ 48 全关卡)
 function switchLevel(lvl) {
     sound.resumeContext();
     gameEngine.loadLevel(lvl);
@@ -1273,8 +1364,8 @@ function switchLevel(lvl) {
     document.querySelectorAll('.level-grid-item').forEach(el => {
         el.classList.toggle('active', el.id === `level-grid-item-${lvl}`);
     });
-    rabbitTalk.textContent = `进入第 ${displayLevelName} 关！加油！🥕`;
-    frogTalk.textContent = `🐸 呱！第 ${displayLevelName} 关保卫战开始！`;
+    rabbitTalk.textContent = `第 ${displayLevelName} 关加油！🥕`;
+    frogTalk.textContent = `呱！${displayLevelName} 关开战！`;
 }
 
 // 绑定关卡弹窗触发
@@ -1283,9 +1374,6 @@ if (btnSelectLevel) {
 }
 if (btnOpenLevelModalFromStart) {
     btnOpenLevelModalFromStart.addEventListener('click', openLevelSelectModal);
-}
-if (btnCloseLevelModal) {
-    btnCloseLevelModal.addEventListener('click', closeLevelSelectModal);
 }
 if (levelSelectModal) {
     levelSelectModal.addEventListener('click', (e) => {
@@ -1306,7 +1394,7 @@ if (btnNextLevel) {
     btnNextLevel.addEventListener('click', () => {
         sound.resumeContext();
         endModal.classList.remove('show');
-        const nextLvl = gameEngine.currentLevel < 24 ? gameEngine.currentLevel + 1 : 1;
+        const nextLvl = gameEngine.currentLevel < 48 ? gameEngine.currentLevel + 1 : 1;
         switchLevel(nextLvl);
     });
 }

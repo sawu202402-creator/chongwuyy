@@ -32,7 +32,8 @@ class OfficialSoundEngine {
             'Bottle', 'Sun', 'Shit', 'Star', 'Fan', 'Rocket', 'Ball', 'FireBottle',
             'Pin', 'Arrow', 'PStar', 'Snow', 'Fish', 'Plane', 'Anchor', 'Cuttle', 'Mushroom', 'Buff',
             'carrot1', 'carrot2', 'carrot3',
-            'Perfect', 'Lose', 'Crash', 'CountDown', 'GO', 'SelectFault'
+            'Perfect', 'Lose', 'Crash', 'CountDown', 'GO', 'SelectFault',
+            'Finalwave', 'Ach', 'Object', 'MenuSelect'
         ];
 
         // 1. 初始化静态备用池 (每个音效最多 2 个 Audio 对象循环复用，绝不无节制 clone)
@@ -65,8 +66,9 @@ class OfficialSoundEngine {
             }
         });
 
-        // 3. 背景音乐 (独占单一 Audio 实例)
-        this.bgMusic = new Audio('assets/music/BGMusic01.mp3');
+        // 3. 背景音乐 (独占单一 Audio 实例，按四大主题自动切换原声曲目)
+        this.currentBgmSrc = 'assets/music/BGMusic01.mp3';
+        this.bgMusic = new Audio(this.currentBgmSrc);
         this.bgMusic.loop = true;
         this.bgMusic.volume = 0.32;
         this.bgMusic.preload = 'auto';
@@ -277,11 +279,53 @@ class OfficialSoundEngine {
         this.play('Crash', 0.85);
     }
 
+    setThemeMusic(levelId = 1) {
+        const lvl = Number(levelId) || 1;
+        let nextSrc = 'assets/music/BGMusic01.mp3'; // 天际线
+        if (lvl >= 13 && lvl <= 24) nextSrc = 'assets/music/BGMusic02.mp3'; // 丛林奇遇
+        else if (lvl >= 25 && lvl <= 36) nextSrc = 'assets/music/BGMusic03.mp3'; // 沙漠风暴
+        else if (lvl >= 37) nextSrc = 'assets/music/BGMusic11.mp3'; // 深海狂澜
+
+        if (this.currentBgmSrc === nextSrc || !this.bgMusic) return;
+        this.currentBgmSrc = nextSrc;
+        const wasPlaying = !this.bgMusic.paused;
+        this.bgMusic.pause();
+        this.bgMusic.src = nextSrc;
+        if (!this.muted && wasPlaying) {
+            this.bgMusic.play().catch(() => {});
+        }
+    }
+
+    playCountDown() {
+        this.play('CountDown', 0.9);
+    }
+
+    playGO() {
+        this.play('GO', 0.95);
+    }
+
+    playFinalWave() {
+        this.play('Finalwave', 0.95);
+    }
+
+    playCarrotTap() {
+        const rand = Math.floor(Math.random() * 3) + 1;
+        this.play(`carrot${rand}`, 0.92);
+    }
+
+    playAllClear() {
+        this.play('Ach', 1.0);
+    }
+
+    playSelectFault() {
+        this.play('SelectFault', 0.8);
+    }
+
     playPropHit() {
         const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-        if (!this._lastPropHit || now - this._lastPropHit > 90) {
+        if (!this._lastPropHit || now - this._lastPropHit > 95) {
             this._lastPropHit = now;
-            this.play('TowerSelect', 0.45);
+            this.play('Object', 0.55);
         }
     }
 

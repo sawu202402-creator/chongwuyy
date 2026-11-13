@@ -4,8 +4,8 @@
  * 严格按照官方原版武器朝向、底座属性、攻击模式与特色动画定制
  */
 
-import { TOWER_TYPES } from './config.js?v=20260928_props_v6';
-import { sound } from './audio.js?v=20260928_props_v6';
+import { TOWER_TYPES } from './config.js?v=20261113_carrot_concise_v1';
+import { sound } from './audio.js?v=20261113_carrot_concise_v1';
 
 const TOWER_ASSET_VER = '20260925_fb_upright_v4';
 function loadImg(src) {
@@ -160,6 +160,7 @@ export class Tower {
         this.damage = this.config.damage;
         this.fireRate = this.config.fireRate;
         this.cooldown = 0;
+        this.totalInvested = this.config.cost;
 
         // 旋转与索敌 (默认指向正右 0 度)
         this.target = null;
@@ -169,17 +170,28 @@ export class Tower {
         this.recoil = 0;   // 瓶子后坐力 / 太阳花闪光
         this.squash = 0;   // 便便弹性挤压
 
+        // 光环增益、火瓶持续聚焦与蘑菇产金计时
+        this.isBuffed = false;
+        this.buffLevel = 0;
+        this.focusTarget = null;
+        this.focusTime = 0;
+        this.goldGenTimer = 5.5;
+
         // 魔法球/电塔专属多目标锁定列表
         this.activeBeamTargets = [];
     }
 
-    upgrade() {
+    upgrade(paidCost = null, silent = false) {
         if (this.level >= this.maxLevel) return false;
+        const stepCost = paidCost !== null ? paidCost : this.getUpgradeCost();
+        this.totalInvested += stepCost;
         this.level++;
         this.range = Math.round(this.range * 1.15);
         this.damage = Math.round(this.damage * 1.35);
         this.fireRate = Math.max(0.12, this.fireRate * 0.88);
-        sound.playTowerUpgrade();
+        if (!silent) {
+            sound.playTowerUpgrade();
+        }
         return true;
     }
 
@@ -188,15 +200,35 @@ export class Tower {
     }
 
     getSellValue() {
-        const total = this.config.cost + (this.level - 1) * this.config.upgradeCost;
-        return Math.round(total * 0.7);
+        // 保卫萝卜1原版 80% 折价回收机制（含隐藏塔价值）
+        return Math.round(this.totalInvested * 0.8);
+    }
+
+    getEffectiveRange() {
+        if (!this.isBuffed || !this.buffLevel) return this.range;
+        return Math.round(this.range * (1 + 0.08 * this.buffLevel));
+    }
+
+    getBuffDamageMultiplier() {
+        if (!this.isBuffed || !this.buffLevel) return 1.0;
+        if (this.buffLevel === 1) return 1.20;
+        if (this.buffLevel === 2) return 1.35;
+        return 1.50;
+    }
+
+    getBuffRateMultiplier() {
+        if (!this.isBuffed || !this.buffLevel) return 1.0;
+        if (this.buffLevel === 1) return 1.18;
+        if (this.buffLevel === 2) return 1.28;
+        return 1.40;
     }
 
     findTarget(enemies, targetedEnemy = null, targetedProp = null) {
+        const effRange = this.getEffectiveRange();
         // 1. 优先集火玩家手动点击锁定的目标怪
         if (targetedEnemy && !targetedEnemy.isDead && !targetedEnemy.reachedEnd) {
             const dist = Math.hypot(targetedEnemy.x - this.x, targetedEnemy.y - this.y);
-            if (dist <= this.range) {
+            if (dist <= effRange) {
                 return targetedEnemy;
             }
         }
@@ -204,7 +236,7 @@ export class Tower {
         // 2. 优先集火玩家主动点击锁定的装饰物道具 (必须手动点击选中，且在当前塔的有效射程内)
         if (targetedProp && !targetedProp.isDead) {
             const dist = Math.hypot(targetedProp.x - this.x, targetedProp.y - this.y);
-            const reach = this.range + Math.min(targetedProp.width, targetedProp.height) * 0.42;
+            const reach = effRange + Math.min(targetedProp.width, targetedProp.height) * 0.42;
             if (dist <= reach) {
                 return targetedProp;
             }
@@ -217,7 +249,7 @@ export class Tower {
             for (const e of enemies) {
                 if (e.isDead || e.reachedEnd) continue;
                 const dist = Math.hypot(e.x - this.x, e.y - this.y);
-                if (dist <= this.range) {
+                if (dist <= effRange) {
                     const progress = e.waypointIndex * 1000 + (1000 - dist);
                     if (progress > maxProgress) {
                         maxProgress = progress;
@@ -234,12 +266,13 @@ export class Tower {
 
     findMultipleTargets(enemies, targetedEnemy = null, maxCount = 1, targetedProp = null) {
         if ((!enemies || enemies.length === 0) && !targetedProp) return [];
+        const effRange = this.getEffectiveRange();
         const inRange = [];
 
         // 优先集火选中的目标怪
         if (targetedEnemy && !targetedEnemy.isDead && !targetedEnemy.reachedEnd) {
             const dist = Math.hypot(targetedEnemy.x - this.x, targetedEnemy.y - this.y);
-            if (dist <= this.range) {
+            if (dist <= effRange) {
                 inRange.push(targetedEnemy);
             }
         }
@@ -247,7 +280,7 @@ export class Tower {
         // 优先集火主动选中的道具 (只有主动锁定且在射程内才攻击)
         if (targetedProp && !targetedProp.isDead && !inRange.includes(targetedProp)) {
             const dist = Math.hypot(targetedProp.x - this.x, targetedProp.y - this.y);
-            const reach = this.range + Math.min(targetedProp.width, targetedProp.height) * 0.42;
+            const reach = effRange + Math.min(targetedProp.width, targetedProp.height) * 0.42;
             if (dist <= reach) {
                 inRange.push(targetedProp);
             }
@@ -258,7 +291,7 @@ export class Tower {
             for (const e of enemies) {
                 if (e.isDead || e.reachedEnd || inRange.includes(e)) continue;
                 const dist = Math.hypot(e.x - this.x, e.y - this.y);
-                if (dist <= this.range) {
+                if (dist <= effRange) {
                     candidates.push({ target: e, progress: e.waypointIndex * 1000 + (1000 - dist) });
                 }
             }
@@ -274,10 +307,11 @@ export class Tower {
     }
 
     hasAnyTargetInRange(enemies, targetedProp = null) {
+        const effRange = this.getEffectiveRange();
         // 1. 如果玩家主动点击锁定了道具，且在射程内
         if (targetedProp && !targetedProp.isDead) {
             const dist = Math.hypot(targetedProp.x - this.x, targetedProp.y - this.y);
-            const reach = this.range + Math.min(targetedProp.width, targetedProp.height) * 0.42;
+            const reach = effRange + Math.min(targetedProp.width, targetedProp.height) * 0.42;
             if (dist <= reach) {
                 return true;
             }
@@ -286,7 +320,7 @@ export class Tower {
         if (enemies) {
             for (const e of enemies) {
                 if (e.isDead || e.reachedEnd) continue;
-                if (Math.hypot(e.x - this.x, e.y - this.y) <= this.range) {
+                if (Math.hypot(e.x - this.x, e.y - this.y) <= effRange) {
                     return true;
                 }
             }
@@ -294,8 +328,8 @@ export class Tower {
         return false;
     }
 
-    update(dt, enemies, projectileSystem, isSuperCharged = false, targetedEnemy = null, allTowers = null, targetedProp = null, props = null) {
-        const rateFactor = (isSuperCharged ? 1.45 : 1.0) * (this.isBuffed ? 1.25 : 1.0);
+    update(dt, enemies, projectileSystem, isSuperCharged = false, targetedEnemy = null, allTowers = null, targetedProp = null, props = null, onBonusGold = null) {
+        const rateFactor = (isSuperCharged ? 1.45 : 1.0) * this.getBuffRateMultiplier();
         if (this.cooldown > 0) {
             this.cooldown -= dt * rateFactor;
         }
@@ -307,17 +341,21 @@ export class Tower {
             this.squash -= dt;
         }
 
-        // 水晶增益塔 (BUFF)：被动光环增幅范围内所有防御塔攻击力与攻速
+        // 水晶增益塔 (BUFF)：被动光环增幅范围内所有防御塔攻击力、攻速与射程（按水晶等级 Lv.1~3 递增）
         if (this.typeKey === 'BUFF') {
             if (allTowers) {
                 for (const t of allTowers) {
-                    if (t !== this && Math.hypot(t.x - this.x, t.y - this.y) <= this.range) {
+                    if (t !== this && t.typeKey !== 'BUFF' && Math.hypot(t.x - this.x, t.y - this.y) <= this.range) {
                         t.isBuffed = true;
+                        t.buffLevel = Math.max(t.buffLevel || 0, this.level);
                     }
                 }
             }
             return;
         }
+
+        const effRange = this.getEffectiveRange();
+        const buffDmgMul = this.getBuffDamageMultiplier();
 
         // 雪花塔：360 度全屏冰封冲击波
         if (this.typeKey === 'SNOW') {
@@ -325,22 +363,31 @@ export class Tower {
                 if (this.cooldown <= 0) {
                     sound.playShootSnow();
                     this.recoil = 0.25;
-                    const dmg = Math.round(this.damage * (isSuperCharged ? 1.5 : 1.0) * (this.isBuffed ? 1.3 : 1.0));
-                    projectileSystem.addSnowWave(this.x, this.y, this.range, dmg, this.config.freezeDuration || 1.8);
+                    const dmg = Math.round(this.damage * (isSuperCharged ? 1.5 : 1.0) * buffDmgMul);
+                    projectileSystem.addSnowWave(this.x, this.y, effRange, dmg, this.config.freezeDuration || 1.8);
                     this.cooldown = this.fireRate;
                 }
             }
             return;
         }
 
-        // 蘑菇塔：360 度毒孢子迷雾，减速并标记怪兽掉落双倍金币
+        // 蘑菇塔：360 度毒孢子迷雾 + Lv.2/Lv.3 原版战斗期间定期产金机制
         if (this.typeKey === 'MUSHROOM') {
+            if (this.level >= 2 && onBonusGold && enemies && enemies.some(e => !e.isDead && !e.reachedEnd)) {
+                this.goldGenTimer -= dt;
+                if (this.goldGenTimer <= 0) {
+                    const bonus = this.level >= 3 ? 32 : 18;
+                    onBonusGold(bonus, this.x, this.y);
+                    this.recoil = 0.2;
+                    this.goldGenTimer = 8.5;
+                }
+            }
             if (this.hasAnyTargetInRange(enemies, targetedProp)) {
                 if (this.cooldown <= 0) {
                     sound.playShootMushroom();
                     this.recoil = 0.25;
-                    const dmg = Math.round(this.damage * (isSuperCharged ? 1.5 : 1.0) * (this.isBuffed ? 1.3 : 1.0));
-                    projectileSystem.addMushroomWave(this.x, this.y, this.range, dmg, this.config.slowPercent || 0.45, this.config.slowDuration || 3.0);
+                    const dmg = Math.round(this.damage * (isSuperCharged ? 1.5 : 1.0) * buffDmgMul);
+                    projectileSystem.addMushroomWave(this.x, this.y, effRange, dmg, this.config.slowPercent || 0.45, this.config.slowDuration || 3.0);
                     this.cooldown = this.fireRate;
                 }
             }
@@ -354,7 +401,7 @@ export class Tower {
                     sound.playShootCuttle();
                     this.recoil = 0.2;
                     const isCrit = isSuperCharged || Math.random() < 0.15;
-                    const dmg = Math.round(this.damage * (isCrit ? 1.5 : 1.0) * (this.isBuffed ? 1.3 : 1.0));
+                    const dmg = Math.round(this.damage * (isCrit ? 1.5 : 1.0) * buffDmgMul);
                     const count = this.level === 1 ? 8 : (this.level === 2 ? 12 : 16);
                     const speed = 420;
                     for (let k = 0; k < count; k++) {
@@ -403,11 +450,14 @@ export class Tower {
                     this.cooldown = this.fireRate; // 约 0.22s 高频电击周期
 
                     const isCrit = isSuperCharged || Math.random() < 0.15;
-                    const dmg = Math.round(this.damage * (isCrit ? 1.4 : 1.0));
+                    const dmg = Math.round(this.damage * buffDmgMul * (isCrit ? 1.4 : 1.0));
 
                     this.activeBeamTargets.forEach(enemy => {
                         if (enemy && !enemy.isDead && !enemy.reachedEnd) {
                             enemy.takeDamage(dmg, isCrit);
+                            if (enemy.wCells && Math.random() < 0.35) {
+                                sound.playPropHit();
+                            }
                             if (projectileSystem) {
                                 projectileSystem.createExplosion(enemy.x, enemy.y, '#e056fd', 6, 2.0);
                                 if (Math.random() < 0.35) {
@@ -423,10 +473,18 @@ export class Tower {
             return;
         }
 
-        // 火瓶子 (汽油瓶) 机制：持续喷射强力烈焰，目标越近或聚焦越久伤害越高，伴随小范围溅射灼烧
+        // 火瓶子 (汽油瓶) 机制：原版持续聚焦升温（对同一目标最高增伤至 2.0x）+ 溅射灼烧周围小怪与道具
         if (this.typeKey === 'FIRE_BOTTLE') {
             this.target = this.findTarget(enemies, targetedEnemy, targetedProp);
             if (this.target && !this.target.isDead && !this.target.reachedEnd) {
+                if (this.focusTarget === this.target) {
+                    this.focusTime = Math.min(2.5, this.focusTime + dt);
+                } else {
+                    this.focusTarget = this.target;
+                    this.focusTime = 0;
+                }
+                const focusMul = 1.0 + 0.4 * this.focusTime; // 1.0x -> 2.0x 持续灼烧升温
+
                 const dx = this.target.x - this.x;
                 const dy = this.target.y - this.y;
                 this.angle = Math.atan2(dy, dx);
@@ -436,16 +494,28 @@ export class Tower {
                     this.cooldown = this.fireRate; // 约 0.16s 高频烈焰周期
 
                     const isCrit = isSuperCharged || Math.random() < 0.20;
-                    const dmg = Math.round(this.damage * (isCrit ? 1.45 : 1.0));
+                    const dmg = Math.round(this.damage * buffDmgMul * focusMul * (isCrit ? 1.45 : 1.0));
 
                     this.target.takeDamage(dmg, isCrit);
+                    if (this.target.wCells && Math.random() < 0.35) {
+                        sound.playPropHit();
+                    }
 
-                    // 汽油瓶轻微溅射效果 (对目标周围 50px 的小怪造成 35% 灼烧伤害)
-                    const splashRad = 48 + (this.level - 1) * 8;
+                    // 汽油瓶溅射效果 (对目标周围小怪及道具造成 35% 灼烧伤害)
+                    const splashRad = 50 + (this.level - 1) * 10;
                     for (const other of enemies) {
                         if (other !== this.target && !other.isDead && !other.reachedEnd) {
                             if (Math.hypot(other.x - this.target.x, other.y - this.target.y) <= splashRad) {
                                 other.takeDamage(Math.round(dmg * 0.35), false);
+                            }
+                        }
+                    }
+                    if (props && props.length > 0) {
+                        for (const prop of props) {
+                            if (prop !== this.target && !prop.isDead) {
+                                if (Math.hypot(prop.x - this.target.x, prop.y - this.target.y) <= splashRad + Math.min(prop.width, prop.height) * 0.35) {
+                                    prop.takeDamage(Math.round(dmg * 0.35), false);
+                                }
                             }
                         }
                     }
@@ -457,6 +527,9 @@ export class Tower {
                         }
                     }
                 }
+            } else {
+                this.focusTarget = null;
+                this.focusTime = 0;
             }
             return;
         }
@@ -477,13 +550,13 @@ export class Tower {
 
     shoot(projectileSystem, isSuperCharged) {
         const isCrit = isSuperCharged || Math.random() < 0.15;
-        const damage = Math.round(this.damage * (isCrit ? 1.5 : 1.0));
+        const damage = Math.round(this.damage * this.getBuffDamageMultiplier() * (isCrit ? 1.5 : 1.0));
 
         // 1. 太阳花：360度全方位扩散烈焰日环 (同时重创射程内全部小怪与障碍)
         if (this.typeKey === 'MUL_CANNON') {
             sound.playShootSun();
             this.recoil = 0.22;
-            projectileSystem.addSunWave(this.x, this.y, this.range, damage, isCrit);
+            projectileSystem.addSunWave(this.x, this.y, this.getEffectiveRange(), damage, isCrit);
             return;
         }
 
@@ -662,7 +735,7 @@ export class Tower {
                 life: 1.8
             });
         }
-        // 12. 船锚炸弹：重锚轰炸，命中后分叉 2~3 枚碎裂飞锚追击
+        // 12. 船锚炸弹：重锚轰炸，命中后分叉 2~4 枚碎裂飞锚优先清障与追击
         else if (this.typeKey === 'ANCHOR') {
             sound.playShootAnchor();
             this.recoil = 0.26;
@@ -673,17 +746,18 @@ export class Tower {
                 target: this.target,
                 speed: 400,
                 damage: damage,
+                shardCount: this.level === 1 ? 2 : (this.level === 2 ? 3 : 4),
                 isCrit: isCrit
             });
         }
     }
 
-    draw(ctx, time, isSelected = false) {
-        // 1. 选中时绘制保卫萝卜官方虚线射程圈
+    draw(ctx, time, isSelected = false, currentGold = 0) {
+        // 1. 选中时绘制保卫萝卜官方虚线射程圈（自动反映水晶光环射程加成）
         if (isSelected) {
             ctx.save();
             ctx.beginPath();
-            ctx.arc(this.x, this.y, this.range, 0, Math.PI * 2);
+            ctx.arc(this.x, this.y, this.getEffectiveRange(), 0, Math.PI * 2);
             ctx.fillStyle = 'rgba(46, 213, 115, 0.15)';
             ctx.fill();
             ctx.strokeStyle = '#2ed573';
@@ -1051,6 +1125,34 @@ export class Tower {
                 ctx.arc(sx, sy, 3.5, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.stroke();
+            }
+
+            // 5.5 保卫萝卜1标志性机制：当金币足够升级时，在炮台右上角跳动绿色升级小箭头！
+            if (currentGold >= this.getUpgradeCost()) {
+                const upBounce = Math.sin(time * 7.5 + this.x * 0.05) * 2.5;
+                ctx.save();
+                ctx.translate(21, -22 + upBounce);
+                ctx.fillStyle = '#2ed573';
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.6;
+                ctx.beginPath();
+                ctx.arc(0, 0, 8.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // 白色向上粗箭头
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.moveTo(0, -5);
+                ctx.lineTo(4.5, 0);
+                ctx.lineTo(2, 0);
+                ctx.lineTo(2, 4.5);
+                ctx.lineTo(-2, 4.5);
+                ctx.lineTo(-2, 0);
+                ctx.lineTo(-4.5, 0);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
             }
         }
 

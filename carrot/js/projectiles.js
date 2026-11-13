@@ -1,4 +1,4 @@
-import { sound } from './audio.js?v=20260928_props_v6';
+import { sound } from './audio.js?v=20261113_carrot_concise_v1';
 
 const BULLET_ASSET_VER = '20260925_all18_v1';
 function loadImg(src) {
@@ -76,6 +76,7 @@ export class ProjectileSystem {
             damage,
             freezeDuration,
             hitEnemies: new Set(),
+            hitProps: new Set(),
             life: 0.45,
             maxLife: 0.45
         });
@@ -91,6 +92,7 @@ export class ProjectileSystem {
             slowPercent,
             slowDuration,
             hitEnemies: new Set(),
+            hitProps: new Set(),
             life: 0.4,
             maxLife: 0.4
         });
@@ -188,7 +190,7 @@ export class ProjectileSystem {
                 continue;
             }
 
-            // A2. 扇形/散弹直线弹 (多重箭 arrow_bullet、章鱼珍珠 cuttle_bullet)
+            // A2. 扇形/散弹直线弹 (多重箭 arrow_bullet、章鱼珍珠 cuttle_bullet) —— 原版支持打怪同时命中沿途障碍道具！
             if (p.type === 'arrow_bullet' || p.type === 'cuttle_bullet') {
                 p.x += p.vx * dt;
                 p.y += p.vy * dt;
@@ -209,13 +211,28 @@ export class ProjectileSystem {
                     }
                 }
 
+                if (!hit && props && props.length > 0) {
+                    for (const prop of props) {
+                        if (prop.isDead) continue;
+                        const dist = Math.hypot(prop.x - p.x, prop.y - p.y);
+                        if (dist <= 14 + Math.min(prop.width, prop.height) * 0.42) {
+                            prop.takeDamage(p.damage, p.isCrit);
+                            sound.playPropHit();
+                            const color = p.type === 'arrow_bullet' ? '#20bf6b' : '#ff9f43';
+                            this.createExplosion(p.x, p.y, color, 8, 2.2);
+                            hit = true;
+                            break;
+                        }
+                    }
+                }
+
                 if (hit || p.life <= 0 || p.x < -50 || p.x > 1010 || p.y < -50 || p.y > 610) {
                     this.projectiles.splice(i, 1);
                 }
                 continue;
             }
 
-            // B. 重型制导追踪火箭 (带尾迹白烟与高爆范围杀伤)
+            // B. 重型制导追踪火箭 (带尾迹白烟、沿途穿透怪兽与道具、落点高爆范围杀伤)
             if (p.type === 'rocket_bullet') {
                 let tx = p.targetX;
                 let ty = p.targetY;
@@ -249,7 +266,7 @@ export class ProjectileSystem {
 
                 const step = p.speed * dt;
 
-                // 官方原版特色：飞行途中穿透碾压沿途碰到的其他怪兽 (50% 穿透伤)
+                // 官方原版特色：飞行途中穿透碾压沿途碰到的其他怪兽与道具 (50% 穿透伤)
                 p.piercedEnemies = p.piercedEnemies || new Set();
                 for (const e of enemies) {
                     if (e.isDead || e.reachedEnd || e === p.target || p.piercedEnemies.has(e)) continue;
@@ -262,9 +279,20 @@ export class ProjectileSystem {
                         this.addFloatingText(e.x, e.y, `-${pierceDmg} 🚀`, '#ff6b6b', 13);
                     }
                 }
+                if (props && props.length > 0) {
+                    for (const prop of props) {
+                        if (prop.isDead || prop === p.target || p.piercedEnemies.has(prop)) continue;
+                        const d = Math.hypot(prop.x - p.x, prop.y - p.y);
+                        if (d <= 18 + Math.min(prop.width, prop.height) * 0.4) {
+                            p.piercedEnemies.add(prop);
+                            prop.takeDamage(Math.round(p.damage * 0.5), false);
+                            sound.playPropHit();
+                        }
+                    }
+                }
 
                 if (dist <= step || dist < 16) {
-                    this.hitTarget(p, enemies);
+                    this.hitTarget(p, enemies, props);
                     this.projectiles.splice(i, 1);
                 } else {
                     p.x += (dx / dist) * step;
@@ -333,7 +361,7 @@ export class ProjectileSystem {
             }
         }
 
-        // 2B. 更新雪花塔全屏 360 度冰封冲击波
+        // 2B. 更新雪花塔全屏 360 度冰封冲击波 (同时覆盖范围内道具)
         for (let i = this.snowWaves.length - 1; i >= 0; i--) {
             const w = this.snowWaves[i];
             w.life -= dt;
@@ -352,12 +380,27 @@ export class ProjectileSystem {
                 }
             }
 
+            if (props && props.length > 0) {
+                w.hitProps = w.hitProps || new Set();
+                for (const prop of props) {
+                    if (prop.isDead || w.hitProps.has(prop)) continue;
+                    const d = Math.hypot(prop.x - w.x, prop.y - w.y);
+                    if (d <= w.radius + Math.min(prop.width, prop.height) / 2) {
+                        w.hitProps.add(prop);
+                        prop.takeDamage(w.damage, false);
+                        sound.playPropHit();
+                        this.createExplosion(prop.x, prop.y, '#48dbfb', 10, 2.2);
+                        this.addFloatingText(prop.x, prop.y, `-${w.damage} ❄️`, '#0abde3', 14);
+                    }
+                }
+            }
+
             if (w.life <= 0) {
                 this.snowWaves.splice(i, 1);
             }
         }
 
-        // 2C. 更新蘑菇塔 360 度毒孢子迷雾 (附带赏金标记)
+        // 2C. 更新蘑菇塔 360 度毒孢子迷雾 (附带赏金标记 + 范围削弱道具)
         for (let i = this.mushroomWaves.length - 1; i >= 0; i--) {
             const w = this.mushroomWaves[i];
             w.life -= dt;
@@ -374,6 +417,21 @@ export class ProjectileSystem {
                     e.hasMushroomBounty = true;
                     this.createExplosion(e.x, e.y, '#10ac84', 12, 2.5);
                     this.addFloatingText(e.x, e.y, `赏金标记! 🍄`, '#1dd1a1', 14);
+                }
+            }
+
+            if (props && props.length > 0) {
+                w.hitProps = w.hitProps || new Set();
+                for (const prop of props) {
+                    if (prop.isDead || w.hitProps.has(prop)) continue;
+                    const d = Math.hypot(prop.x - w.x, prop.y - w.y);
+                    if (d <= w.radius + Math.min(prop.width, prop.height) / 2) {
+                        w.hitProps.add(prop);
+                        prop.takeDamage(w.damage, false);
+                        sound.playPropHit();
+                        this.createExplosion(prop.x, prop.y, '#10ac84', 10, 2.2);
+                        this.addFloatingText(prop.x, prop.y, `-${w.damage} 🍄`, '#1dd1a1', 14);
+                    }
                 }
             }
 
@@ -497,7 +555,7 @@ export class ProjectileSystem {
                 this.addFloatingText(p.target.x, p.target.y, `-${p.damage} 💉`, '#8854d0', 14);
             }
         } else if (p.type === 'bluestar_bullet') {
-            // 冰冻星：范围冰爆溅射，大范围减速 55%
+            // 冰冻星：范围冰爆溅射，大范围减速 55% + 溅射破障
             this.createExplosion(p.x, p.y, '#00d2d3', 24, 3.8);
             const splashRadius = p.splashRadius || 75;
             for (const e of enemies) {
@@ -508,6 +566,20 @@ export class ProjectileSystem {
                     e.takeDamage(dmg, p.isCrit);
                     e.applySlow(p.slowPercent || 0.55, p.slowDuration || 2.5);
                     this.addFloatingText(e.x, e.y, `-${dmg} ❄️`, '#00d2d3', p.isCrit ? 18 : 14, p.isCrit);
+                }
+            }
+            if (props && props.length > 0) {
+                for (const prop of props) {
+                    if (prop.isDead) continue;
+                    const d = Math.hypot(prop.x - p.x, prop.y - p.y);
+                    if (d <= splashRadius + Math.min(prop.width, prop.height) / 2) {
+                        const dmg = (prop === p.target) ? p.damage : Math.round(p.damage * 0.7);
+                        prop.takeDamage(dmg, p.isCrit);
+                        sound.playPropHit();
+                        if (p.isCrit) {
+                            this.addFloatingText(prop.x, prop.y - 14, `-${dmg} ❄️`, '#00d2d3', 18, true);
+                        }
+                    }
                 }
             }
         } else if (p.type === 'fish_bullet') {
@@ -530,26 +602,36 @@ export class ProjectileSystem {
                 this.addFloatingText(p.target.x, p.target.y, `-${p.damage} 🐟`, '#f368e0', p.isCrit ? 19 : 15, p.isCrit);
             }
         } else if (p.type === 'anchor_bullet') {
-            // 船锚炸弹：重锚轰击，命中后碎裂分叉 2~3 枚飞锚追击场上其他怪兽！
+            // 船锚炸弹：保卫萝卜1经典深海清障王！命中怪兽或道具后，碎裂分叉飞锚优先自动追击周边未清道具！
+            const isProp = Boolean(p.target && p.target.wCells);
+            if (isProp) sound.playPropHit();
             this.createExplosion(p.x, p.y, '#ee5253', 22, 3.6);
             p.target.takeDamage(p.damage, p.isCrit);
-            this.addFloatingText(p.target.x, p.target.y, `-${p.damage} ⚓`, '#ff6b6b', 16);
+            this.addFloatingText(p.target.x, p.target.y, `-${p.damage} ⚓`, '#ff6b6b', 16, p.isCrit);
 
-            // 分叉碎裂飞锚
-            const others = enemies.filter(e => !e.isDead && !e.reachedEnd && e !== p.target);
-            for (let k = 0; k < Math.min(3, others.length); k++) {
-                const subTarget = others[k];
+            // 原版核心特性：分裂飞锚优先搜寻 260px 内的障碍道具清图，不足时补追其他怪兽
+            const shardCount = p.shardCount || 3;
+            const nearbyProps = (props || [])
+                .filter(pr => !pr.isDead && pr !== p.target && Math.hypot(pr.x - p.x, pr.y - p.y) <= 260)
+                .sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y));
+            const otherEnemies = enemies.filter(e => !e.isDead && !e.reachedEnd && e !== p.target);
+            const shardPool = [...nearbyProps, ...otherEnemies];
+
+            for (let k = 0; k < Math.min(shardCount, shardPool.length); k++) {
+                const subTarget = shardPool[k];
                 this.projectiles.push({
                     type: 'anchor_shard',
                     x: p.x,
                     y: p.y,
-                    speed: 420,
-                    damage: Math.round(p.damage * 0.6),
+                    speed: 440,
+                    damage: Math.round(p.damage * 0.65),
                     target: subTarget,
                     isCrit: false
                 });
             }
         } else if (p.type === 'anchor_shard') {
+            const isProp = Boolean(p.target && p.target.wCells);
+            if (isProp) sound.playPropHit();
             this.createExplosion(p.x, p.y, '#ee5253', 12, 2.2);
             p.target.takeDamage(p.damage, p.isCrit);
             this.addFloatingText(p.target.x, p.target.y, `-${p.damage} ⚓`, '#ff6b6b', 13);

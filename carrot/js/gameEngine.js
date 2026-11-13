@@ -2,12 +2,12 @@
  * gameEngine.js - 塔防核心逻辑循环、波次生成器与物理结算
  */
 
-import { GAME_CONFIG, TOWER_TYPES } from './config.js?v=20261022_authentic_props_v9';
-import { GameMap, MapProp } from './map.js?v=20261022_authentic_props_v9';
-import { Tower } from './towers.js?v=20261022_authentic_props_v9';
-import { Enemy } from './enemies.js?v=20261022_authentic_props_v9';
-import { ProjectileSystem } from './projectiles.js?v=20261022_authentic_props_v9';
-import { sound } from './audio.js?v=20261022_authentic_props_v9';
+import { GAME_CONFIG, TOWER_TYPES } from './config.js?v=20261113_carrot_concise_v1';
+import { GameMap, MapProp } from './map.js?v=20261113_carrot_concise_v1';
+import { Tower } from './towers.js?v=20261113_carrot_concise_v1';
+import { Enemy } from './enemies.js?v=20261113_carrot_concise_v1';
+import { ProjectileSystem } from './projectiles.js?v=20261113_carrot_concise_v1';
+import { sound } from './audio.js?v=20261113_carrot_concise_v1';
 
 export class GameEngine {
     constructor(canvas, mathEngine, onStateChange) {
@@ -20,10 +20,12 @@ export class GameEngine {
         this.projectileSystem = new ProjectileSystem();
 
         // 核心数值
+        this.maxLives = GAME_CONFIG.initialLives;
         this.lives = GAME_CONFIG.initialLives;
         this.gold = GAME_CONFIG.initialGold;
         this.wave = 0;
         this.maxWaves = 10;
+        this.gameSpeed = 1; // 1x 或 2x 原版倍速
         this.state = 'IDLE'; // IDLE, PREPARING, WAVE_RUNNING, VICTORY, GAME_OVER, PAUSED
         this.currentLevel = 1;
 
@@ -34,7 +36,13 @@ export class GameEngine {
         this.selectedSlot = null;
         this.targetedEnemy = null; // 官方集火/算式锁定目标怪物
         this.targetedProp = null;  // 玩家手动集火锁定道具
+        this.allPropsCleared = false;
         this.allPropsClearedRewarded = false;
+
+        // 开局 3-2-1-GO 倒计时与横幅播报
+        this.openingCountdown = 0;
+        this.lastCountdownStage = null;
+        this.bannerNotice = null;
 
         // 波次生成计时器
         this.waveBreakTimer = 0;
@@ -74,7 +82,8 @@ export class GameEngine {
         if (this.mathEngine && this.mathEngine.resetRoundStats) {
             this.mathEngine.resetRoundStats();
         }
-        this.lives = GAME_CONFIG.initialLives;
+        this.maxLives = GAME_CONFIG.initialLives;
+        this.lives = this.maxLives;
         this.gold = GAME_CONFIG.initialGold;
         this.wave = 0;
         this.maxWaves = this.map.currentLevelConfig?.maxWaves || (this.currentLevel <= 3 ? 15 : (this.currentLevel <= 8 ? 18 : 20));
@@ -84,15 +93,18 @@ export class GameEngine {
         this.selectedSlot = null;
         this.targetedEnemy = null;
         this.targetedProp = null;
+        this.allPropsCleared = false;
         this.allPropsClearedRewarded = false;
+        this.bannerNotice = null;
         if (!this.projectileSystem) {
             this.projectileSystem = new ProjectileSystem();
         } else {
             this.projectileSystem.clear();
         }
 
-        // 重新初始化地图配置与道具障碍物
+        // 重新初始化地图配置与道具障碍物，并切换对应主题背景音乐
         this.map.setLevel(this.currentLevel);
+        sound.setThemeMusic(this.currentLevel);
 
         // 重置槽位
         for (const slot of this.map.towerSlots) {
@@ -100,8 +112,13 @@ export class GameEngine {
             slot.tower = null;
         }
 
+        // 保卫萝卜1标志性开局 3 · 2 · 1 · GO! 备战倒计时（期间可随时布阵建塔）
         this.state = 'PREPARING';
-        this.waveBreakTimer = 4.0; // 首次准备 4 秒
+        this.openingCountdown = 3.6;
+        this.lastCountdownStage = '3';
+        sound.playCountDown();
+        this.waveBreakTimer = 3.6;
+        this.map.triggerSlotHint(3.6);
         this.notifyState();
 
         this.running = true;
@@ -109,7 +126,25 @@ export class GameEngine {
         this.animationFrameId = requestAnimationFrame(t => this.loop(t));
     }
 
-    // 暂停/恢复
+    // 切换 1x / 2x 游戏倍速 (保卫萝卜经典倍速开关)
+    toggleSpeed() {
+        this.gameSpeed = this.gameSpeed === 2 ? 1 : 2;
+        sound.play('MenuSelect');
+        this.notifyState();
+        return this.gameSpeed;
+    }
+
+    showBanner(title, subText = '', color = '#ff4757', duration = 2.8) {
+        this.bannerNotice = {
+            title,
+            subText,
+            color,
+            timer: duration,
+            maxTimer: duration
+        };
+    }
+
+    // 暂停/恢复 (暂停期间完全支持保卫萝卜经典的“暂停建塔/拆塔/集火”)
     togglePause() {
         if (this.state === 'PAUSED') {
             this.state = this.previousState || 'WAVE_RUNNING';
@@ -124,6 +159,10 @@ export class GameEngine {
     // 提前触发下一波
     callNextWaveImmediately() {
         if (this.state === 'PREPARING') {
+            if (this.openingCountdown > 0) {
+                this.openingCountdown = 0;
+                sound.playGO();
+            }
             this.waveBreakTimer = 0;
             this.startNextWave();
         }
@@ -135,6 +174,13 @@ export class GameEngine {
         this.state = 'WAVE_RUNNING';
         this.enemySpawnQueue = this.generateWaveQueue(this.wave);
         this.spawnTimer = 0.5;
+
+        // 保卫萝卜1经典：最后一波怪兽来袭警报与号角！
+        if (this.wave === this.maxWaves) {
+            sound.playFinalWave();
+            this.showBanner('⚠️ 最后一波怪兽来袭！', '全力守住阿波，冲击金萝卜奖杯！', '#ff4757', 3.0);
+        }
+
         this.notifyState();
     }
 
@@ -329,9 +375,8 @@ export class GameEngine {
         const cost = this.selectedTower.getUpgradeCost();
         if (this.gold < cost) return false;
 
-        if (this.selectedTower.upgrade()) {
+        if (this.selectedTower.upgrade(cost, false)) {
             this.gold -= cost;
-            sound.playTowerUpgrade();
             this.projectileSystem.createExplosion(this.selectedTower.x, this.selectedTower.y, '#ffd32a', 20, 3.5);
             this.projectileSystem.addFloatingText(this.selectedTower.x, this.selectedTower.y, `强化 Lv.${this.selectedTower.level}!`, '#2ed573', 17, true);
             this.notifyState();
@@ -431,9 +476,12 @@ export class GameEngine {
         this.onStateChange({
             state: this.state,
             lives: this.lives,
+            maxLives: this.maxLives,
             gold: this.gold,
             wave: this.wave,
             maxWaves: this.maxWaves,
+            gameSpeed: this.gameSpeed,
+            allPropsCleared: this.allPropsCleared,
             waveBreakTimer: Math.ceil(this.waveBreakTimer),
             selectedTower: this.selectedTower,
             selectedSlot: this.selectedSlot,
@@ -444,17 +492,28 @@ export class GameEngine {
         });
     }
 
-    // 核心主循环 (iPad WebKit 稳帧与零堆积保护)
+    // 核心主循环 (iPad WebKit 稳帧与零堆积保护 + 1x/2x 子步精确模拟)
     loop(currentTime) {
         if (!this.running) return;
 
         const rawDt = (currentTime - this.lastTime) / 1000;
-        const dt = Math.max(0, Math.min(rawDt, 0.1));
+        const dt = Math.max(0, Math.min(rawDt, 0.08));
         this.lastTime = currentTime;
-        this.time += dt;
+
+        if (this.bannerNotice) {
+            this.bannerNotice.timer -= dt;
+            if (this.bannerNotice.timer <= 0) {
+                this.bannerNotice = null;
+            }
+        }
+
+        const speedSteps = (this.gameSpeed === 2 && this.openingCountdown <= 0 && this.state !== 'PAUSED') ? 2 : 1;
+        this.time += dt * speedSteps;
 
         try {
-            this.update(dt);
+            for (let step = 0; step < speedSteps; step++) {
+                this.update(dt);
+            }
             this.render();
         } catch (err) {
             console.error('游戏主循环捕获异常，已自我保护恢复:', err);
@@ -472,6 +531,25 @@ export class GameEngine {
 
         let stateDirty = false;
         this.mathEngine.update(dt);
+
+        // 0. 开局 3 · 2 · 1 · GO! 音效与状态节拍
+        if (this.openingCountdown > 0) {
+            this.openingCountdown = Math.max(0, this.openingCountdown - dt);
+            let stage = null;
+            if (this.openingCountdown > 2.7) stage = '3';
+            else if (this.openingCountdown > 1.8) stage = '2';
+            else if (this.openingCountdown > 0.9) stage = '1';
+            else if (this.openingCountdown > 0) stage = 'GO';
+
+            if (stage && stage !== this.lastCountdownStage) {
+                this.lastCountdownStage = stage;
+                if (stage === 'GO') {
+                    sound.playGO();
+                } else {
+                    sound.playCountDown();
+                }
+            }
+        }
 
         // 1. 波次休息倒计时
         if (this.state === 'PREPARING') {
@@ -557,13 +635,28 @@ export class GameEngine {
             }
         }
 
-        // 4. 更新防御塔 (支持集火锁敌、打击道具与水晶光环增益)
+        // 4. 更新防御塔 (支持集火锁敌、打击道具、水晶等级光环与蘑菇塔战斗产金)
         const isSuperCharged = this.mathEngine.superChargeActive;
         for (const tower of this.towers) {
             tower.isBuffed = false;
+            tower.buffLevel = 0;
         }
+        // 第一遍先计算所有水晶增益塔 (BUFF) 光环，确保炮塔顺序不影响增益生效
         for (const tower of this.towers) {
-            tower.update(dt, this.enemies, this.projectileSystem, isSuperCharged, this.targetedEnemy, this.towers, this.targetedProp, this.map.props);
+            if (tower.typeKey === 'BUFF') {
+                tower.update(dt, this.enemies, this.projectileSystem, isSuperCharged, this.targetedEnemy, this.towers, this.targetedProp, this.map.props);
+            }
+        }
+        const onBonusGold = (amount, tx, ty) => {
+            this.gold += amount;
+            sound.playGainGold();
+            this.projectileSystem.addFloatingText(tx, ty - 22, `+${amount}G 🍄`, '#ffd32a', 16, true);
+            stateDirty = true;
+        };
+        for (const tower of this.towers) {
+            if (tower.typeKey !== 'BUFF') {
+                tower.update(dt, this.enemies, this.projectileSystem, isSuperCharged, this.targetedEnemy, this.towers, this.targetedProp, this.map.props, onBonusGold);
+            }
         }
 
         // 5. 更新弹道、粒子与浮动文字
@@ -594,9 +687,9 @@ export class GameEngine {
         // 1. 地图背景、道路、建塔底座与场景道具
         this.map.draw(this.ctx, this.time, this.lives, this.targetedProp);
 
-        // 2. 绘制防御塔
+        // 2. 绘制防御塔 (传入当前金币以显示保卫萝卜经典绿色可升级跳动箭头)
         for (const tower of this.towers) {
-            tower.draw(this.ctx, this.time, tower === this.selectedTower);
+            tower.draw(this.ctx, this.time, tower === this.selectedTower, this.gold);
         }
 
         // 3. 绘制怪物 (包含集火瞄准标记)
@@ -616,9 +709,108 @@ export class GameEngine {
             this.ctx.restore();
         }
 
+        // 5.5 绘制保卫萝卜原版战斗播报图层 (3-2-1-GO、最后一波、道具全清、暂停布阵条)
+        this.drawBattleOverlays(this.ctx);
+
         // 6. 编辑器模式专属高亮与拐点序号图层
         if (this.onRenderOverlay) {
             this.onRenderOverlay(this.ctx, this.time);
+        }
+    }
+
+    drawBattleOverlays(ctx) {
+        const cw = this.canvas.width;
+
+        // A. 开局 3 · 2 · 1 · GO! 动感徽章（悬浮在上方，绝不遮挡地图中央布阵）
+        if (this.openingCountdown > 0 && this.state === 'PREPARING') {
+            let label = 'GO!';
+            let mainColor = '#2ed573';
+            let phase = this.openingCountdown / 0.9;
+            if (this.openingCountdown > 2.7) {
+                label = '3';
+                mainColor = '#ff9f43';
+                phase = (this.openingCountdown - 2.7) / 0.9;
+            } else if (this.openingCountdown > 1.8) {
+                label = '2';
+                mainColor = '#ffd32a';
+                phase = (this.openingCountdown - 1.8) / 0.9;
+            } else if (this.openingCountdown > 0.9) {
+                label = '1';
+                mainColor = '#ff6b6b';
+                phase = (this.openingCountdown - 0.9) / 0.9;
+            }
+            const popScale = 1.0 + Math.sin(Math.min(1, 1 - phase) * Math.PI) * 0.22;
+
+            ctx.save();
+            ctx.translate(cw / 2, 118);
+            ctx.scale(popScale, popScale);
+
+            ctx.fillStyle = 'rgba(25, 32, 42, 0.65)';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.roundRect(-78, -36, 156, 72, 36);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.font = '900 44px "Fredoka", "PingFang SC", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = '#3d2200';
+            ctx.strokeText(label, 0, 2);
+            ctx.fillStyle = mainColor;
+            ctx.fillText(label, 0, 2);
+            ctx.restore();
+        }
+
+        // B. 最后一波 / 道具全清 横幅提示
+        if (this.bannerNotice && this.bannerNotice.timer > 0) {
+            const b = this.bannerNotice;
+            const elapsed = b.maxTimer - b.timer;
+            const alpha = elapsed < 0.2 ? (elapsed / 0.2) : (b.timer < 0.4 ? (b.timer / 0.4) : 1);
+            ctx.save();
+            ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+            ctx.translate(cw / 2, 92);
+
+            ctx.fillStyle = 'rgba(30, 39, 46, 0.88)';
+            ctx.strokeStyle = b.color || '#ff4757';
+            ctx.lineWidth = 3.5;
+            ctx.beginPath();
+            ctx.roundRect(-220, -32, 440, 64, 20);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '900 21px "Fredoka", "PingFang SC", sans-serif';
+            ctx.fillText(b.title, 0, b.subText ? -6 : 6);
+            if (b.subText) {
+                ctx.fillStyle = '#ffeaa7';
+                ctx.font = '700 13px "PingFang SC", sans-serif';
+                ctx.fillText(b.subText, 0, 16);
+            }
+            ctx.restore();
+        }
+
+        // C. 暂停状态提示条：明确提示原版保卫萝卜核心技巧“暂停中仍可建塔、升级与集火”
+        if (this.state === 'PAUSED') {
+            ctx.save();
+            ctx.translate(cw / 2, 42);
+            ctx.fillStyle = 'rgba(20, 30, 40, 0.82)';
+            ctx.strokeStyle = '#ffd32a';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.roundRect(-215, -20, 430, 40, 20);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.fillStyle = '#fff9db';
+            ctx.font = '800 14px "PingFang SC", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('⏸️ 游戏已暂停 · 可自由点击空位建塔、升级或锁定目标', 0, 1);
+            ctx.restore();
         }
     }
 
@@ -701,7 +893,7 @@ export class GameEngine {
                 const tower = new Tower(prop.hiddenTower.typeKey, targetSlot.x, targetSlot.y, targetSlot.id);
                 if (prop.hiddenTower.level && prop.hiddenTower.level > 1) {
                     for (let lv = 1; lv < prop.hiddenTower.level; lv++) {
-                        tower.upgrade();
+                        tower.upgrade(null, true);
                     }
                 }
                 targetSlot.occupied = true;
@@ -716,14 +908,16 @@ export class GameEngine {
         this.map.triggerSlotHint(3.5);
         this.projectileSystem.addFloatingText(prop.x, prop.y + 26, '✨ 地块已解锁!', '#00d2d3', 16, true);
 
-        // 6. 检查是否全清道具
+        // 6. 检查是否全清道具 (保卫萝卜1经典“道具全清”奖章与金币大奖)
         if (this.map.props && this.map.props.length > 0) {
             const allCleared = this.map.props.every(p => p.isDead);
             if (allCleared && !this.allPropsClearedRewarded) {
+                this.allPropsCleared = true;
                 this.allPropsClearedRewarded = true;
                 this.gold += 300;
-                sound.playVictory();
-                this.projectileSystem.addFloatingText(this.canvas.width / 2, 180, '🏆 道具全清! 奖励 +300 金币! 🏆', '#ff9f43', 28, true);
+                sound.playAllClear();
+                this.showBanner('💎 道具全清达成！', '全图障碍扫荡一空 · 额外奖励 +300 金币！', '#ff9f43', 3.0);
+                this.projectileSystem.addFloatingText(this.canvas.width / 2, 180, '💎 道具全清! 奖励 +300 金币! 💎', '#ff9f43', 26, true);
                 this.projectileSystem.createExplosion(this.canvas.width / 2, 180, '#ff9f43', 35, 5.0);
             }
         }

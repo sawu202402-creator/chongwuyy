@@ -25,8 +25,8 @@
     <!-- 引入保卫萝卜标志性圆体卡通字体 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20261113_3in1_v1">
-    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261113_3in1_v1">
+    <link rel="stylesheet" href="css/style.css?v=20261113_carrot_concise_v1">
+    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261113_carrot_concise_v1">
 </head>
 <body>
 
@@ -48,9 +48,9 @@
                     <span>🪙</span>
                     <span class="hud-val-text" id="goldVal">760</span>
                 </div>
-                <div class="hud-pill hud-pill-lives" title="爱心守护">
+                <div class="hud-pill hud-pill-lives" title="阿波守护生命 (满血10心获金萝卜)">
                     <span>❤️</span>
-                    <span class="hud-val-text" id="livesVal">15</span>
+                    <span class="hud-val-text" id="livesVal">10</span>
                 </div>
             </div>
 
@@ -69,12 +69,13 @@
                 </div>
             </div>
 
-            <!-- 右侧：关卡切换、全屏沉浸、地图编辑、暂停与音效 -->
+            <!-- 右侧：关卡切换、倍速、全屏沉浸、地图编辑、暂停与音效 -->
             <div class="hud-right-group">
-                <button class="btn-jelly-pill btn-jelly-pill-level" id="btnSelectLevel" title="切换关卡 (第 1 关 / 第 2 关)">🗺️ 第 1 关 ▾</button>
+                <button class="btn-jelly-pill btn-jelly-pill-level" id="btnSelectLevel" title="打开简洁选关面板 (4大主题·48关)">🗺️ 第 1-1 关 ▾</button>
+                <button class="btn-jelly-pill btn-jelly-speed" id="btnSpeedToggle" title="切换 1x / 2x 游戏倍速">⚡ 1x</button>
                 <button class="btn-jelly-circle" id="btnFullscreen" title="点击切换全屏沉浸模式 (隐藏浏览器边框)">⛶</button>
                 <button class="btn-jelly-circle btn-jelly-editor-circle" id="btnToggleEditor" title="进入/退出地图可视化编辑模式">🛠️</button>
-                <button class="btn-jelly-circle" id="btnPause" title="暂停/继续游戏">⏸️</button>
+                <button class="btn-jelly-circle" id="btnPause" title="暂停/继续游戏 (暂停中仍可自由建塔升级)">⏸️</button>
                 <button class="btn-jelly-circle" id="btnMute" title="开关音效">🔊</button>
             </div>
         </header>
@@ -272,6 +273,7 @@
         <div class="carrot-modal-card">
             <div class="modal-badge-title" id="endModalTitle">🎉 乐园大胜利！</div>
             <p class="modal-desc" id="endModalDesc">你成功保护了小兔子和小青蛙的安全！</p>
+            <div class="end-medal-row" id="endMedalRow" style="display:none;"></div>
 
             <div class="stats-wood-grid">
                 <div class="wood-box">
@@ -363,64 +365,28 @@
         </div>
     </div>
 
-    <!-- 保卫萝卜原生两级选关弹窗（大关书本 + 小关拍立得卡片） -->
-    <div class="modal-overlay level-select-modal-overlay" id="levelSelectModal">
-        <div class="level-select-container">
-            <!-- 1. 大关选择视图 (Theme Select View) -->
-            <div class="level-view-screen" id="themeSelectView">
-                <header class="select-header">
-                    <button class="btn-select-nav btn-select-home" id="btnThemeBackHome" title="返回主界面">
-                        <img src="assets/official/select/btn_home.png" alt="首页" />
-                    </button>
-                    <div class="select-title-banner">
-                        <span class="select-title-text">选择大关主题</span>
-                    </div>
-                    <div class="select-header-placeholder"></div>
-                </header>
-
-                <div class="theme-book-stage">
-                    <button class="btn-carousel-arrow btn-arrow-left" id="btnThemePrev" title="上一本">
-                        <img src="assets/official/select/btn_arrow_left.png?v=20260924_cyan" alt="上一个" />
-                    </button>
-                    <div class="theme-book-wrapper" id="themeBookContainer">
-                        <!-- 由 JS 渲染当前 3D 主题书本及书签 -->
-                    </div>
-                    <button class="btn-carousel-arrow btn-arrow-right" id="btnThemeNext" title="下一本">
-                        <img src="assets/official/select/btn_arrow_right.png?v=20260924_cyan" alt="下一个" />
-                    </button>
-                </div>
-
-                <div class="theme-dots-row" id="themeDots">
-                    <!-- 指示小圆点 -->
-                </div>
+    <!-- 简洁关卡选择模态弹窗 (对标植物大战僵尸简洁网格模式：4大主题 · 48关一键直达) -->
+    <div class="modal-overlay" id="levelSelectModal">
+        <div class="carrot-modal-card concise-level-modal-card">
+            <div class="concise-level-top-bar">
+                <div class="modal-badge-title" style="margin-bottom:0;">🗺️ 选择出战关卡</div>
+                <div class="concise-medal-summary" id="levelMedalSummary">🥇 金萝卜 0/48 · 💎 全清 0/48</div>
             </div>
 
-            <!-- 2. 小关选择视图 (Stage Select View) -->
-            <div class="level-view-screen" id="stageSelectView" style="display:none;">
-                <header class="select-header">
-                    <button class="btn-select-nav btn-select-back" id="btnStageBackTheme" title="返回主题画册">
-                        <img src="assets/official/select/btn_back.png" alt="返回大关" />
-                    </button>
-                    <div class="select-title-banner">
-                        <span class="select-title-text">选择关卡</span>
-                    </div>
-                    <div class="stage-wave-badge" id="stageWaveCount">▶ 共 15 波</div>
-                </header>
+            <div class="concise-theme-tabs" id="levelThemeTabs">
+                <button type="button" class="concise-theme-tab active" data-theme="ALL">🌟 全部 (48关)</button>
+                <button type="button" class="concise-theme-tab" data-theme="0">☁️ 天际线</button>
+                <button type="button" class="concise-theme-tab" data-theme="1">🌿 丛林奇遇</button>
+                <button type="button" class="concise-theme-tab" data-theme="2">🏜️ 沙漠风暴</button>
+                <button type="button" class="concise-theme-tab" data-theme="3">🌊 深海狂澜</button>
+            </div>
 
-                <div class="stage-carousel-stage">
-                    <div class="stage-carousel-wrapper" id="stageCarousel">
-                        <!-- 由 JS 渲染上一张、当前张、下一张卡片 -->
-                    </div>
-                </div>
+            <div class="concise-level-grid" id="levelSelectGrid">
+                <!-- 由 JS 渲染 1-1 ~ 4-12 简洁关卡卡片 -->
+            </div>
 
-                <footer class="stage-select-footer">
-                    <div class="stage-towers-preview" id="stageTowersList">
-                        <!-- 本关可用炮塔圆形图标列表 -->
-                    </div>
-                    <button class="btn-start-stage-giant" id="btnStartStage" title="开始迎战！">
-                        <img src="assets/official/select/btn_start.png?v=20260924_start" alt="开始" />
-                    </button>
-                </footer>
+            <div style="display:flex; justify-content:center; width:100%; margin-top:10px;">
+                <button type="button" class="btn-big-carrot" id="btnCloseLevelModal" style="max-width:260px; background: linear-gradient(180deg, #ff9f43 0%, #e67e22 100%);">返回战场 ↩️</button>
             </div>
         </div>
     </div>
@@ -625,6 +591,6 @@
     </div>
 
     <!-- 引入游戏逻辑 -->
-    <script type="module" src="js/main.js?v=20261113_3in1_v1"></script>
+    <script type="module" src="js/main.js?v=20261113_carrot_concise_v1"></script>
 </body>
 </html>

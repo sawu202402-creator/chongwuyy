@@ -3,7 +3,8 @@
  * 允许玩家与开发者直接在画布上通过鼠标点击/涂抹来编辑怪兽路线、起点、终点及炮塔插槽
  */
 
-import { LEVEL_CONFIGS, MapProp } from './map.js?v=20261022_authentic_props_v9';
+import { LEVEL_CONFIGS, MapProp } from './map.js?v=20261113_carrot_concise_v1';
+import { TOWER_TYPES } from './config.js?v=20261113_carrot_concise_v1';
 
 export const STORAGE_KEY = 'CF_CUSTOM_LEVEL_CONFIGS';
 
@@ -684,10 +685,16 @@ export class MapEditor {
     openTowersModal() {
         if (!this.draftConfig) return;
         const available = new Set(this.draftConfig.availableTowers || ['ADD_RAPID', 'DIV_FROST']);
-        ['ADD_RAPID', 'DIV_FROST', 'MUL_CANNON', 'GEOM_LASER', 'FAN', 'ROCKET'].forEach(t => {
-            const chk = document.getElementById(`chkTower_${t}`);
-            if (chk) chk.checked = available.has(t);
-        });
+        const grid = this.towersModal ? this.towersModal.querySelector('.towers-checkbox-grid') : null;
+        if (grid) {
+            grid.innerHTML = Object.values(TOWER_TYPES).map(t => `
+                <label class="tower-chk-label">
+                    <input type="checkbox" id="chkTower_${t.id}" value="${t.id}" ${available.has(t.id) ? 'checked' : ''}>
+                    <span class="chk-emoji">${t.symbol || '🛡️'}</span>
+                    <span class="chk-name">${t.name} (${t.cost}G)</span>
+                </label>
+            `).join('');
+        }
         if (this.towersModal) this.towersModal.classList.add('active');
     }
 
@@ -697,7 +704,7 @@ export class MapEditor {
     saveTowersSelection() {
         if (!this.draftConfig) return;
         const selected = [];
-        ['ADD_RAPID', 'DIV_FROST', 'MUL_CANNON', 'GEOM_LASER', 'FAN', 'ROCKET'].forEach(t => {
+        Object.keys(TOWER_TYPES).forEach(t => {
             const chk = document.getElementById(`chkTower_${t}`);
             if (chk && chk.checked) selected.push(t);
         });

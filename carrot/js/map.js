@@ -3,7 +3,7 @@
  * 采用 Theme1 官方原画大地图 (960x640)，精准对齐石板小径与建塔点位
  */
 
-import { assetsManager } from './assetsLoader.js';
+import { assetsManager } from './assetsLoader.js?v=20261113_carrot_concise_v1';
 
 // 官方多关卡地图配置库 (严格 12x8 网格，80x80 单元格)
 export const LEVEL_CONFIGS = {
@@ -27662,8 +27662,142 @@ export class MapProp {
             }
         }
 
+        // 5. 保卫萝卜原版：集火锁定道具时的跳动红色准星与下指箭头 (Target Reticle)
+        if (isTargeted) {
+            ctx.save();
+            const bob = Math.sin(time * 8) * 3.5;
+            const targetY = this.y - this.height / 2 - 26 + floatY + bob;
+
+            ctx.strokeStyle = '#ff3838';
+            ctx.lineWidth = 2.5;
+            ctx.shadowColor = 'rgba(255, 56, 56, 0.85)';
+            ctx.shadowBlur = 8;
+            ctx.beginPath();
+            ctx.arc(this.x, targetY, 12, 0, Math.PI * 2);
+            ctx.stroke();
+
+            const tick = 5.5;
+            ctx.beginPath();
+            ctx.moveTo(this.x, targetY - 12);
+            ctx.lineTo(this.x, targetY - 12 - tick);
+            ctx.moveTo(this.x, targetY + 12);
+            ctx.lineTo(this.x, targetY + 12 + tick);
+            ctx.moveTo(this.x - 12, targetY);
+            ctx.lineTo(this.x - 12 - tick, targetY);
+            ctx.moveTo(this.x + 12, targetY);
+            ctx.lineTo(this.x + 12 + tick, targetY);
+            ctx.stroke();
+
+            ctx.fillStyle = '#ff3838';
+            ctx.beginPath();
+            ctx.moveTo(this.x - 6, targetY + 16);
+            ctx.lineTo(this.x + 6, targetY + 16);
+            ctx.lineTo(this.x, targetY + 23);
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+
         ctx.restore();
     }
+}
+
+// 为第 4 大关「深海狂澜」(37~48 关) 自动生成原汁原味的海底沉船宝箱、礁石珊瑚障碍与隐藏深海神塔
+function buildDefaultDeepSeaProps(levelId, config) {
+    const slots = config.towerSlots || [];
+    if (slots.length < 8) return [];
+    const pathSet = new Set(config.pathCells || []);
+    const startX = config.startPortal?.x ?? 120;
+    const startY = config.startPortal?.y ?? 120;
+    const endX = config.baseCrystal?.x ?? 840;
+    const endY = config.baseCrystal?.y ?? 360;
+
+    // 保留出生点周边最近的至少 5 个黄金建塔位不放障碍物，确保开局顺畅建塔
+    const sortedByStart = [...slots].sort(
+        (a, b) => Math.hypot(a.x - startX, a.y - startY) - Math.hypot(b.x - startX, b.y - startY)
+    );
+    const protectedIds = new Set(sortedByStart.slice(0, 5).map(s => s.id));
+
+    const slotMap = new Map();
+    slots.forEach(s => {
+        if (protectedIds.has(s.id)) return;
+        if (Math.hypot(s.x - startX, s.y - startY) < 95) return;
+        if (Math.hypot(s.x - endX, s.y - endY) < 95) return;
+        if (pathSet.has(`${s.c},${s.r}`)) return;
+        slotMap.set(`${s.c},${s.r}`, s);
+    });
+
+    const usedCells = new Set();
+    const outProps = [];
+    const hiddenPool = ['FISH', 'ANCHOR', 'CUTTLE', 'MUSHROOM', 'SNOW', 'PLANE', 'BUFF'];
+    const bonusTower1 = hiddenPool[(levelId * 3) % hiddenPool.length];
+    const bonusTower2 = hiddenPool[(levelId * 5 + 2) % hiddenPool.length];
+
+    // 尝试放置 1 个 2x2 深海沉船大宝箱 (内藏 Lv.2 深海武器)
+    for (let r = 1; r <= 4; r++) {
+        let placedBig = false;
+        for (let c = 2; c <= 9; c++) {
+            const cells = [`${c},${r}`, `${c + 1},${r}`, `${c},${r + 1}`, `${c + 1},${r + 1}`];
+            if (cells.every(k => slotMap.has(k) && !usedCells.has(k))) {
+                cells.forEach(k => usedCells.add(k));
+                outProps.push({
+                    id: `sea_${levelId}_bigchest`,
+                    type: 'sea_chest_big',
+                    name: '深海沉船大宝箱',
+                    c,
+                    r,
+                    wCells: 2,
+                    hCells: 2,
+                    spriteSrc: 'assets/official/props/jungle_chest_big.png',
+                    hp: 3400,
+                    rewardGold: 260,
+                    hiddenTower: { typeKey: bonusTower1, level: 2, slotC: c, slotR: r }
+                });
+                placedBig = true;
+                break;
+            }
+        }
+        if (placedBig) break;
+    }
+
+    // 挑选最多 6 个 1x1 礁石 / 海底宝箱 / 夜光珊瑚菇
+    const singleTemplates = [
+        { type: 'sea_chest_small', name: '海底珍珠宝箱', spriteSrc: 'assets/official/props/desert_chest_small.png', hp: 1100, rewardGold: 150 },
+        { type: 'sea_coral', name: '幻彩珊瑚菇', spriteSrc: 'assets/official/props/jungle_mushroom.png', hp: 780, rewardGold: 90 },
+        { type: 'sea_rock', name: '深海礁石', spriteSrc: 'assets/official/props/jungle_rock.png', hp: 850, rewardGold: 95 },
+        { type: 'sea_totem', name: '亚特兰蒂斯石像', spriteSrc: 'assets/official/props/jungle_totem.png', hp: 1050, rewardGold: 120 },
+        { type: 'sea_pearl', name: '深海夜明珠', spriteSrc: 'assets/official/props/theme1_planet_yellow.png', hp: 720, rewardGold: 85 }
+    ];
+
+    const remainCandidates = Array.from(slotMap.values()).filter(s => !usedCells.has(`${s.c},${s.r}`));
+    const step = Math.max(1, Math.floor(remainCandidates.length / 6));
+    let singleCount = 0;
+    for (let idx = 0; idx < remainCandidates.length && singleCount < 6; idx += step) {
+        const s = remainCandidates[idx];
+        const key = `${s.c},${s.r}`;
+        if (usedCells.has(key)) continue;
+        usedCells.add(key);
+        const tpl = singleTemplates[(levelId + singleCount) % singleTemplates.length];
+        const propItem = {
+            id: `sea_${levelId}_prop_${singleCount}`,
+            type: tpl.type,
+            name: tpl.name,
+            c: s.c,
+            r: s.r,
+            wCells: 1,
+            hCells: 1,
+            spriteSrc: tpl.spriteSrc,
+            hp: tpl.hp,
+            rewardGold: tpl.rewardGold
+        };
+        if (singleCount === 0) {
+            propItem.hiddenTower = { typeKey: bonusTower2, level: 1, slotC: s.c, slotR: s.r };
+        }
+        outProps.push(propItem);
+        singleCount++;
+    }
+
+    return outProps;
 }
 
 export class GameMap {
@@ -27745,8 +27879,11 @@ export class GameMap {
         this.baseCrystal = { ...config.baseCrystal };
         this.towerSlots = JSON.parse(JSON.stringify(config.towerSlots));
 
-        // 实例化当前关卡的场景道具 / 障碍物
-        this.props = (config.props || []).map(pConfig => new MapProp(pConfig));
+        // 实例化当前关卡的场景道具 / 障碍物（深海狂澜 37~48 关若未配道具则自动生成海底宝箱与礁石）
+        const rawProps = (config.props && config.props.length > 0)
+            ? config.props
+            : (Number(levelId) >= 37 ? buildDefaultDeepSeaProps(Number(levelId), config) : []);
+        this.props = rawProps.map(pConfig => new MapProp(pConfig));
     }
 
     findSlotAt(px, py) {
@@ -28033,10 +28170,11 @@ export class GameMap {
     // 绘制云朵建塔空槽位 (保卫萝卜原版：提醒一下自动淡出消失，鼠标悬停即刻高亮，保持画面极度清爽)
     drawSlots(ctx, time) {
         ctx.save();
-        const hintRemaining = (this.slotHintUntil || 0) - time;
+        const nowSec = performance.now() / 1000;
+        const hintRemaining = (this.slotHintUntil || 0) - nowSec;
         const isHintActive = hintRemaining > 0;
-        // 缓动渐隐 alpha：在最后 1.0 秒内从 1 平滑淡出到 0
-        const hintAlpha = isHintActive ? Math.min(1, hintRemaining / 1.0) : 0;
+        // 缓动渐隐 alpha：在最后 0.9 秒内从 1 平滑淡出到 0
+        const hintAlpha = isHintActive ? Math.min(1, hintRemaining / 0.9) : 0;
 
         for (const slot of this.towerSlots) {
             if (slot.occupied) continue;
@@ -28051,59 +28189,52 @@ export class GameMap {
 
             ctx.save();
             if (isHovered) {
-                // 悬停交互：柔和湖蓝色呼吸光圈 + 高亮清晰小加号 (始终全亮响应)
-                this.drawShadow(ctx, slot.x, slot.y + 12, 20, 7);
-                const pulse = Math.sin(time * 6) * 2.5;
-                ctx.fillStyle = 'rgba(0, 210, 255, 0.28)';
+                // 悬停交互：保卫萝卜原版圆角方框 + 高亮正交小加号
+                this.drawShadow(ctx, slot.x, slot.y + 14, 22, 7);
+                const pulse = Math.sin(time * 6) * 2;
+                const half = 24 + pulse;
+                ctx.fillStyle = 'rgba(46, 213, 115, 0.25)';
+                ctx.strokeStyle = '#2ed573';
+                ctx.lineWidth = 2.4;
+                ctx.setLineDash([6, 4]);
                 ctx.beginPath();
-                ctx.arc(slot.x, slot.y, 20 + pulse, 0, Math.PI * 2);
+                ctx.roundRect(slot.x - half, slot.y - half, half * 2, half * 2, 10);
                 ctx.fill();
-
-                ctx.strokeStyle = '#00d2d3';
-                ctx.lineWidth = 2.2;
-                ctx.setLineDash([4, 4]);
-                ctx.beginPath();
-                ctx.arc(slot.x, slot.y, 20 + pulse, 0, Math.PI * 2);
                 ctx.stroke();
 
                 ctx.setLineDash([]);
                 ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 2.4;
+                ctx.lineWidth = 2.6;
                 ctx.beginPath();
-                ctx.moveTo(slot.x - 7, slot.y);
-                ctx.lineTo(slot.x + 7, slot.y);
-                ctx.moveTo(slot.x, slot.y - 7);
-                ctx.lineTo(slot.x + 7, slot.y);
+                ctx.moveTo(slot.x - 8, slot.y);
+                ctx.lineTo(slot.x + 8, slot.y);
+                ctx.moveTo(slot.x, slot.y - 8);
+                ctx.lineTo(slot.x, slot.y + 8);
                 ctx.stroke();
             } else {
-                // 提示闪现或开启网格状态：随 hintAlpha 平滑渐隐消失
+                // 提示闪现或开启网格状态：原版半透明圆角虚线建塔格 + 正交加号
                 const alpha = this.showGrid ? 1 : hintAlpha;
                 ctx.globalAlpha = alpha;
 
-                this.drawShadow(ctx, slot.x, slot.y + 12, 16, 5);
-
-                // 清爽半透明云朵虚线建塔圈
+                const half = 22;
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.16)';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.68)';
+                ctx.lineWidth = 1.8;
+                ctx.setLineDash([5, 4]);
                 ctx.beginPath();
-                ctx.arc(slot.x, slot.y, 18, 0, Math.PI * 2);
+                ctx.roundRect(slot.x - half, slot.y - half, half * 2, half * 2, 9);
                 ctx.fill();
-
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-                ctx.lineWidth = 1.6;
-                ctx.setLineDash([4, 4]);
-                ctx.beginPath();
-                ctx.arc(slot.x, slot.y, 18, 0, Math.PI * 2);
                 ctx.stroke();
 
-                // 简约洁白小加号 +
+                // 简约洁白正交小加号 +
                 ctx.setLineDash([]);
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
-                ctx.lineWidth = 1.8;
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+                ctx.lineWidth = 2.0;
                 ctx.beginPath();
                 ctx.moveTo(slot.x - 6, slot.y);
                 ctx.lineTo(slot.x + 6, slot.y);
                 ctx.moveTo(slot.x, slot.y - 6);
-                ctx.lineTo(slot.x + 6, slot.y);
+                ctx.lineTo(slot.x, slot.y + 6);
                 ctx.stroke();
             }
             ctx.restore();
@@ -28113,6 +28244,17 @@ export class GameMap {
 
     triggerCarrotHurt(duration = 0.45) {
         this.carrotHurtUntil = (performance.now() / 1000) + duration;
+    }
+
+    triggerCarrotWiggle(duration = 0.65) {
+        this.carrotWiggleUntil = (performance.now() / 1000) + duration;
+    }
+
+    isCarrotHit(px, py) {
+        if (!this.baseCrystal) return false;
+        const cx = this.baseCrystal.x !== undefined ? this.baseCrystal.x : 840;
+        const cy = (this.baseCrystal.y !== undefined ? this.baseCrystal.y : 360) - 18;
+        return Math.hypot(px - cx, py - cy) <= 46;
     }
 
     // 绘制终点：保卫萝卜官方原版大胡萝卜 (坐落于石板路终点，带实时血量与官方多阶啃咬演变)
@@ -28158,6 +28300,7 @@ export class GameMap {
 
         const nowSec = performance.now() / 1000;
         const isHurtShake = nowSec < (this.carrotHurtUntil || 0);
+        const isHappyWiggle = !isHurtShake && nowSec < (this.carrotWiggleUntil || 0);
 
         let activeSprite = this.carrotSprites.hp10_smile;
         let shakeX = 0;
@@ -28170,8 +28313,8 @@ export class GameMap {
             shakeX = (Math.random() - 0.5) * 6;
             shakeY = (Math.random() - 0.5) * 4;
         } else if (lives >= 10) {
-            // 满血完整健康大萝卜：平时开心笑眼微扬，周期性俏皮圆眼眨眼
-            const isBlink = Math.sin(time * 1.8) > 0.85;
+            // 满血完整健康大萝卜：逗弄时调皮扭动眨眼，平时开心笑眼微扬
+            const isBlink = isHappyWiggle ? (Math.floor(nowSec * 12) % 2 === 0) : (Math.sin(time * 1.8) > 0.85);
             activeSprite = isBlink ? this.carrotSprites.hp10_idle : this.carrotSprites.hp10_smile;
         } else if (lives >= 8) {
             // 咬掉第1口 (8~9血)：忍痛闭眼 (> <)
@@ -28191,12 +28334,21 @@ export class GameMap {
         const cWidth = isDizzy ? 76 : 74;
         const cHeight = isDizzy ? 64 : 96;
 
-        const bounce = isDizzy ? 0 : Math.sin(time * 3.5) * 2.5;
+        const bounce = isDizzy ? 0 : (isHappyWiggle ? Math.abs(Math.sin(nowSec * 22)) * -9 : Math.sin(time * 3.5) * 2.5);
+        const wiggleRot = isHappyWiggle ? Math.sin(nowSec * 28) * 0.16 : 0;
         const drawX = x - cWidth / 2 + shakeX;
         const drawY = y + 24 - cHeight + bounce + shakeY;
 
         if (activeSprite && activeSprite.complete && activeSprite.naturalWidth > 0) {
-            ctx.drawImage(activeSprite, drawX, drawY, cWidth, cHeight);
+            if (wiggleRot !== 0) {
+                ctx.save();
+                ctx.translate(x, y + 18);
+                ctx.rotate(wiggleRot);
+                ctx.drawImage(activeSprite, -cWidth / 2, 6 - cHeight + bounce, cWidth, cHeight);
+                ctx.restore();
+            } else {
+                ctx.drawImage(activeSprite, drawX, drawY, cWidth, cHeight);
+            }
         } else {
             assetsManager.drawMascot(ctx, 'carrot', x, y - 10 + bounce, 56, 68);
         }

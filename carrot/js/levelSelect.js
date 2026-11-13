@@ -1,83 +1,70 @@
 /**
- * levelSelect.js - 《保卫萝卜》原生两级选关系统（大关书本 + 小关卡片）
- * 1:1 还原官方主题画册（天际/丛林/沙漠/深海）与拍立得花边地图卡片轮播
+ * levelSelect.js - 《保卫萝卜》简洁网格选关系统（对标植物大战僵尸简洁模式）
+ * 四大主题（天际线 / 丛林奇遇 / 沙漠风暴 / 深海狂澜）共 48 关一目了然，一键直达！
+ * 同时完整保留保卫萝卜1经典双勋章记录：金/银/铜萝卜 + 道具全清奖章
  */
 
-import { LEVEL_CONFIGS } from './map.js?v=20261022_authentic_props_v9';
+import { LEVEL_CONFIGS } from './map.js?v=20261113_carrot_concise_v1';
+import { TOWER_TYPES } from './config.js?v=20261113_carrot_concise_v1';
 
 export const THEMES_DATA = [
     {
         id: 'THEME_1_SKY',
+        world: 1,
+        icon: '☁️',
         title: '天际线',
-        subtitle: '天际 9+3 张地图',
-        desc: '萝卜飞上云霄...',
-        bookImg: 'assets/official/select/book_skyline.png?v=20260925_book_fix',
+        headerLabel: '☁️ 第一大关：天际线 (1-1 ~ 1-12)',
         unlocked: true,
         totalStages: 12,
-        stageOffset: 0,
-        stages: Array.from({ length: 12 }, (_, i) => ({
-            stageNum: i + 1,
-            displayNum: i + 1,
-            cardImg: `assets/official/select/cards/sky_stage_${String(i + 1).padStart(2, '0')}.png?v=20260925_sky_v4`
-        }))
+        stageOffset: 0
     },
     {
         id: 'THEME_2_JUNGLE',
+        world: 2,
+        icon: '🌿',
         title: '丛林奇遇',
-        subtitle: '丛林 9+3 张地图',
-        desc: '穿梭神秘树林...',
-        bookImg: 'assets/official/select/book_jungle.png?v=20260925_book_fix',
+        headerLabel: '🌿 第二大关：丛林奇遇 (2-1 ~ 2-12)',
         unlocked: true,
         totalStages: 12,
-        stageOffset: 12,
-        stages: Array.from({ length: 12 }, (_, i) => ({
-            stageNum: 12 + i + 1,
-            displayNum: i + 1,
-            cardImg: `assets/official/select/cards/jungle_stage_${String(i + 1).padStart(2, '0')}.png?v=20260925_jungle_up1row_v2`
-        }))
+        stageOffset: 12
     },
     {
         id: 'THEME_3_DESERT',
+        world: 3,
+        icon: '🏜️',
         title: '沙漠风暴',
-        subtitle: '沙漠 9+3 张地图',
-        desc: '金黄热浪滚滚...',
-        bookImg: 'assets/official/select/book_desert.png?v=20260925_book_fix',
+        headerLabel: '🏜️ 第三大关：沙漠风暴 (3-1 ~ 3-12)',
         unlocked: true,
         totalStages: 12,
-        stageOffset: 24,
-        stages: Array.from({ length: 12 }, (_, i) => ({
-            stageNum: 24 + i + 1,
-            displayNum: i + 1,
-            cardImg: `assets/official/select/cards/desert_stage_${String(i + 1).padStart(2, '0')}.png?v=20260925_desert_v1`
-        }))
+        stageOffset: 24
     },
     {
         id: 'THEME_4_DEEPSEA',
+        world: 4,
+        icon: '🌊',
         title: '深海狂澜',
-        subtitle: '深海 9+3 张地图',
-        desc: '潜入幽蓝深海，迎击巨螯蟹王与海妖...',
-        bookImg: 'assets/official/select/book_deepsea.png?v=20260925_deepsea_book_v1',
+        headerLabel: '🌊 第四大关：深海狂澜 (4-1 ~ 4-12)',
         unlocked: true,
         totalStages: 12,
-        stageOffset: 36,
-        stages: Array.from({ length: 12 }, (_, i) => ({
-            stageNum: 36 + i + 1,
-            displayNum: i + 1,
-            cardImg: `assets/official/select/cards/deepsea_stage_${String(i + 1).padStart(2, '0')}.png?v=20260925_deepsea_clean_v2`
-        }))
+        stageOffset: 36
     }
 ];
 
 const PROGRESS_STORAGE_KEY = 'carrot_level_records_v1';
 
+const CARROT_RANK = {
+    none: 0,
+    bronze: 1,
+    silver: 2,
+    gold: 3
+};
+
 export class LevelSelectManager {
     constructor(soundEngine, onStartLevelCallback) {
         this.sound = soundEngine;
         this.onStartLevel = onStartLevelCallback;
-
-        this.currentThemeIdx = 0;
-        this.currentStageIdx = 0; // 0-based index for current stage (0 -> stage 1)
-        this.currentView = 'THEME'; // 'THEME' | 'STAGE'
+        this.activeStageNum = 1;
+        this.filterTheme = 'ALL'; // 'ALL' | 0 | 1 | 2 | 3
 
         this.records = this.loadRecords();
         this.initDOM();
@@ -86,16 +73,14 @@ export class LevelSelectManager {
     loadRecords() {
         try {
             const raw = localStorage.getItem(PROGRESS_STORAGE_KEY);
-            if (raw) return JSON.parse(raw);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') return parsed;
+            }
         } catch (e) {
             console.warn('Failed to load level progress:', e);
         }
-        // 初始默认记录：已解锁第 1 关
-        return {
-            1: { cleared: true, carrot: 'gold', stars: 4 },
-            2: { cleared: true, carrot: 'gold', stars: 4 },
-            3: { cleared: true, carrot: 'gold', stars: 4 }
-        };
+        return {};
     }
 
     saveRecords() {
@@ -106,339 +91,221 @@ export class LevelSelectManager {
         }
     }
 
-    recordLevelCompletion(stageNum, isPerfect) {
+    /**
+     * 记录关卡胜利荣誉（保卫萝卜1经典：10血无伤金萝卜、8~9血银萝卜、1~7血铜萝卜 + 道具全清勋章）
+     * 自动保留历史最高萝卜等级与全清状态
+     */
+    recordLevelCompletion(stageNum, livesLeftOrBool = 10, maxLives = 10, allPropsCleared = false) {
+        let earnedCarrot = 'bronze';
+        if (typeof livesLeftOrBool === 'boolean') {
+            earnedCarrot = livesLeftOrBool ? 'gold' : 'silver';
+        } else {
+            const lives = Number(livesLeftOrBool) || 1;
+            const cap = Number(maxLives) || 10;
+            if (lives >= cap) {
+                earnedCarrot = 'gold';
+            } else if (lives >= cap - 2) {
+                earnedCarrot = 'silver';
+            } else {
+                earnedCarrot = 'bronze';
+            }
+        }
+
+        const prev = this.records[stageNum] || {};
+        const prevRank = CARROT_RANK[prev.carrot] || 0;
+        const nextRank = CARROT_RANK[earnedCarrot] || 1;
+        const bestCarrot = nextRank >= prevRank ? earnedCarrot : prev.carrot;
+        const bestAllClear = Boolean(prev.allClear || allPropsCleared);
+
         this.records[stageNum] = {
             cleared: true,
-            carrot: isPerfect ? 'gold' : 'silver',
-            stars: isPerfect ? 4 : 3
+            carrot: bestCarrot,
+            allClear: bestAllClear,
+            bestLives: Math.max(Number(prev.bestLives) || 0, typeof livesLeftOrBool === 'number' ? livesLeftOrBool : maxLives)
         };
         this.saveRecords();
+        return {
+            earnedCarrot,
+            allPropsCleared: Boolean(allPropsCleared),
+            bestCarrot,
+            bestAllClear
+        };
     }
 
     initDOM() {
         this.modal = document.getElementById('levelSelectModal');
-        this.themeView = document.getElementById('themeSelectView');
-        this.stageView = document.getElementById('stageSelectView');
+        this.gridEl = document.getElementById('levelSelectGrid');
+        this.summaryEl = document.getElementById('levelMedalSummary');
+        this.tabsContainer = document.getElementById('levelThemeTabs');
+        this.btnClose = document.getElementById('btnCloseLevelModal');
 
-        // 大关主题视图元素
-        this.themeBookContainer = document.getElementById('themeBookContainer');
-        this.btnThemePrev = document.getElementById('btnThemePrev');
-        this.btnThemeNext = document.getElementById('btnThemeNext');
-        this.themeDots = document.getElementById('themeDots');
-        this.btnThemeBackHome = document.getElementById('btnThemeBackHome');
+        if (this.tabsContainer) {
+            this.tabsContainer.addEventListener('click', (e) => {
+                const btn = e.target.closest('.concise-theme-tab');
+                if (!btn) return;
+                this.sound?.resumeContext();
+                this.sound?.play('MenuSelect');
+                const val = btn.dataset.theme;
+                this.filterTheme = val === 'ALL' ? 'ALL' : Number(val);
+                this.syncFilterTabs();
+                this.renderGrid();
+                if (this.gridEl) this.gridEl.scrollTop = 0;
+            });
+        }
 
-        // 小关卡片视图元素
-        this.stageCarousel = document.getElementById('stageCarousel');
-        this.btnStageBackTheme = document.getElementById('btnStageBackTheme');
-        this.btnStagePrev = document.getElementById('btnStagePrev');
-        this.btnStageNext = document.getElementById('btnStageNext');
-        this.stageWaveCount = document.getElementById('stageWaveCount');
-        this.stageTowersList = document.getElementById('stageTowersList');
-        this.btnStartStage = document.getElementById('btnStartStage');
-
-        this.bindEvents();
+        if (this.btnClose) {
+            this.btnClose.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.sound?.resumeContext();
+                this.sound?.play('MenuSelect');
+                this.close();
+            });
+        }
     }
 
-    bindEvents() {
-        // 大关切换
-        this.btnThemePrev?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.sound?.resumeContext();
-            this.sound?.play('TowerSelect');
-            this.prevTheme();
+    syncFilterTabs() {
+        if (!this.tabsContainer) return;
+        this.tabsContainer.querySelectorAll('.concise-theme-tab').forEach(btn => {
+            const val = btn.dataset.theme;
+            const isMatch = (this.filterTheme === 'ALL' && val === 'ALL') || (String(this.filterTheme) === val);
+            btn.classList.toggle('active', isMatch);
         });
-        this.btnThemeNext?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.sound?.resumeContext();
-            this.sound?.play('TowerSelect');
-            this.nextTheme();
-        });
-        this.btnThemeBackHome?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.close();
-        });
-
-        // 小关切换
-        this.btnStagePrev?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.sound?.resumeContext();
-            this.sound?.play('TowerSelect');
-            this.prevStage();
-        });
-        this.btnStageNext?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.sound?.resumeContext();
-            this.sound?.play('TowerSelect');
-            this.nextStage();
-        });
-        this.btnStageBackTheme?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.sound?.resumeContext();
-            this.sound?.play('TowerBulid');
-            this.showThemeView();
-        });
-
-        // 开始战斗
-        this.btnStartStage?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            this.sound?.resumeContext();
-            this.sound?.play('GO');
-            this.launchSelectedStage();
-        });
-
-        // 触控滑动支持 (iPad / 手机手势划动切关)
-        this.setupTouchSwipe(this.themeView, () => this.nextTheme(), () => this.prevTheme());
-        this.setupTouchSwipe(this.stageCarousel, () => this.nextStage(), () => this.prevStage());
-    }
-
-    setupTouchSwipe(element, onSwipeLeft, onSwipeRight) {
-        if (!element) return;
-        let startX = 0;
-        let startY = 0;
-        element.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                startX = e.touches[0].clientX;
-                startY = e.touches[0].clientY;
-            }
-        }, { passive: true });
-
-        element.addEventListener('touchend', (e) => {
-            if (e.changedTouches.length === 1) {
-                const diffX = e.changedTouches[0].clientX - startX;
-                const diffY = e.changedTouches[0].clientY - startY;
-                // 水平滑动大于 45px 且横向位移大于纵向
-                if (Math.abs(diffX) > 45 && Math.abs(diffX) > Math.abs(diffY)) {
-                    if (diffX < 0) {
-                        onSwipeLeft();
-                    } else {
-                        onSwipeRight();
-                    }
-                }
-            }
-        }, { passive: true });
     }
 
     open(initialStage = 1) {
-        if (initialStage > 12) {
-            this.currentThemeIdx = 1;
-            this.currentStageIdx = Math.max(0, initialStage - 13);
-        } else {
-            this.currentThemeIdx = 0;
-            this.currentStageIdx = Math.max(0, initialStage - 1);
-        }
+        this.activeStageNum = Math.max(1, Math.min(48, Number(initialStage) || 1));
+        this.syncFilterTabs();
+        this.renderGrid();
         this.modal?.classList.add('show');
-        this.showThemeView();
+
+        // 自动滚动定位到当前正在挑战的关卡卡片
+        requestAnimationFrame(() => {
+            const activeEl = document.getElementById(`level-grid-item-${this.activeStageNum}`);
+            if (activeEl && this.gridEl) {
+                activeEl.scrollIntoView({ block: 'nearest', behavior: 'instant' });
+            }
+        });
     }
 
     close() {
         this.modal?.classList.remove('show');
     }
 
-    // ================= 1. 大关主题书本视图 =================
-    showThemeView() {
-        this.currentView = 'THEME';
-        if (this.themeView) this.themeView.style.display = 'flex';
-        if (this.stageView) this.stageView.style.display = 'none';
-        this.renderThemeBook();
+    getStageDisplayCode(stageNum) {
+        const themeIdx = Math.floor((stageNum - 1) / 12);
+        const sub = ((stageNum - 1) % 12) + 1;
+        return `${themeIdx + 1}-${sub}`;
     }
 
-    renderThemeBook() {
-        const theme = THEMES_DATA[this.currentThemeIdx];
-        if (!theme || !this.themeBookContainer) return;
+    getCleanStageTitle(stageNum) {
+        const cfg = LEVEL_CONFIGS[stageNum];
+        if (!cfg || !cfg.name) return `第 ${this.getStageDisplayCode(stageNum)} 关`;
+        const parts = cfg.name.split(': ');
+        const raw = parts.length > 1 ? parts[1] : cfg.name;
+        return raw.replace(/^[\u{1F300}-\u{1FAFF}\u2600-\u27BF]\s*/u, '').trim();
+    }
 
-        // 计算当前主题通关进度
+    renderSummary() {
+        if (!this.summaryEl) return;
+        let goldCount = 0;
+        let allClearCount = 0;
         let clearedCount = 0;
-        const offset = theme.stageOffset || 0;
-        for (let i = 1; i <= theme.totalStages; i++) {
-            if (this.records[offset + i]?.cleared) clearedCount++;
-        }
-
-        this.themeBookContainer.innerHTML = `
-            <div class="theme-book-card ${theme.unlocked ? '' : 'locked'}">
-                <img src="${theme.bookImg}" class="theme-book-cover" alt="${theme.title}" />
-                ${theme.unlocked ? `
-                    <div class="theme-bookmark-ribbon" title="当前通关进度">
-                        <span class="bookmark-text">${clearedCount}/${theme.totalStages}</span>
-                    </div>
-                ` : `
-                    <div class="theme-lock-badge">
-                        <span>🔒 敬请期待</span>
-                    </div>
-                `}
-            </div>
-        `;
-
-        const bookCard = this.themeBookContainer.querySelector('.theme-book-card');
-        if (theme.unlocked) {
-            bookCard?.addEventListener('click', () => {
-                this.sound?.resumeContext();
-                this.sound?.play('TowerBulid');
-                this.showStageView();
-            });
-        }
-
-        // 渲染底部指示圆点
-        if (this.themeDots) {
-            this.themeDots.innerHTML = THEMES_DATA.map((_, idx) => `
-                <span class="theme-dot ${idx === this.currentThemeIdx ? 'active' : ''}"></span>
-            `).join('');
-        }
-    }
-
-    prevTheme() {
-        if (this.currentThemeIdx > 0) {
-            this.currentThemeIdx--;
-            this.renderThemeBook();
-        }
-    }
-
-    nextTheme() {
-        if (this.currentThemeIdx < THEMES_DATA.length - 1) {
-            this.currentThemeIdx++;
-            this.renderThemeBook();
-        }
-    }
-
-    // ================= 2. 小关卡片轮播视图 =================
-    showStageView() {
-        this.currentView = 'STAGE';
-        if (this.themeView) this.themeView.style.display = 'none';
-        if (this.stageView) this.stageView.style.display = 'flex';
-        const theme = THEMES_DATA[this.currentThemeIdx];
-        if (theme && theme.stages.length > 0) {
-            if (this.currentStageIdx >= theme.stages.length) {
-                this.currentStageIdx = 0;
+        for (let i = 1; i <= 48; i++) {
+            const rec = this.records[i];
+            if (rec?.cleared) {
+                clearedCount++;
+                if (rec.carrot === 'gold') goldCount++;
+                if (rec.allClear) allClearCount++;
             }
         }
-        this.renderStageCarousel();
+        this.summaryEl.textContent = `🥕 通关 ${clearedCount}/48 · 🥇 金萝卜 ${goldCount}/48 · 💎 全清 ${allClearCount}/48`;
     }
 
-    renderStageCarousel() {
-        const theme = THEMES_DATA[this.currentThemeIdx];
-        if (!theme || !this.stageCarousel) return;
+    renderGrid() {
+        if (!this.gridEl) return;
+        this.renderSummary();
+        this.gridEl.innerHTML = '';
 
-        const stages = theme.stages;
-        const total = stages.length;
-        if (total === 0) return;
+        const themesToRender = this.filterTheme === 'ALL'
+            ? THEMES_DATA
+            : THEMES_DATA.filter((_, idx) => idx === this.filterTheme);
 
-        // 3D 轮播结构：前一张卡片（若有）、当前卡片、后一张卡片（若有）
-        const hasPrev = this.currentStageIdx > 0;
-        const hasNext = this.currentStageIdx < total - 1;
-        const prevIdx = hasPrev ? this.currentStageIdx - 1 : null;
-        const currIdx = this.currentStageIdx;
-        const nextIdx = hasNext ? this.currentStageIdx + 1 : null;
+        themesToRender.forEach((theme) => {
+            // 统计该章节通关数
+            let chapterCleared = 0;
+            let chapterGold = 0;
+            for (let s = 1; s <= theme.totalStages; s++) {
+                const rec = this.records[theme.stageOffset + s];
+                if (rec?.cleared) chapterCleared++;
+                if (rec?.carrot === 'gold') chapterGold++;
+            }
 
-        const currStage = stages[currIdx];
-        const stageNum = currStage.stageNum;
-        const record = this.records[stageNum];
-        const isGold = record?.carrot === 'gold';
+            const header = document.createElement('div');
+            header.className = 'concise-theme-group-header';
+            header.innerHTML = `
+                <span>${theme.headerLabel}</span>
+                <span class="concise-group-progress">通关 ${chapterCleared}/12 · 🥇${chapterGold}</span>
+            `;
+            this.gridEl.appendChild(header);
 
-        this.stageCarousel.innerHTML = `
-            ${hasPrev ? `
-                <div class="stage-card-item stage-card-prev" data-idx="${prevIdx}">
-                    <img src="${stages[prevIdx].cardImg}" alt="关卡 ${stages[prevIdx].stageNum}" />
-                </div>
-            ` : '<div class="stage-card-spacer"></div>'}
-            <div class="stage-card-item stage-card-current" data-idx="${currIdx}">
-                <img src="${currStage.cardImg}" alt="关卡 ${stageNum}" />
-                ${record?.cleared ? `
-                    <div class="stage-trophy-badge" title="金萝卜通关奖章">
-                        <img src="assets/official/select/trophy_carrot.png?v=20260924_trophy" class="trophy-carrot-img" alt="金萝卜" />
+            for (let i = 1; i <= theme.totalStages; i++) {
+                const stageNum = theme.stageOffset + i;
+                const cfg = LEVEL_CONFIGS[stageNum] || {};
+                const code = `${theme.world}-${i}`;
+                const cleanName = this.getCleanStageTitle(stageNum);
+                const waves = cfg.maxWaves || 15;
+                const isBoss = (i === 6 || i === 12);
+                const rec = this.records[stageNum];
+                const isActive = (stageNum === this.activeStageNum);
+
+                const towerIcons = (cfg.availableTowers || [])
+                    .slice(0, 5)
+                    .map(tKey => TOWER_TYPES[tKey]?.symbol || '')
+                    .filter(Boolean)
+                    .join('');
+
+                let medalHtml = '';
+                if (rec?.cleared) {
+                    if (rec.carrot === 'gold') {
+                        medalHtml += `<span class="lvl-medal lvl-medal-gold" title="满血金萝卜">🥇🥕</span>`;
+                    } else if (rec.carrot === 'silver') {
+                        medalHtml += `<span class="lvl-medal lvl-medal-silver" title="银萝卜">🥈🥕</span>`;
+                    } else {
+                        medalHtml += `<span class="lvl-medal lvl-medal-bronze" title="通关萝卜">🥉🥕</span>`;
+                    }
+                    if (rec.allClear) {
+                        medalHtml += `<span class="lvl-medal lvl-medal-clear" title="道具全清">💎</span>`;
+                    }
+                }
+
+                const card = document.createElement('button');
+                card.type = 'button';
+                card.id = `level-grid-item-${stageNum}`;
+                card.className = `level-grid-item concise-level-card theme-world-${theme.world}${isActive ? ' active' : ''}${rec?.cleared ? ' cleared' : ''}`;
+                card.innerHTML = `
+                    <div class="concise-card-top">
+                        <span class="concise-card-code">${code}</span>
+                        <span class="concise-card-waves">${isBoss ? '👑' : ''}${waves}波</span>
                     </div>
-                ` : ''}
-            </div>
-            ${hasNext ? `
-                <div class="stage-card-item stage-card-next" data-idx="${nextIdx}">
-                    <img src="${stages[nextIdx].cardImg}" alt="关卡 ${stages[nextIdx].stageNum}" />
-                </div>
-            ` : '<div class="stage-card-spacer"></div>'}
-        `;
-
-        // 点击前一张或后一张卡片可直接切换
-        if (hasPrev) {
-            this.stageCarousel.querySelector('.stage-card-prev')?.addEventListener('click', () => {
-                this.sound?.resumeContext();
-                this.sound?.play('TowerSelect');
-                this.prevStage();
-            });
-        }
-        if (hasNext) {
-            this.stageCarousel.querySelector('.stage-card-next')?.addEventListener('click', () => {
-                this.sound?.resumeContext();
-                this.sound?.play('TowerSelect');
-                this.nextStage();
-            });
-        }
-
-        // 更新关卡波次数与可用防御塔
-        const stageConfig = LEVEL_CONFIGS[stageNum];
-        const maxWaves = stageConfig?.maxWaves || 15;
-        if (this.stageWaveCount) {
-            this.stageWaveCount.textContent = `▶ 共 ${maxWaves} 波`;
-        }
-
-        // 渲染本关可用防御塔圆形图标
-        if (this.stageTowersList) {
-            const available = stageConfig?.availableTowers || ['ADD_RAPID', 'DIV_FROST'];
-            const officialTowerIcons = {
-                ADD_RAPID: 'assets/official/towers/icons/bottle_icon.png?v=20260925_all18_v1',
-                MUL_CANNON: 'assets/official/towers/icons/sun_icon.png?v=20260925_all18_v1',
-                DIV_FROST: 'assets/official/towers/icons/shit_icon.png?v=20260925_all18_v1',
-                GEOM_LASER: 'assets/official/towers/icons/star_icon.png?v=20260925_all18_v1',
-                FAN: 'assets/official/towers/icons/fan_icon.png?v=20260925_all18_v1',
-                ROCKET: 'assets/official/towers/icons/rocket_icon.png?v=20260925_all18_v1',
-                BALL: 'assets/official/towers/icons/ball_icon.png?v=20260925_all18_v1',
-                FIRE_BOTTLE: 'assets/official/towers/icons/firebottle_icon.png?v=20260925_all18_v1',
-                PIN: 'assets/official/towers/icons/pin_icon.png?v=20260925_all18_v1',
-                ARROW: 'assets/official/towers/icons/arrow_icon.png?v=20260925_all18_v1',
-                BLUE_STAR: 'assets/official/towers/icons/bluestar_icon.png?v=20260925_all18_v1',
-                SNOW: 'assets/official/towers/icons/snow_icon.png?v=20260925_all18_v1',
-                FISH: 'assets/official/towers/icons/fish_icon.png?v=20260925_all18_v1',
-                PLANE: 'assets/official/towers/icons/plane_icon.png?v=20260925_all18_v1',
-                ANCHOR: 'assets/official/towers/icons/anchor_icon.png?v=20260925_all18_v1',
-                CUTTLE: 'assets/official/towers/icons/cuttle_icon.png?v=20260925_all18_v1',
-                MUSHROOM: 'assets/official/towers/icons/mushroom_icon.png?v=20260925_all18_v1',
-                BUFF: 'assets/official/towers/icons/buff_icon.png?v=20260925_all18_v1'
-            };
-
-            this.stageTowersList.innerHTML = available.map(tKey => {
-                const icon = officialTowerIcons[tKey] || '';
-                return `
-                    <div class="stage-tower-icon-wrapper" title="${tKey}">
-                        <img src="${icon}" class="stage-tower-icon-img" alt="${tKey}" />
+                    <div class="concise-card-name">${cleanName}</div>
+                    <div class="concise-card-bottom">
+                        <span class="concise-card-towers" title="本关可用炮塔">${towerIcons}</span>
+                        <span class="concise-card-medals">${medalHtml}</span>
                     </div>
                 `;
-            }).join('');
-        }
-    }
 
-    prevStage() {
-        const theme = THEMES_DATA[this.currentThemeIdx];
-        if (!theme || theme.stages.length === 0) return;
-        if (this.currentStageIdx > 0) {
-            this.currentStageIdx--;
-            this.renderStageCarousel();
-        }
-    }
+                card.addEventListener('click', () => {
+                    this.sound?.resumeContext();
+                    this.sound?.play('GO');
+                    this.activeStageNum = stageNum;
+                    this.close();
+                    if (this.onStartLevel) {
+                        this.onStartLevel(stageNum);
+                    }
+                });
 
-    nextStage() {
-        const theme = THEMES_DATA[this.currentThemeIdx];
-        if (!theme || theme.stages.length === 0) return;
-        if (this.currentStageIdx < theme.stages.length - 1) {
-            this.currentStageIdx++;
-            this.renderStageCarousel();
-        }
-    }
-
-    launchSelectedStage() {
-        const theme = THEMES_DATA[this.currentThemeIdx];
-        const stage = theme?.stages[this.currentStageIdx];
-        if (!stage) return;
-
-        const stageNum = stage.stageNum;
-        this.close();
-        if (this.onStartLevel) {
-            this.onStartLevel(stageNum);
-        }
+                this.gridEl.appendChild(card);
+            }
+        });
     }
 }
