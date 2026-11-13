@@ -129,11 +129,11 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
 }
 
 const DEFAULT_DATA = {
-    activeUserId: 'child_lele',
+    activeUserId: 'child_xiaowandou',
     users: [
         createKidTemplate({
-            id: 'child_lele',
-            name: '乐乐',
+            id: 'child_xiaowandou',
+            name: '小豌豆',
             avatar: '🐰',
             activePetId: 'rabbit',
             mathRange: 20,
@@ -188,6 +188,9 @@ export class UserProfileManager {
             this.data = JSON.parse(JSON.stringify(DEFAULT_DATA));
         }
         this.data.users.forEach(u => {
+            if (u.id === 'child_lele' && u.name === '乐乐') {
+                u.name = '小豌豆';
+            }
             if (!u.pets) u.pets = createInitialPetsState();
             PETS_CATALOG.forEach(p => {
                 if (!u.pets[p.id]) {
