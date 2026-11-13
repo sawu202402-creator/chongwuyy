@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>奇妙萌宠店长：数英星语镇 (iPad版)</title>
+    <meta name="description" content="专为小朋友打造的iPad电子宠物养成与开店游戏！垂耳兔与荷叶小青蛙陪你玩转数学口算、乘除应用题、数据统计与英语魔法背单词！">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="萌宠店长">
+    <link rel="manifest" href="site.webmanifest">
+    <meta name="theme-color" content="#7c5cfc">
+    <link rel="stylesheet" href="css/style.css?v=20261113_v1">
+</head>
+<body>
+    <!-- 全屏飞行徽章与彩虹礼花粒子画布 -->
+    <canvas id="fxOverlayCanvas" class="fx-overlay-canvas"></canvas>
+
+    <div id="app" class="ipad-app">
+        <!-- ==================== 顶部果冻导航栏 (HUD) ==================== -->
+        <header class="top-hud">
+            <div class="hud-left">
+                <button class="student-switch-btn" id="btnOpenProfile" type="button" title="切换小朋友与数英难度设置">
+                    <span class="stu-avatar" id="hudAvatar">🐰</span>
+                    <span class="stu-name" id="hudName">乐乐</span>
+                    <span class="stu-switch-tag">↻ 切换/难度</span>
+                </button>
+                <button class="hud-pill-btn hud-btn-report" id="btnOpenReport" type="button" title="查看错题本与英语单词收集册">
+                    <span>📒</span>
+                    <span>单词·错题本</span>
+                </button>
+                <div class="hud-currency-pill" id="hudBadgeBox" title="可用荣誉徽章">
+                    <span class="curr-icon">🏅</span>
+                    <span class="curr-label">可用</span>
+                    <span class="curr-val" id="hudBadgesVal">20</span>
+                </div>
+                <div class="hud-currency-pill hud-ticket-pill" id="hudTicketBox" title="惊喜盲盒扭蛋券">
+                    <span class="curr-icon">🎟️</span>
+                    <span class="curr-val" id="hudTicketsVal">1</span>
+                </div>
+            </div>
+
+            <!-- 中间四大舞台视图切换器 -->
+            <nav class="stage-nav-tabs" aria-label="主舞台导航">
+                <button class="stage-nav-btn active" data-view="home" type="button">🏠 我的萌宠</button>
+                <button class="stage-nav-btn" data-view="selector" type="button">🐾 选宠·开店</button>
+                <button class="stage-nav-btn" data-view="town" type="button">🗺️ 萌宠小镇</button>
+                <button class="stage-nav-btn" data-view="gacha" type="button">🎁 惊喜盲盒</button>
+            </nav>
+
+            <div class="hud-right">
+                <div class="combo-pill" id="hudComboPill" style="display:none;">
+                    🔥 连对 <span id="hudComboVal">x0</span>
+                </div>
+                <button class="hud-icon-btn" id="btnFullscreen" type="button" title="切换全屏沉浸模式">⛶</button>
+                <button class="hud-icon-btn" id="btnMute" type="button" title="开关声音与朗读">🔊</button>
+            </div>
+        </header>
+
+        <!-- ==================== 主体左右黄金分栏 ==================== -->
+        <main class="ipad-main-grid">
+            <!-- 左侧 66%：3D 电子宠物养成 / 开店配对 / 海滨小镇主舞台 -->
+            <section class="left-world-panel">
+
+                <!-- 【视图 1：我的萌宠 / 当前店铺主页 (复刻参考图 3 & 5)】 -->
+                <div class="world-view active" id="view-home">
+                    <div class="hero-stage-card">
+                        <!-- 左栏信息区 (完全对标参考图左侧信息排布) -->
+                        <div class="hero-info-col">
+                            <div class="mode-switch-mini">
+                                <button class="mini-mode-pill active" id="btnHeroModePet" type="button">🐾 养宠中</button>
+                                <button class="mini-mode-pill" id="btnHeroModeShop" type="button">🏪 看店铺</button>
+                            </div>
+                            <h1 class="hero-title" id="heroTitle">垂耳兔</h1>
+                            <div class="hero-subtitle" id="heroStageSubtitle">糯米睡睡兔</div>
+
+                            <div class="hero-lv-row">
+                                <span class="lv-purple-badge" id="heroLvBadge">Lv.1</span>
+                                <span class="lv-exp-nums" id="heroExpNums">0 / 15</span>
+                            </div>
+                            <div class="hero-exp-track">
+                                <div class="hero-exp-fill" id="heroExpFill" style="width: 8%;"></div>
+                            </div>
+
+                            <div class="hero-actions-stack">
+                                <button class="btn-primary-feed" id="btnPrimaryNurture" type="button">
+                                    <span id="nurtureBtnIcon">🥕</span>
+                                    <span id="nurtureBtnText">投喂美食 (-5🏅)</span>
+                                </button>
+                                <div class="hero-sub-btns">
+                                    <button class="btn-soft-action" id="btnQuickChange" type="button">⇄ 更换宠/店</button>
+                                    <button class="btn-soft-action" id="btnOpenDressup" type="button">🎀 萌宠换装</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 中央 3D 软萌角色与微缩店铺展示台 -->
+                        <div class="hero-diorama-center" id="heroDioramaStage" title="点击摸摸头互动听英语问候！">
+                            <div class="speech-cloud" id="heroSpeechBubble">兔兔最喜欢听你算口算和读英语啦！🐰</div>
+                            <div class="diorama-glow-disc"></div>
+                            <!-- 头顶装扮 -->
+                            <div class="pet-accessory-floating" id="heroAccessoryBadge" style="display:none;">👑</div>
+                            <!-- 主展示图 (宠物模式下为大萌宠，店铺模式下为大3D建筑+左下角店长萌宠！) -->
+                            <img src="assets/pets/rabbit.png" alt="当前展示" class="hero-main-sprite" id="heroMainSprite" />
+                            <img src="assets/pets/rabbit.png" alt="店长萌宠" class="hero-manager-sub-sprite" id="heroManagerSubSprite" style="display:none;" />
+                            <div class="tap-hint-tag">👆 点我互动发音</div>
+                        </div>
+
+                        <!-- 右上角快捷前往宠物社区横幅 -->
+                        <button class="town-entry-floating" id="btnGoTownBanner" type="button">
+                            <span class="town-entry-icon">🗺️</span>
+                            <div class="town-entry-txt">
+                                <strong>宠物社区小镇</strong>
+                                <small id="townCountHint">已入驻 1 家店铺 ▸</small>
+                            </div>
+                        </button>
+                    </div>
+
+                    <!-- 下半部分：三大成长账本 (对标参考图5：得分记录 | 徽章流水 | 毕业记录) -->
+                    <div class="records-card">
+                        <div class="records-tabs-bar">
+                            <button class="rec-tab-btn active" data-rectab="scores" type="button">得分记录</button>
+                            <button class="rec-tab-btn" data-rectab="ledger" type="button">徽章流水</button>
+                            <button class="rec-tab-btn" data-rectab="grads" type="button">毕业记录 <span id="gradCountBadge" class="tiny-count">0</span></button>
+                        </div>
+                        <div class="records-list-scroll" id="homeRecordsList">
+                            <!-- 动态渲染学习得分记录 / 流水 / 毕业证 -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 【视图 2：选择宠物 & 开店配对工坊 (复刻参考图 1 & 2)】 -->
+                <div class="world-view" id="view-selector">
+                    <div class="selector-top-bar">
+                        <div class="seg-pill-switch">
+                            <button class="seg-btn active" id="btnSubTabPet" type="button">🐾 选宠养成</button>
+                            <button class="seg-btn" id="btnSubTabShop" type="button">🏪 配对开店</button>
+                        </div>
+                        <div class="selector-tip" id="selectorTopTip">切换养成萌宠不会丢失已有等级与亲密度哦！兔兔🐰与青蛙🐸免费领养！</div>
+                    </div>
+
+                    <!-- 子面板 A：选宠图鉴 (绿野部落 / 国风神兽 / 盲盒隐藏款) -->
+                    <div class="selector-body" id="subPanelSelectPet">
+                        <div class="pet-cat-pills" id="petCategoryPills">
+                            <!-- JS 渲染分类胶囊 -->
+                        </div>
+                        <div class="pet-cat-banner" id="petCategoryBanner"></div>
+                        <div class="pets-cards-grid" id="petsCardsGrid">
+                            <!-- JS 渲染 3D 萌宠卡片网格 -->
+                        </div>
+                    </div>
+
+                    <!-- 子面板 B：更换店铺与经营者配对 (对标参考图1) -->
+                    <div class="selector-body" id="subPanelPairShop" style="display:none;">
+                        <div class="pair-studio-grid">
+                            <!-- 上/左：挑选 3D 店铺 -->
+                            <div class="pair-card-box">
+                                <div class="pair-step-tag">第 1 步 · 挑选心仪的 3D 店铺</div>
+                                <div class="pair-preview-stage">
+                                    <img id="pairShopBigImg" src="assets/shops/supermarket_lv1.png" alt="店铺预览" class="pair-big-img" />
+                                    <div class="pair-big-title" id="pairShopTitle">阳光超市</div>
+                                    <div class="pair-big-desc" id="pairShopDesc">琳琅满目的水果百货超市</div>
+                                </div>
+                                <div class="horizontal-strip" id="pairShopsStrip">
+                                    <!-- 6大店铺缩略卡 -->
+                                </div>
+                            </div>
+
+                            <!-- 下/右：挑选店长经营者 -->
+                            <div class="pair-card-box">
+                                <div class="pair-step-tag">第 2 步 · 委派萌宠担任店长</div>
+                                <div class="pair-preview-stage">
+                                    <img id="pairPetBigImg" src="assets/pets/rabbit.png" alt="店长预览" class="pair-big-img" />
+                                    <div class="pair-big-title" id="pairPetTitle">垂耳兔</div>
+                                    <div class="pair-big-desc" id="pairPetDesc">已解锁 · 随时准备走马上任！</div>
+                                </div>
+                                <div class="horizontal-strip" id="pairPetsStrip">
+                                    <!-- 已拥有的萌宠列表 -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="pair-confirm-bar">
+                            <div class="pair-summary-text" id="pairSummaryText">已选配对：<strong>超市 · 垂耳兔店长</strong></div>
+                            <div class="pair-confirm-btns">
+                                <button class="btn-orange-wide" id="btnConfirmShopPair" type="button">✅ 立即开业经营</button>
+                                <button class="btn-purple-wide" id="btnPairAndPickPlot" type="button">🗺️ 开业并去小镇选位置</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 【视图 3：2.5D 海滨铁道萌宠小镇全景沙盘 (复刻参考图 4，iPad横屏原生直出！)】 -->
+                <div class="world-view" id="view-town">
+                    <div class="town-map-wrapper" id="townMapWrapper">
+                        <img src="assets/town/town_bg.jpg" alt="海滨铁道萌宠小镇" class="town-bg-img" />
+
+                        <!-- 环岛铁道动态行驶的可爱小火车 -->
+                        <div class="town-train" id="townTrain" title="呜呜～环岛蒸汽小火车！">🚂💨</div>
+
+                        <!-- 11 块绿茵街区可交互地块容器 -->
+                        <div class="town-plots-layer" id="townPlotsLayer">
+                            <!-- 由 JS 动态渲染已建成的3D微缩店铺 + 店长头像，或空草坪➕落点标记 -->
+                        </div>
+
+                        <!-- 小镇顶部悬浮状态横幅 -->
+                        <div class="town-hud-banner" id="townHudBanner">
+                            <span>🚂 <strong>星语海滨萌宠小镇</strong> · 点击任意绿茵地块可建店、挪位置或摆放游乐景观！</span>
+                        </div>
+
+                        <!-- 小镇左下角操作胶囊 (对标参考图4：更换位置 / 装扮小镇) -->
+                        <div class="town-bottom-controls">
+                            <button class="town-ctrl-pill blue" id="btnTownPlaceActiveShop" type="button">📍 放置当前店铺</button>
+                            <button class="town-ctrl-pill orange" id="btnTownDecorMode" type="button">🎡 装扮小镇景观</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 【视图 4：惊喜盲盒扭蛋屋】 -->
+                <div class="world-view" id="view-gacha">
+                    <div class="gacha-stage-card">
+                        <div class="gacha-left-machine">
+                            <div class="gacha-machine-dome" id="gachaDome">
+                                <div class="capsule-ball b1">🎁</div>
+                                <div class="capsule-ball b2">🌟</div>
+                                <div class="capsule-ball b3">👑</div>
+                                <div class="capsule-ball b4">🚀</div>
+                                <div class="capsule-ball b5">🌌</div>
+                                <div class="gacha-center-star">✨ 神秘盲盒 ✨</div>
+                            </div>
+                            <div class="gacha-machine-base">
+                                <button class="btn-gacha-pull" id="btnPullGacha" type="button">
+                                    🎉 扭一扭开盲盒！
+                                    <small id="gachaCostHint">(优先消耗 1 张🎟️盲盒券，或 18🏅)</small>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="gacha-right-showcase">
+                            <h2 class="gacha-title">🎁 太空与童话隐藏款一览</h2>
+                            <p class="gacha-desc">右侧答题每达成 <strong>5 连对</strong> 或 <strong>萌宠升至 Lv.5 毕业</strong>，即可免费获赠 1 张 🎟️ 盲盒扭蛋券！必优先抽出尚未拥有的隐藏神兽与装扮！</p>
+                            <div class="hidden-pets-preview" id="gachaHiddenPreview">
+                                <!-- JS 渲染4只隐藏款萌宠收集状态 + 已拥有配饰 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- ==================== 右侧 34%：常驻双语智慧学习台 ==================== -->
+            <aside class="right-learning-panel">
+                <!-- 顶部兔子与青蛙双助教探头互动栏 -->
+                <div class="mascots-cheer-bar">
+                    <div class="mascot-chip" id="mascotRabbitChip">
+                        <span class="m-icon" id="mascotLeftIcon">🐰</span>
+                        <span class="m-bubble" id="mascotTalkText">答对赚徽章喂兔兔和青蛙啰！</span>
+                    </div>
+                    <span class="m-icon" id="mascotRightIcon">🐸</span>
+                </div>
+
+                <!-- 三大学科切换顶栏 -->
+                <div class="subject-main-tabs">
+                    <button class="subj-tab active" data-subj="math" type="button">🔢 数学·应用</button>
+                    <button class="subj-tab" data-subj="english" type="button">🔤 英语·背词</button>
+                    <button class="subj-tab" data-subj="review" type="button">
+                        🌟 双倍复习 <span class="rev-dot" id="reviewCountBadge">0</span>
+                    </button>
+                </div>
+
+                <!-- ========== 面板 1：数学口算 + 乘除应用题 + 店长数据图表 ========== -->
+                <div class="learn-body active" id="panelMath">
+                    <!-- 数学三小类切换胶囊 -->
+                    <div class="sub-mode-pills">
+                        <button class="sub-pill active" data-mathmode="calc" type="button">⚡ 心算口算</button>
+                        <button class="sub-pill" data-mathmode="word" type="button">📖 乘除应用题</button>
+                        <button class="sub-pill" data-mathmode="data" type="button">📊 销量数据图</button>
+                    </div>
+
+                    <!-- 智慧小黑板题目展示区 -->
+                    <div class="chalkboard-box" id="mathBoardBox">
+                        <div class="cb-top-row">
+                            <span class="cb-hint-tag" id="mathHintTag">🎯 20以内进退位加减</span>
+                            <div class="cb-tools" id="mathExtraTools" style="display:none;">
+                                <button class="cb-mini-btn" id="btnReadMathAloud" type="button">🔊 读题</button>
+                                <button class="cb-mini-btn" id="btnShowMathVisual" type="button">💡 图解</button>
+                            </div>
+                        </div>
+
+                        <!-- A. 纯算式大字显示 -->
+                        <div class="cb-formula-big" id="mathFormulaView">8 + 7 = ?</div>
+
+                        <!-- B. 乘除法故事应用题显示 -->
+                        <div class="cb-word-story" id="mathWordView" style="display:none;"></div>
+
+                        <!-- C. 店长销量条形统计图显示 -->
+                        <div class="cb-data-chart-wrap" id="mathDataView" style="display:none;">
+                            <div class="chart-box" id="mathChartBars"></div>
+                            <div class="chart-q-text" id="mathChartQuestion"></div>
+                        </div>
+
+                        <!-- 图解思路小贴士条 -->
+                        <div class="cb-visual-tip" id="mathVisualTipBox" style="display:none;"></div>
+                    </div>
+
+                    <!-- 答案显示框与确认按钮 -->
+                    <div class="math-input-row">
+                        <div class="math-ans-display" id="mathAnsDisplay">
+                            <span id="mathAnsText" class="placeholder">点下方数字输入</span>
+                            <span id="mathUnitBadge" class="ans-unit-tag"></span>
+                        </div>
+                        <button class="btn-confirm-math" id="btnSubmitMath" type="button">确认 ↵</button>
+                    </div>
+
+                    <div class="learn-feedback-bar" id="mathFeedbackBar">✨ 答对奖励 +2~6 🏅，连对 5 题送 🎟️ 盲盒券！</div>
+
+                    <!-- 沿用 shuxue/shuxuejs 标志性彩色果冻大数字键盘 (防iPad误触) -->
+                    <div class="jelly-keypad" id="mathKeypad">
+                        <button class="jelly-key" data-k="1" type="button">1</button>
+                        <button class="jelly-key" data-k="2" type="button">2</button>
+                        <button class="jelly-key" data-k="3" type="button">3</button>
+                        <button class="jelly-key" data-k="4" type="button">4</button>
+                        <button class="jelly-key" data-k="5" type="button">5</button>
+                        <button class="jelly-key" data-k="6" type="button">6</button>
+                        <button class="jelly-key" data-k="7" type="button">7</button>
+                        <button class="jelly-key" data-k="8" type="button">8</button>
+                        <button class="jelly-key" data-k="9" type="button">9</button>
+                        <button class="jelly-key action-clear" data-k="clear" type="button">清空</button>
+                        <button class="jelly-key" data-k="0" type="button">0</button>
+                        <button class="jelly-key action-back" data-k="back" type="button">⌫</button>
+                    </div>
+                </div>
+
+                <!-- ========== 面板 2：少儿英语【魔法背单词 + 听说拼写闯关】 ========== -->
+                <div class="learn-body" id="panelEnglish" style="display:none;">
+                    <div class="sub-mode-pills">
+                        <button class="sub-pill active" data-engmode="vocab_camp" type="button">📖 魔法背单词(5词)</button>
+                        <button class="sub-pill" data-engmode="quick_quiz" type="button">🎯 听说闪电闯关</button>
+                    </div>
+
+                    <!-- 主题词包快速选择条 -->
+                    <div class="word-pack-strip" id="engPackStrip">
+                        <!-- JS 渲染 6 大场景主题词包胶囊 -->
+                    </div>
+
+                    <!-- 英语模式 A：【魔法背单词】闪卡认记阶段 -->
+                    <div class="eng-stage-wrap" id="engStudyWrap">
+                        <div class="flashcard-3d" id="vocabFlashcard">
+                            <div class="fc-progress-row">
+                                <span class="fc-pack-tag" id="fcPackTag">🐾 萌宠好伙伴</span>
+                                <span class="fc-step-pill" id="fcStepPill">今日新词 1 / 5</span>
+                            </div>
+                            <div class="fc-big-emoji" id="fcEmoji">🐰</div>
+                            <div class="fc-word-phonics" id="fcWordPhonics">r·a·bb·i·t</div>
+                            <div class="fc-ipa-zh">
+                                <span class="fc-ipa" id="fcIpa">/ˈræbɪt/</span>
+                                <span class="fc-zh" id="fcZh">兔子</span>
+                            </div>
+                            <div class="fc-audio-btns">
+                                <button class="btn-voice-pill" id="btnFcSpeakNormal" type="button">🔊 标准美音</button>
+                                <button class="btn-voice-pill slow" id="btnFcSpeakSlow" type="button">🐢 慢速跟读</button>
+                            </div>
+                            <div class="fc-sentence-box">
+                                <div class="fc-sen-en" id="fcSenEn">The cute rabbit holds a gift!</div>
+                                <div class="fc-sen-zh" id="fcSenZh">可爱的兔子捧着礼物！</div>
+                            </div>
+                        </div>
+
+                        <div class="fc-nav-btns">
+                            <button class="btn-fc-prev" id="btnFcPrev" type="button">⬅️ 上一词</button>
+                            <button class="btn-fc-next" id="btnFcNext" type="button">记住了，下一词 ➡️</button>
+                        </div>
+                    </div>
+
+                    <!-- 英语模式 B：闯关检验 & 闪电答题区 (听音选图 / 看图选词 / 果冻字母拼写) -->
+                    <div class="eng-stage-wrap" id="engQuizWrap" style="display:none;">
+                        <div class="eng-quiz-card">
+                            <div class="eq-header">
+                                <span class="cb-hint-tag" id="engQuizHint">🎧 听发音选图案</span>
+                                <span class="eq-progress-badge" id="engSessionProgress" style="display:none;">检验 1/9</span>
+                            </div>
+
+                            <div class="eq-prompt-area" id="engPromptArea">
+                                <!-- 喇叭按钮 / 图案提示 / 中文提示 -->
+                            </div>
+
+                            <!-- 选择题 2x2 大果冻网格 -->
+                            <div class="eq-options-grid" id="engOptionsGrid"></div>
+
+                            <!-- 字母果冻块拼写区 -->
+                            <div class="eq-spell-area" id="engSpellArea" style="display:none;">
+                                <div class="spell-slots-row" id="engSpellSlots"></div>
+                                <div class="spell-tiles-pool" id="engSpellTiles"></div>
+                            </div>
+                        </div>
+                        <div class="learn-feedback-bar" id="engFeedbackBar">🔊 点击喇叭可反复听纯正美式发音哦！</div>
+                    </div>
+                </div>
+
+                <!-- ========== 面板 3：错题本 & 生词双倍淘金屋 ========== -->
+                <div class="learn-body" id="panelReview" style="display:none;">
+                    <div class="review-banner">
+                        🌟 <strong>双倍徽章淘金屋</strong>：每攻克 1 道历史算术错题或待复习英语生词，直接奖励 <strong>2 倍荣誉徽章 🏅</strong>！
+                    </div>
+                    <div class="review-Queue-box" id="reviewInteractiveBox">
+                        <!-- 动态加载错题或生词挑战；若无错题展示满分奖杯夸奖 -->
+                    </div>
+                </div>
+
+                <!-- 底部当前难度快捷信息条 -->
+                <div class="board-footer-bar" id="btnQuickDiffFooter">
+                    <span id="footerDiffSummary">🌱 20内加减乘 · 图词配对</span>
+                    <span class="footer-gear-link">⚙️ 调整难度</span>
+                </div>
+            </aside>
+        </main>
+    </div>
+
+    <!-- ==================== 弹窗 1：小朋友档案切换 & 数英难度定制 (完全沿用 shuxue/shuxuejs 精华) ==================== -->
+    <div class="modal-mask" id="modalProfile" style="display:none;">
+        <div class="modal-window modal-lg">
+            <div class="modal-head">
+                <h3>🎒 小店长档案与数英难度定制</h3>
+                <button class="modal-close-x" data-close="modalProfile" type="button">✖</button>
+            </div>
+            <div class="modal-scroll-body">
+                <!-- 多孩快捷切换栏 -->
+                <div class="kids-switcher-box">
+                    <div class="ks-top">
+                        <span>👥 点击切换学生（各自拥有独立萌宠、小镇与单词本）：</span>
+                        <button class="btn-mini-add" id="btnAddKid" type="button">➕ 新增小朋友</button>
+                    </div>
+                    <div class="kids-chips-row" id="modalKidsChips"></div>
+                </div>
+
+                <!-- 姓名与头像 -->
+                <div class="profile-form-box">
+                    <div class="pf-row">
+                        <label>小店长姓名：</label>
+                        <input type="text" id="inputKidName" class="pf-input" maxlength="8" placeholder="输入名字" />
+                        <button class="btn-del-kid" id="btnDeleteKid" type="button">🗑️ 删除档案</button>
+                    </div>
+                    <div class="pf-row">
+                        <label>专属头像：</label>
+                        <div class="avatar-picker-row" id="modalAvatarGrid"></div>
+                    </div>
+                </div>
+
+                <!-- 数学与英语双栏设置 -->
+                <div class="settings-two-col">
+                    <!-- 左：数学设置 (100% 沿用 shuxuejs) -->
+                    <div class="setting-card">
+                        <h4>🔢 数学与数据难度设置</h4>
+                        <div class="mode-toggle-row">
+                            <button class="m-tab active" id="btnMathTabCustom" type="button">✨ 自定义加减乘除</button>
+                            <button class="m-tab" id="btnMathTabPreset" type="button">🎓 快捷预设年级</button>
+                        </div>
+
+                        <div id="mathCustomPane">
+                            <div class="s-label">1. 运算类型（可多选）：</div>
+                            <div class="ops-check-row">
+                                <label class="chk-pill"><input type="checkbox" id="chkAdd" value="add" checked><span>➕ 加法</span></label>
+                                <label class="chk-pill"><input type="checkbox" id="chkSub" value="sub" checked><span>➖ 减法</span></label>
+                                <label class="chk-pill"><input type="checkbox" id="chkMul" value="mul"><span>✖️ 乘法</span></label>
+                                <label class="chk-pill"><input type="checkbox" id="chkDiv" value="div"><span>➗ 除法</span></label>
+                            </div>
+
+                            <div class="s-label">2. 加减法数值上限：</div>
+                            <div class="pill-radio-row" id="mathRangePills"></div>
+
+                            <div class="s-label">3. 乘除法口诀上限（含乘除应用题）：</div>
+                            <div class="pill-radio-row" id="mathMulPills"></div>
+
+                            <div class="s-label">4. 思维拓展题型开关：</div>
+                            <div class="toggles-stack">
+                                <label class="line-toggle"><input type="checkbox" id="chkCarry" checked><span>⚡ 包含进位凑十与退位破十</span></label>
+                                <label class="line-toggle"><input type="checkbox" id="chkFill" checked><span>🧩 包含逆向填空题 (如 8 + ? = 15)</span></label>
+                                <label class="line-toggle"><input type="checkbox" id="chkWordProb" checked><span>📖 口算中穿插【乘除生活应用题】</span></label>
+                                <label class="line-toggle"><input type="checkbox" id="chkDataChart" checked><span>📊 口算中穿插【店长销量数据图】</span></label>
+                            </div>
+                        </div>
+
+                        <div id="mathPresetPane" style="display:none;">
+                            <div class="preset-cards-stack" id="mathPresetCards"></div>
+                        </div>
+                    </div>
+
+                    <!-- 右：英语与背单词梯度设置 -->
+                    <div class="setting-card">
+                        <h4>🔤 少儿英语与背单词梯度</h4>
+                        <div class="s-label">选择适合宝贝的英语闯关难度：</div>
+                        <div class="preset-cards-stack" id="engLevelCards"></div>
+
+                        <div class="s-label" style="margin-top:12px;">默认词库范围：</div>
+                        <div class="pill-radio-row" id="engDefaultPackPills"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-modal-save" id="btnSaveProfile" type="button">💾 保存设置并生效</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 弹窗 2：英语单词星级图鉴 & 数学错题本 ==================== -->
+    <div class="modal-mask" id="modalReport" style="display:none;">
+        <div class="modal-window modal-lg">
+            <div class="modal-head">
+                <h3>📒 <span id="reportKidName">乐乐</span>的单词收集册与错题攻坚本</h3>
+                <button class="modal-close-x" data-close="modalReport" type="button">✖</button>
+            </div>
+            <div class="modal-scroll-body">
+                <div class="report-summary-strip" id="reportStatsStrip"></div>
+                <div class="records-tabs-bar">
+                    <button class="rep-tab-btn active" data-reptab="vocab" type="button">🔤 英语单词星级墙 (点读发音)</button>
+                    <button class="rep-tab-btn" data-reptab="mistakes" type="button">📖 待攻克错题与生词</button>
+                </div>
+                <div id="reportVocabWall" class="vocab-wall-grid"></div>
+                <div id="reportMistakesList" class="mistakes-wall-list" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 弹窗 3：萌宠换装衣帽间 & 小镇地块建造菜单 & 升级庆典 ==================== -->
+    <div class="modal-mask" id="modalQuickPopup" style="display:none;">
+        <div class="modal-window modal-sm">
+            <div class="modal-head">
+                <h3 id="quickPopupTitle">✨ 惊喜时刻</h3>
+                <button class="modal-close-x" data-close="modalQuickPopup" type="button">✖</button>
+            </div>
+            <div class="modal-scroll-body" id="quickPopupBody"></div>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js?v=20261113_v1"></script>
+</body>
+</html>
