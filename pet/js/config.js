@@ -914,6 +914,25 @@ export const TOWN_PLOTS = [
     { id: 'plot_11', label: '环岛铁道南湾', left: 41, top: 82 }
 ];
 
+export const PET_VOICE_PROFILES = {
+    rabbit:       { pitch: 1.56, rate: 1.08, preferAltVoice: false, label: '甜萌高音小兔声' },
+    frog:         { pitch: 0.72, rate: 1.08, preferAltVoice: true,  label: '清脆元气蛙少年音' },
+    shiba:        { pitch: 1.22, rate: 1.18, preferAltVoice: false, label: '欢快快嘴修勾音' },
+    panda:        { pitch: 0.58, rate: 0.78, preferAltVoice: true,  label: '憨厚慢悠悠团子音' },
+    tiger:        { pitch: 0.48, rate: 0.90, preferAltVoice: true,  label: '霸气威武小虎王音' },
+    unicorn:      { pitch: 1.40, rate: 0.92, preferAltVoice: false, label: '空灵温柔仙驹音' },
+    succulent:    { pitch: 1.68, rate: 1.04, preferAltVoice: false, label: '脆生生嫩芽精灵音' },
+    pixiu:        { pitch: 0.88, rate: 1.06, preferAltVoice: true,  label: '喜庆洪亮招财瑞兽音' },
+    astro_rabbit: { pitch: 1.34, rate: 1.15, preferAltVoice: false, label: '轻快星际领航电波音' },
+    prince_frog:  { pitch: 0.66, rate: 0.88, preferAltVoice: true,  label: '优雅绅士王子蛙低音' },
+    star_dragon:  { pitch: 0.54, rate: 0.84, preferAltVoice: true,  label: '深邃悠远星海龙吟音' },
+    mecha_cat:    { pitch: 1.48, rate: 1.22, preferAltVoice: false, label: '俏皮高速赛博电子喵音' }
+};
+
+export function getPetVoiceProfile(petId) {
+    return PET_VOICE_PROFILES[petId] || PET_VOICE_PROFILES.rabbit;
+}
+
 export function getPetById(id) {
     return PETS_CATALOG.find(p => p.id === id) || PETS_CATALOG[0];
 }

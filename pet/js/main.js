@@ -54,70 +54,580 @@ import {
 import { openRandomFilterModal } from '../../shared/randomFilterModal.js';
 import { requireParentGate } from '../../shared/parentGate.js';
 
-// ==================== 立体荷叶系列与萌宠头饰 SVG/视觉渲染器 ====================
+// ==================== 立体荷叶系列、进化光效与伴生灵物高精 SVG 渲染器 ====================
 function getAccessoryPositionClass(accId) {
     if (accId === 'lotus_umbrella') return 'acc-pos-umbrella';
     if (accId === 'sunglasses') return 'acc-pos-eyes';
     return 'acc-pos-head';
 }
 
+let _svgAccUid = 0;
 function renderAccessoryVisualHtml(accId, compact = false) {
     if (!accId || accId === 'none') return '';
+    const sfx = `_${++_svgAccUid}`;
     if (accId === 'lotus_hat') {
-        const w = compact ? 42 : 76;
-        const h = compact ? 26 : 46;
+        const w = compact ? 44 : 84;
+        const h = compact ? 28 : 52;
         return `
-            <svg class="lotus-svg-art" width="${w}" height="${h}" viewBox="0 0 88 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg class="lotus-svg-art lotus-hat-breathe" width="${w}" height="${h}" viewBox="0 0 96 58" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <defs>
-                    <linearGradient id="lhGrad" x1="12" y1="8" x2="76" y2="44" gradientUnits="userSpaceOnUse">
-                        <stop offset="0%" stop-color="#6EE7B7"/>
-                        <stop offset="48%" stop-color="#10B981"/>
-                        <stop offset="100%" stop-color="#047857"/>
+                    <radialGradient id="lhTop${sfx}" cx="46%" cy="28%" r="65%">
+                        <stop offset="0%" stop-color="#A7F3D0"/>
+                        <stop offset="42%" stop-color="#34D399"/>
+                        <stop offset="82%" stop-color="#059669"/>
+                        <stop offset="100%" stop-color="#065F46"/>
+                    </radialGradient>
+                    <linearGradient id="lhUnder${sfx}" x1="12" y1="34" x2="84" y2="46" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#064E3B" stop-opacity="0.85"/>
+                        <stop offset="50%" stop-color="#047857" stop-opacity="0.95"/>
+                        <stop offset="100%" stop-color="#064E3B" stop-opacity="0.85"/>
                     </linearGradient>
+                    <radialGradient id="lhDrop${sfx}" cx="35%" cy="30%" r="70%">
+                        <stop offset="0%" stop-color="#FFFFFF"/>
+                        <stop offset="45%" stop-color="#BAE6FD"/>
+                        <stop offset="100%" stop-color="#38BDF8"/>
+                    </radialGradient>
                 </defs>
-                <path d="M43 13 C44 5, 51 3, 54 7" stroke="#059669" stroke-width="3.2" stroke-linecap="round"/>
-                <path d="M8 35 C12 16, 30 11, 44 12 C58 11, 76 16, 80 35 C72 41, 61 36, 54 40 C47 43, 41 43, 34 40 C27 36, 16 41, 8 35 Z" fill="url(#lhGrad)" stroke="#ECFDF5" stroke-width="2"/>
-                <path d="M44 15 L44 39 M44 18 L24 34 M44 18 L64 34 M44 22 L14 33 M44 22 L74 33" stroke="#A7F3D0" stroke-width="1.5" stroke-linecap="round" opacity="0.82"/>
-                <ellipse cx="27" cy="27" rx="4.2" ry="2.8" fill="#E0F2FE" opacity="0.95"/>
-                <circle cx="25.8" cy="26" r="1.2" fill="#FFFFFF"/>
-                <circle cx="60" cy="29" r="2.6" fill="#E0F2FE" opacity="0.92"/>
+                <!-- 底部立体内折阴影，贴合蛙蛙头顶弧度 -->
+                <path d="M12 38 C26 46, 70 46, 84 38 C76 45, 20 45, 12 38 Z" fill="url(#lhUnder${sfx})"/>
+                <!-- 俏皮卷曲嫩茎与迷你粉莲花苞 -->
+                <path d="M47 16 C48 7, 55 5, 59 9" stroke="#10B981" stroke-width="3.2" stroke-linecap="round"/>
+                <path d="M61 5 C57 8, 57 12, 60 13 C63 13, 65 9, 61 5 Z" fill="#F472B6"/>
+                <path d="M61 6 C59 8.5, 59 11, 60.5 12" stroke="#FBCFE8" stroke-width="1" stroke-linecap="round"/>
+                <!-- 3D 波浪荷叶主体 -->
+                <path d="M8 37 C13 18, 30 12, 48 13 C66 12, 83 18, 88 37 C80 43, 70 38, 61 42 C53 45, 43 45, 35 42 C26 38, 16 43, 8 37 Z" fill="url(#lhTop${sfx})" stroke="#6EE7B7" stroke-width="1.3"/>
+                <!-- 柔和叶脉高光 -->
+                <path d="M48 16 C48 24, 48 33, 48 42" stroke="#D1FAE5" stroke-width="1.5" stroke-linecap="round" opacity="0.72"/>
+                <path d="M48 17 C39 23, 30 30, 23 36" stroke="#D1FAE5" stroke-width="1.3" stroke-linecap="round" opacity="0.68"/>
+                <path d="M48 17 C57 23, 66 30, 73 36" stroke="#D1FAE5" stroke-width="1.3" stroke-linecap="round" opacity="0.68"/>
+                <path d="M48 19 C34 22, 21 28, 13 35" stroke="#A7F3D0" stroke-width="1.1" stroke-linecap="round" opacity="0.55"/>
+                <path d="M48 19 C62 22, 75 28, 83 35" stroke="#A7F3D0" stroke-width="1.1" stroke-linecap="round" opacity="0.55"/>
+                <!-- 晶莹3D滚动露珠 -->
+                <ellipse cx="30" cy="30.5" rx="5" ry="3.2" fill="#065F46" opacity="0.28"/>
+                <ellipse cx="29.5" cy="29" rx="4.8" ry="3.3" fill="url(#lhDrop${sfx})"/>
+                <circle cx="28" cy="27.8" r="1.3" fill="#FFFFFF"/>
+                <ellipse cx="65.5" cy="32" rx="3.2" ry="2.2" fill="url(#lhDrop${sfx})"/>
+                <circle cx="64.6" cy="31.2" r="0.9" fill="#FFFFFF"/>
             </svg>`;
     }
     if (accId === 'lotus_umbrella') {
-        const w = compact ? 40 : 78;
-        const h = compact ? 40 : 78;
+        const w = compact ? 42 : 84;
+        const h = compact ? 42 : 84;
         return `
-            <svg class="lotus-svg-art" width="${w}" height="${h}" viewBox="0 0 86 86" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg class="lotus-svg-art" width="${w}" height="${h}" viewBox="0 0 92 92" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <defs>
-                    <linearGradient id="luLeaf" x1="10" y1="8" x2="76" y2="42" gradientUnits="userSpaceOnUse">
-                        <stop offset="0%" stop-color="#86EFAC"/>
-                        <stop offset="55%" stop-color="#10B981"/>
+                    <radialGradient id="luCanopy${sfx}" cx="45%" cy="24%" r="68%">
+                        <stop offset="0%" stop-color="#BBF7D0"/>
+                        <stop offset="45%" stop-color="#34D399"/>
+                        <stop offset="85%" stop-color="#059669"/>
                         <stop offset="100%" stop-color="#065F46"/>
+                    </radialGradient>
+                    <linearGradient id="luStem${sfx}" x1="26" y1="28" x2="46" y2="80" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#34D399"/>
+                        <stop offset="100%" stop-color="#047857"/>
                     </linearGradient>
+                    <radialGradient id="luDrop${sfx}" cx="35%" cy="30%" r="70%">
+                        <stop offset="0%" stop-color="#FFFFFF"/>
+                        <stop offset="50%" stop-color="#BAE6FD"/>
+                        <stop offset="100%" stop-color="#38BDF8"/>
+                    </radialGradient>
                 </defs>
-                <path d="M44 28 L35 72 C34 78, 26 78, 25 72" stroke="#059669" stroke-width="4" stroke-linecap="round"/>
-                <path d="M10 31 C16 13, 32 9, 46 11 C61 13, 75 21, 78 36 C69 40, 60 35, 51 38 C43 40, 35 37, 26 38 C18 39, 13 35, 10 31 Z" fill="url(#luLeaf)" stroke="#ECFDF5" stroke-width="2"/>
-                <path d="M45 14 L43 36 M45 16 L24 32 M45 16 L65 34" stroke="#BBF7D0" stroke-width="1.5" stroke-linecap="round"/>
-                <path d="M46 4 C42 9, 43 13, 46 14 C49 13, 50 9, 46 4 Z" fill="#F472B6" stroke="#FDF2F8" stroke-width="1.2"/>
-                <circle cx="16" cy="40" r="2.5" fill="#7DD3FC"/>
-                <circle cx="72" cy="43" r="2.2" fill="#BAE6FD"/>
+                <!-- 伞盖内部深绿立体阴影 -->
+                <ellipse cx="45" cy="34" rx="31" ry="8" fill="#064E3B" opacity="0.55"/>
+                <!-- 翡翠竹节弯柄 -->
+                <path d="M46 28 L36 74 C34.8 80.5, 25.5 80.5, 24.8 73.5" stroke="url(#luStem${sfx})" stroke-width="4.4" stroke-linecap="round"/>
+                <path d="M45 32 L35.5 73" stroke="#A7F3D0" stroke-width="1.2" stroke-linecap="round" opacity="0.65"/>
+                <!-- 荷叶伞面 -->
+                <path d="M9 33 C15 14, 32 9, 48 11 C64 13, 79 21, 83 37 C74 42, 64 36, 54 40 C45 43, 36 38, 26 40 C17 41, 12 37, 9 33 Z" fill="url(#luCanopy${sfx})" stroke="#6EE7B7" stroke-width="1.3"/>
+                <path d="M47 14 L45 38 M47 15 C37 21, 27 28, 20 35 M47 15 C57 22, 66 29, 73 36" stroke="#D1FAE5" stroke-width="1.3" stroke-linecap="round" opacity="0.72"/>
+                <!-- 伞顶粉莲花苞 -->
+                <path d="M48 3 C43.5 8.5, 44.5 13.5, 48 14.5 C51.5 13.5, 52.5 8.5, 48 3 Z" fill="#F472B6"/>
+                <path d="M43 7 C42 11, 44.5 14, 47.5 14.5 C46 11.5, 45 9, 43 7 Z" fill="#FBCFE8"/>
+                <path d="M53 7 C54 11, 51.5 14, 48.5 14.5 C50 11.5, 51 9, 53 7 Z" fill="#FBCFE8"/>
+                <!-- 伞檐垂落晶莹露珠 -->
+                <path d="M15 39 C12.8 42.5, 13.2 45.5, 15 45.5 C16.8 45.5, 17.2 42.5, 15 39 Z" fill="url(#luDrop${sfx})"/>
+                <path d="M77 42 C75 45.2, 75.4 48, 77 48 C78.6 48, 79 45.2, 77 42 Z" fill="url(#luDrop${sfx})"/>
             </svg>`;
     }
     if (accId === 'lotus_crown') {
-        const w = compact ? 42 : 74;
+        const w = compact ? 44 : 80;
+        const h = compact ? 30 : 52;
+        return `
+            <svg class="lotus-svg-art lotus-hat-breathe" width="${w}" height="${h}" viewBox="0 0 90 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="lcPetalMain${sfx}" x1="45" y1="7" x2="45" y2="40" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#FFF1F2"/>
+                        <stop offset="45%" stop-color="#F472B6"/>
+                        <stop offset="100%" stop-color="#DB2777"/>
+                    </linearGradient>
+                    <linearGradient id="lcPetalSide${sfx}" x1="25" y1="14" x2="65" y2="40" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#FCE7F3"/>
+                        <stop offset="65%" stop-color="#F9A8D4"/>
+                        <stop offset="100%" stop-color="#EC4899"/>
+                    </linearGradient>
+                    <linearGradient id="lcLeaf${sfx}" x1="12" y1="32" x2="78" y2="46" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#6EE7B7"/>
+                        <stop offset="50%" stop-color="#10B981"/>
+                        <stop offset="100%" stop-color="#047857"/>
+                    </linearGradient>
+                </defs>
+                <!-- 双侧翡翠荷叶托盘 -->
+                <ellipse cx="27" cy="39" rx="19" ry="7.5" transform="rotate(-11 27 39)" fill="url(#lcLeaf${sfx})" stroke="#A7F3D0" stroke-width="1.2"/>
+                <ellipse cx="63" cy="39" rx="19" ry="7.5" transform="rotate(11 63 39)" fill="url(#lcLeaf${sfx})" stroke="#A7F3D0" stroke-width="1.2"/>
+                <!-- 后层柔粉莲瓣 -->
+                <path d="M23 23 C22 32, 30 38, 42 40 C36 32, 31 25, 23 23 Z" fill="url(#lcPetalSide${sfx})"/>
+                <path d="M67 23 C68 32, 60 38, 48 40 C54 32, 59 25, 67 23 Z" fill="url(#lcPetalSide${sfx})"/>
+                <!-- 中层莲瓣 -->
+                <path d="M32 14 C29 25, 34 35, 44 40 C41 30, 38 20, 32 14 Z" fill="url(#lcPetalSide${sfx})" stroke="#FFF1F2" stroke-width="1"/>
+                <path d="M58 14 C61 25, 56 35, 46 40 C49 30, 52 20, 58 14 Z" fill="url(#lcPetalSide${sfx})" stroke="#FFF1F2" stroke-width="1"/>
+                <!-- 主莲瓣与金珠花蕊 -->
+                <path d="M45 8 C37 18, 36 31, 45 40 C54 31, 53 18, 45 8 Z" fill="url(#lcPetalMain${sfx})" stroke="#FFF1F2" stroke-width="1.2"/>
+                <circle cx="45" cy="32" r="4.2" fill="#FBBF24"/>
+                <circle cx="43.8" cy="30.8" r="1.4" fill="#FEF9C3"/>
+            </svg>`;
+    }
+    if (accId === 'crown') {
+        const w = compact ? 38 : 66;
         const h = compact ? 28 : 48;
         return `
-            <svg class="lotus-svg-art" width="${w}" height="${h}" viewBox="0 0 84 52" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <ellipse cx="26" cy="36" rx="18" ry="8" transform="rotate(-12 26 36)" fill="#10B981" stroke="#D1FAE5" stroke-width="1.6"/>
-                <ellipse cx="58" cy="36" rx="18" ry="8" transform="rotate(12 58 36)" fill="#10B981" stroke="#D1FAE5" stroke-width="1.6"/>
-                <path d="M42 10 C35 19, 34 30, 42 36 C50 30, 49 19, 42 10 Z" fill="#F472B6" stroke="#FFF1F2" stroke-width="1.6"/>
-                <path d="M30 16 C28 25, 33 33, 41 36 C38 28, 36 20, 30 16 Z" fill="#FBCFE8" stroke="#FFF1F2" stroke-width="1.4"/>
-                <path d="M54 16 C56 25, 51 33, 43 36 C46 28, 48 20, 54 16 Z" fill="#FBCFE8" stroke="#FFF1F2" stroke-width="1.4"/>
-                <circle cx="42" cy="29" r="3.4" fill="#FBBF24"/>
+            <svg class="lotus-svg-art lotus-hat-breathe" width="${w}" height="${h}" viewBox="0 0 76 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="crGold${sfx}" x1="12" y1="8" x2="64" y2="48" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#FEF08A"/>
+                        <stop offset="45%" stop-color="#FBBF24"/>
+                        <stop offset="100%" stop-color="#D97706"/>
+                    </linearGradient>
+                </defs>
+                <path d="M12 42 L8 18 L25 28 L38 10 L51 28 L68 18 L64 42 C50 47, 26 47, 12 42 Z" fill="url(#crGold${sfx})" stroke="#FFFBEB" stroke-width="1.6" stroke-linejoin="round"/>
+                <path d="M13 38 C28 42, 48 42, 63 38" stroke="#B45309" stroke-width="2" opacity="0.45"/>
+                <circle cx="8" cy="16" r="3.5" fill="#FEF08A" stroke="#F59E0B" stroke-width="1"/>
+                <circle cx="38" cy="8" r="4.2" fill="#FEF08A" stroke="#F59E0B" stroke-width="1"/>
+                <circle cx="68" cy="16" r="3.5" fill="#FEF08A" stroke="#F59E0B" stroke-width="1"/>
+                <polygon points="38,24 42,30 38,36 34,30" fill="#F43F5E" stroke="#FFE4E6" stroke-width="1"/>
+                <circle cx="22" cy="33" r="2.8" fill="#38BDF8" stroke="#E0F2FE" stroke-width="0.9"/>
+                <circle cx="54" cy="33" r="2.8" fill="#34D399" stroke="#D1FAE5" stroke-width="0.9"/>
+            </svg>`;
+    }
+    if (accId === 'sunglasses') {
+        const w = compact ? 42 : 92;
+        const h = compact ? 20 : 38;
+        return `
+            <svg class="lotus-svg-art" width="${w}" height="${h}" viewBox="0 0 104 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="sgLens${sfx}" x1="12" y1="8" x2="44" y2="34" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#312E81"/>
+                        <stop offset="55%" stop-color="#1E1B4B"/>
+                        <stop offset="100%" stop-color="#4C1D95"/>
+                    </linearGradient>
+                </defs>
+                <path d="M4 14 H98" stroke="#FBBF24" stroke-width="3" stroke-linecap="round"/>
+                <rect x="10" y="9" width="36" height="24" rx="10" fill="url(#sgLens${sfx})" stroke="#FDE68A" stroke-width="2.2"/>
+                <rect x="58" y="9" width="36" height="24" rx="10" fill="url(#sgLens${sfx})" stroke="#FDE68A" stroke-width="2.2"/>
+                <path d="M46 16 Q52 12 58 16" stroke="#FBBF24" stroke-width="3.2" stroke-linecap="round"/>
+                <path d="M18 14 L28 28 M25 14 L32 24" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" opacity="0.55"/>
+                <path d="M66 14 L76 28 M73 14 L80 24" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" opacity="0.55"/>
+            </svg>`;
+    }
+    if (accId === 'ribbon') {
+        const w = compact ? 38 : 68;
+        const h = compact ? 26 : 44;
+        return `
+            <svg class="lotus-svg-art lotus-hat-breathe" width="${w}" height="${h}" viewBox="0 0 78 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="rbPink${sfx}" x1="10" y1="8" x2="68" y2="42" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#FBCFE8"/>
+                        <stop offset="50%" stop-color="#F472B6"/>
+                        <stop offset="100%" stop-color="#E11D48"/>
+                    </linearGradient>
+                </defs>
+                <path d="M33 30 L22 46 L31 43 L36 33 Z" fill="#BE185D"/>
+                <path d="M45 30 L56 46 L47 43 L42 33 Z" fill="#BE185D"/>
+                <path d="M38 25 C28 10, 8 10, 10 26 C12 40, 29 38, 38 27 Z" fill="url(#rbPink${sfx})" stroke="#FFF1F2" stroke-width="1.5"/>
+                <path d="M40 25 C50 10, 70 10, 68 26 C66 40, 49 38, 40 27 Z" fill="url(#rbPink${sfx})" stroke="#FFF1F2" stroke-width="1.5"/>
+                <ellipse cx="39" cy="26" rx="7" ry="6.5" fill="#FB7185" stroke="#FFF1F2" stroke-width="1.5"/>
+                <circle cx="37" cy="24" r="2" fill="#FFE4E6"/>
+            </svg>`;
+    }
+    if (accId === 'wizard') {
+        const w = compact ? 40 : 76;
+        const h = compact ? 28 : 48;
+        return `
+            <svg class="lotus-svg-art" width="${w}" height="${h}" viewBox="0 0 88 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="wzCap${sfx}" x1="12" y1="8" x2="76" y2="40" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#4C1D95"/>
+                        <stop offset="100%" stop-color="#1E1B4B"/>
+                    </linearGradient>
+                </defs>
+                <path d="M24 27 V38 C24 44, 64 44, 64 38 V27" fill="#312E81" stroke="#FBBF24" stroke-width="1.6"/>
+                <polygon points="44,8 82,22 44,35 6,22" fill="url(#wzCap${sfx})" stroke="#C4B5FD" stroke-width="1.5"/>
+                <path d="M44 21 L68 27 V41" stroke="#FBBF24" stroke-width="2.4" stroke-linecap="round"/>
+                <circle cx="68" cy="42" r="3.2" fill="#F59E0B"/>
+                <circle cx="44" cy="21" r="2.8" fill="#FDE047"/>
+            </svg>`;
+    }
+    if (accId === 'flower') {
+        const w = compact ? 40 : 74;
+        const h = compact ? 28 : 46;
+        return `
+            <svg class="lotus-svg-art lotus-hat-breathe" width="${w}" height="${h}" viewBox="0 0 84 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="22" cy="32" rx="12" ry="6" transform="rotate(-18 22 32)" fill="#10B981"/>
+                <ellipse cx="62" cy="32" rx="12" ry="6" transform="rotate(18 62 32)" fill="#10B981"/>
+                <circle cx="27" cy="28" r="8" fill="#FDE047" stroke="#FFFBEB" stroke-width="1.2"/>
+                <circle cx="27" cy="28" r="2.8" fill="#F97316"/>
+                <circle cx="57" cy="28" r="8" fill="#F472B6" stroke="#FFF1F2" stroke-width="1.2"/>
+                <circle cx="57" cy="28" r="2.8" fill="#FDE047"/>
+                <circle cx="42" cy="23" r="10.5" fill="#FB7185" stroke="#FFF1F2" stroke-width="1.4"/>
+                <circle cx="42" cy="23" r="3.8" fill="#FEF08A"/>
+            </svg>`;
+    }
+    if (accId === 'medal') {
+        const w = compact ? 38 : 66;
+        const h = compact ? 34 : 52;
+        return `
+            <svg class="lotus-svg-art lotus-hat-breathe" width="${w}" height="${h}" viewBox="0 0 74 58" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="stGold${sfx}" x1="20" y1="6" x2="54" y2="44" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#FEF9C3"/>
+                        <stop offset="50%" stop-color="#FACC15"/>
+                        <stop offset="100%" stop-color="#EA580C"/>
+                    </linearGradient>
+                </defs>
+                <path d="M18 44 C26 36, 48 36, 56 44" stroke="#FDE047" stroke-width="3" stroke-linecap="round"/>
+                <polygon points="37,6 43.5,19 58,21 47.5,31 50,45 37,38.2 24,45 26.5,31 16,21 30.5,19" fill="url(#stGold${sfx})" stroke="#FFFFFF" stroke-width="1.6" stroke-linejoin="round"/>
+                <circle cx="34" cy="22" r="2.4" fill="#FFFFFF" opacity="0.85"/>
             </svg>`;
     }
     const accObj = getAccessoryById(accId);
     return accObj ? `<span>${accObj.icon}</span>` : '';
+}
+
+function renderStagePedestalHtml(stage, petMeta) {
+    const c1 = petMeta.auraColor || '#9d7aff';
+    const c2 = petMeta.auraSecondary || '#ff7eb3';
+    if (stage <= 1) {
+        return `
+            <svg class="stage-pedestal-svg" viewBox="0 0 280 84" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient id="pedLv1Glow" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stop-color="${c1}" stop-opacity="0.22"/>
+                        <stop offset="58%" stop-color="#FFFFFF" stop-opacity="0.45"/>
+                        <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+                    </radialGradient>
+                </defs>
+                <ellipse cx="140" cy="46" rx="92" ry="22" fill="url(#pedLv1Glow)"/>
+            </svg>`;
+    }
+    if (stage === 2) {
+        return `
+            <svg class="stage-pedestal-svg" viewBox="0 0 280 86" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient id="pedLv2Pool" cx="50%" cy="48%" r="52%">
+                        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.82"/>
+                        <stop offset="55%" stop-color="${c1}" stop-opacity="0.24"/>
+                        <stop offset="100%" stop-color="${c1}" stop-opacity="0"/>
+                    </radialGradient>
+                    <linearGradient id="pedLv2Rim" x1="36" y1="46" x2="244" y2="46" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="${c1}" stop-opacity="0"/>
+                        <stop offset="28%" stop-color="#FFFFFF" stop-opacity="0.85"/>
+                        <stop offset="50%" stop-color="${c1}" stop-opacity="0.55"/>
+                        <stop offset="72%" stop-color="#FFFFFF" stop-opacity="0.85"/>
+                        <stop offset="100%" stop-color="${c1}" stop-opacity="0"/>
+                    </linearGradient>
+                </defs>
+                <ellipse cx="140" cy="46" rx="108" ry="26" fill="url(#pedLv2Pool)"/>
+                <ellipse class="ped-ripple-wave" cx="140" cy="47" rx="94" ry="20" stroke="url(#pedLv2Rim)" stroke-width="1.6"/>
+                <ellipse class="ped-ripple-wave delay" cx="140" cy="47" rx="112" ry="25" stroke="url(#pedLv2Rim)" stroke-width="1.1"/>
+            </svg>`;
+    }
+    if (stage === 3) {
+        return `
+            <svg class="stage-pedestal-svg" viewBox="0 0 296 92" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient id="pedLv3Disc" cx="50%" cy="42%" r="52%">
+                        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.92"/>
+                        <stop offset="56%" stop-color="${c1}" stop-opacity="0.30"/>
+                        <stop offset="86%" stop-color="${c2}" stop-opacity="0.16"/>
+                        <stop offset="100%" stop-color="${c1}" stop-opacity="0"/>
+                    </radialGradient>
+                    <linearGradient id="pedLv3Arc" x1="34" y1="52" x2="262" y2="52" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0"/>
+                        <stop offset="22%" stop-color="#FFFFFF" stop-opacity="0.9"/>
+                        <stop offset="50%" stop-color="${c1}" stop-opacity="0.72"/>
+                        <stop offset="78%" stop-color="#FFFFFF" stop-opacity="0.9"/>
+                        <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+                    </linearGradient>
+                </defs>
+                <ellipse cx="148" cy="48" rx="122" ry="29" fill="url(#pedLv3Disc)"/>
+                <!-- 柔和前缘流光弧（两端渐隐，绝无生硬闭合框） -->
+                <path d="M40 50 C74 69, 222 69, 256 50" stroke="url(#pedLv3Arc)" stroke-width="2.2" stroke-linecap="round"/>
+                <path d="M62 57 C98 72, 198 72, 234 57" stroke="url(#pedLv3Arc)" stroke-width="1.2" stroke-linecap="round" opacity="0.75"/>
+                <!-- 四芒星微光点缀 -->
+                <path class="svg-star-twinkle s1" d="M84 62 Q84 66 88 66 Q84 66 84 70 Q84 66 80 66 Q84 66 84 62 Z" fill="#FFFFFF"/>
+                <path class="svg-star-twinkle s2" d="M148 66 Q148 71 153 71 Q148 71 148 76 Q148 71 143 71 Q148 71 148 66 Z" fill="#FDE68A"/>
+                <path class="svg-star-twinkle s3" d="M212 62 Q212 66 216 66 Q212 66 212 70 Q212 66 208 66 Q212 66 212 62 Z" fill="#FFFFFF"/>
+            </svg>`;
+    }
+    if (stage === 4) {
+        return `
+            <svg class="stage-pedestal-svg" viewBox="0 0 308 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient id="pedLv4Gold" cx="50%" cy="44%" r="52%">
+                        <stop offset="0%" stop-color="#FFFBEB" stop-opacity="0.96"/>
+                        <stop offset="50%" stop-color="#FDE68A" stop-opacity="0.48"/>
+                        <stop offset="82%" stop-color="${c1}" stop-opacity="0.24"/>
+                        <stop offset="100%" stop-color="${c1}" stop-opacity="0"/>
+                    </radialGradient>
+                    <linearGradient id="pedLv4CrownArc" x1="28" y1="54" x2="280" y2="54" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#FBBF24" stop-opacity="0"/>
+                        <stop offset="22%" stop-color="#FDE68A" stop-opacity="0.95"/>
+                        <stop offset="50%" stop-color="#F59E0B" stop-opacity="0.88"/>
+                        <stop offset="78%" stop-color="#FDE68A" stop-opacity="0.95"/>
+                        <stop offset="100%" stop-color="#FBBF24" stop-opacity="0"/>
+                    </linearGradient>
+                </defs>
+                <ellipse cx="154" cy="50" rx="132" ry="32" fill="url(#pedLv4Gold)"/>
+                <ellipse cx="154" cy="47" rx="102" ry="22" fill="#FFFFFF" fill-opacity="0.5"/>
+                <path d="M34 51 C72 74, 236 74, 274 51" stroke="url(#pedLv4CrownArc)" stroke-width="2.6" stroke-linecap="round"/>
+                <path d="M54 60 C96 78, 212 78, 254 60" stroke="url(#pedLv4CrownArc)" stroke-width="1.4" stroke-linecap="round"/>
+                <path class="svg-star-twinkle s1" d="M72 62 Q72 67 77 67 Q72 67 72 72 Q72 67 67 67 Q72 67 72 62 Z" fill="#FEF08A"/>
+                <path class="svg-star-twinkle s2" d="M154 68 Q154 74 160 74 Q154 74 154 80 Q154 74 148 74 Q154 74 154 68 Z" fill="#FBBF24"/>
+                <path class="svg-star-twinkle s3" d="M236 62 Q236 67 241 67 Q236 67 236 72 Q236 67 231 67 Q236 67 236 62 Z" fill="#FEF08A"/>
+            </svg>`;
+    }
+    // Stage 5: 虹彩流光云端圣座
+    return `
+        <svg class="stage-pedestal-svg" viewBox="0 0 320 102" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="pedLv5Aurora" cx="50%" cy="46%" r="52%">
+                    <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.98"/>
+                    <stop offset="38%" stop-color="#FEF08A" stop-opacity="0.62"/>
+                    <stop offset="68%" stop-color="${c2}" stop-opacity="0.34"/>
+                    <stop offset="88%" stop-color="${c1}" stop-opacity="0.22"/>
+                    <stop offset="100%" stop-color="${c1}" stop-opacity="0"/>
+                </radialGradient>
+                <linearGradient id="pedLv5Cloud" x1="160" y1="36" x2="160" y2="82" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+                    <stop offset="100%" stop-color="#F3E8FF" stop-opacity="0.72"/>
+                </linearGradient>
+                <linearGradient id="pedLv5GoldTrim" x1="36" y1="60" x2="284" y2="60" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#FBBF24" stop-opacity="0"/>
+                    <stop offset="20%" stop-color="#FDE047" stop-opacity="0.95"/>
+                    <stop offset="50%" stop-color="#F472B6" stop-opacity="0.9"/>
+                    <stop offset="80%" stop-color="#FDE047" stop-opacity="0.95"/>
+                    <stop offset="100%" stop-color="#FBBF24" stop-opacity="0"/>
+                </linearGradient>
+            </defs>
+            <ellipse cx="160" cy="54" rx="142" ry="35" fill="url(#pedLv5Aurora)"/>
+            <!-- 绵软3D祥云托座前缘 -->
+            <path d="M52 56 C52 47, 68 44, 79 50 C88 42, 110 43, 120 51 C134 41, 156 41, 168 50 C180 42, 202 42, 212 51 C224 44, 244 46, 248 56 C244 68, 212 74, 160 75 C108 74, 58 68, 52 56 Z" fill="url(#pedLv5Cloud)"/>
+            <path d="M36 58 C78 82, 242 82, 284 58" stroke="url(#pedLv5GoldTrim)" stroke-width="2.8" stroke-linecap="round"/>
+            <!-- 圣座星钻与璀璨四芒星 -->
+            <polygon points="160,64 165,70 160,76 155,70" fill="#FBBF24" stroke="#FFFFFF" stroke-width="1"/>
+            <path class="svg-star-twinkle s1" d="M98 66 Q98 71 103 71 Q98 71 98 76 Q98 71 93 71 Q98 71 98 66 Z" fill="#FDE047"/>
+            <path class="svg-star-twinkle s3" d="M222 66 Q222 71 227 71 Q222 71 222 76 Q222 71 217 71 Q222 71 222 66 Z" fill="#FDE047"/>
+        </svg>`;
+}
+
+function renderStageBackAuraHtml(stage, petMeta) {
+    const c1 = petMeta.auraColor || '#9d7aff';
+    const c2 = petMeta.auraSecondary || '#ff7eb3';
+    if (stage <= 1) {
+        return '';
+    }
+    if (stage === 2) {
+        return `
+            <svg class="stage-aura-svg" viewBox="0 0 300 260" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient id="auraLv2Bloom" cx="50%" cy="52%" r="46%">
+                        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.72"/>
+                        <stop offset="52%" stop-color="${c1}" stop-opacity="0.20"/>
+                        <stop offset="100%" stop-color="${c1}" stop-opacity="0"/>
+                    </radialGradient>
+                </defs>
+                <circle cx="150" cy="134" r="98" fill="url(#auraLv2Bloom)"/>
+                <circle class="aura-bokeh-dot b1" cx="76" cy="96" r="4.5" fill="#FFFFFF" fill-opacity="0.75"/>
+                <circle class="aura-bokeh-dot b2" cx="226" cy="106" r="3.8" fill="${c1}" fill-opacity="0.45"/>
+                <path class="svg-star-twinkle s1" d="M84 68 Q84 74 90 74 Q84 74 84 80 Q84 74 78 74 Q84 74 84 68 Z" fill="#FFFFFF"/>
+                <path class="svg-star-twinkle s2" d="M218 74 Q218 79 223 79 Q218 79 218 84 Q218 79 213 79 Q218 79 218 74 Z" fill="#FEF08A"/>
+            </svg>`;
+    }
+    if (stage === 3) {
+        // 绝无虚线框！采用两端柔滑渐隐的新月彗星光带 + 梦幻散景光斑 + 闪烁四芒星
+        return `
+            <svg class="stage-aura-svg" viewBox="0 0 320 270" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient id="auraLv3Bloom" cx="50%" cy="52%" r="48%">
+                        <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.86"/>
+                        <stop offset="48%" stop-color="${c1}" stop-opacity="0.25"/>
+                        <stop offset="78%" stop-color="${c2}" stop-opacity="0.12"/>
+                        <stop offset="100%" stop-color="${c1}" stop-opacity="0"/>
+                    </radialGradient>
+                    <linearGradient id="auraLv3RibbonL" x1="56" y1="196" x2="126" y2="44" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="${c1}" stop-opacity="0"/>
+                        <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0.82"/>
+                        <stop offset="80%" stop-color="${c1}" stop-opacity="0.52"/>
+                        <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+                    </linearGradient>
+                    <linearGradient id="auraLv3RibbonR" x1="264" y1="74" x2="194" y2="220" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="${c2}" stop-opacity="0"/>
+                        <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0.82"/>
+                        <stop offset="80%" stop-color="${c2}" stop-opacity="0.48"/>
+                        <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+                    </linearGradient>
+                </defs>
+                <circle cx="160" cy="138" r="112" fill="url(#auraLv3Bloom)"/>
+                <g class="aura-orbit-slow">
+                    <!-- 丝滑渐隐流光丝带（无任何生硬虚线或闭合圈） -->
+                    <path d="M64 176 C46 118, 82 58, 138 46 C92 64, 62 118, 74 172 Z" fill="url(#auraLv3RibbonL)"/>
+                    <path d="M256 96 C274 154, 238 214, 182 226 C228 208, 258 154, 246 100 Z" fill="url(#auraLv3RibbonR)"/>
+                </g>
+                <circle class="aura-bokeh-dot b1" cx="68" cy="112" r="6" fill="#FFFFFF" fill-opacity="0.65"/>
+                <circle class="aura-bokeh-dot b2" cx="248" cy="148" r="5" fill="#FEF9C3" fill-opacity="0.7"/>
+                <circle class="aura-bokeh-dot b3" cx="228" cy="72" r="4" fill="${c1}" fill-opacity="0.4"/>
+                <path class="svg-star-twinkle s1" d="M84 62 Q84 69 91 69 Q84 69 84 76 Q84 69 77 69 Q84 69 84 62 Z" fill="#FFFFFF"/>
+                <path class="svg-star-twinkle s2" d="M238 82 Q238 88 244 88 Q238 88 238 94 Q238 88 232 88 Q238 88 238 82 Z" fill="#FDE68A"/>
+                <path class="svg-star-twinkle s3" d="M74 184 Q74 189 79 189 Q74 189 74 194 Q74 189 69 189 Q74 189 74 184 Z" fill="#FFFFFF"/>
+            </svg>`;
+    }
+    if (stage === 4) {
+        return `
+            <svg class="stage-aura-svg" viewBox="0 0 330 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient id="auraLv4Sun" cx="50%" cy="52%" r="50%">
+                        <stop offset="0%" stop-color="#FFFBEB" stop-opacity="0.92"/>
+                        <stop offset="45%" stop-color="#FDE68A" stop-opacity="0.42"/>
+                        <stop offset="76%" stop-color="${c1}" stop-opacity="0.18"/>
+                        <stop offset="100%" stop-color="#FBBF24" stop-opacity="0"/>
+                    </radialGradient>
+                    <linearGradient id="auraLv4Arc" x1="56" y1="60" x2="274" y2="220" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#FDE68A" stop-opacity="0"/>
+                        <stop offset="30%" stop-color="#FEF08A" stop-opacity="0.9"/>
+                        <stop offset="50%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+                        <stop offset="70%" stop-color="#FBBF24" stop-opacity="0.85"/>
+                        <stop offset="100%" stop-color="#FDE68A" stop-opacity="0"/>
+                    </linearGradient>
+                </defs>
+                <circle cx="165" cy="142" r="122" fill="url(#auraLv4Sun)"/>
+                <!-- 柔和晨曦光芒束 -->
+                <g class="aura-orbit-slow" opacity="0.42">
+                    <polygon points="165,142 150,24 180,24" fill="url(#auraLv4Sun)"/>
+                    <polygon points="165,142 268,66 282,92" fill="url(#auraLv4Sun)"/>
+                    <polygon points="165,142 282,188 266,214" fill="url(#auraLv4Sun)"/>
+                    <polygon points="165,142 64,214 48,188" fill="url(#auraLv4Sun)"/>
+                    <polygon points="165,142 48,92 64,66" fill="url(#auraLv4Sun)"/>
+                </g>
+                <!-- 纤细鎏金新月星轨（两端自然消隐） -->
+                <path d="M62 126 A104 104 0 0 1 252 84" stroke="url(#auraLv4Arc)" stroke-width="2" stroke-linecap="round"/>
+                <path d="M268 158 A104 104 0 0 1 78 200" stroke="url(#auraLv4Arc)" stroke-width="1.6" stroke-linecap="round"/>
+                <path class="svg-star-twinkle s1" d="M165 26 Q165 34 173 34 Q165 34 165 42 Q165 34 157 34 Q165 34 165 26 Z" fill="#FBBF24"/>
+                <path class="svg-star-twinkle s2" d="M64 82 Q64 89 71 89 Q64 89 64 96 Q64 89 57 89 Q64 89 64 82 Z" fill="#FEF08A"/>
+                <path class="svg-star-twinkle s3" d="M266 86 Q266 93 273 93 Q266 93 266 100 Q266 93 259 93 Q266 93 266 86 Z" fill="#FEF08A"/>
+            </svg>`;
+    }
+    // Stage 5: 精细雕琢多层半透明珍珠鎏金羽翼 + 虹彩极光圣环
+    return `
+        <svg class="stage-aura-svg stage-aura-lv5-svg" viewBox="0 0 360 286" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="auraLv5Halo" cx="50%" cy="52%" r="48%">
+                    <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+                    <stop offset="38%" stop-color="#FEF08A" stop-opacity="0.52"/>
+                    <stop offset="68%" stop-color="${c2}" stop-opacity="0.28"/>
+                    <stop offset="88%" stop-color="${c1}" stop-opacity="0.18"/>
+                    <stop offset="100%" stop-color="${c1}" stop-opacity="0"/>
+                </radialGradient>
+                <linearGradient id="wingPlumeL" x1="22" y1="78" x2="148" y2="176" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.96"/>
+                    <stop offset="55%" stop-color="#FEF3C7" stop-opacity="0.88"/>
+                    <stop offset="100%" stop-color="${c2}" stop-opacity="0.55"/>
+                </linearGradient>
+                <linearGradient id="wingPlumeR" x1="338" y1="78" x2="212" y2="176" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.96"/>
+                    <stop offset="55%" stop-color="#FEF3C7" stop-opacity="0.88"/>
+                    <stop offset="100%" stop-color="${c1}" stop-opacity="0.55"/>
+                </linearGradient>
+                <linearGradient id="auraLv5CrownArc" x1="76" y1="48" x2="284" y2="48" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#FDE047" stop-opacity="0"/>
+                    <stop offset="50%" stop-color="#FBBF24" stop-opacity="0.92"/>
+                    <stop offset="100%" stop-color="#FDE047" stop-opacity="0"/>
+                </linearGradient>
+            </defs>
+            <circle cx="180" cy="146" r="128" fill="url(#auraLv5Halo)"/>
+            <!-- 顶部柔光圣冕弧 -->
+            <path d="M88 64 C124 32, 236 32, 272 64" stroke="url(#auraLv5CrownArc)" stroke-width="2.4" stroke-linecap="round"/>
+            <!-- 左翼：三层流光灵羽 -->
+            <g class="fairy-wing-left">
+                <path d="M132 138 C92 98, 46 86, 22 96 C32 120, 68 142, 124 154 Z" fill="url(#wingPlumeL)" stroke="#FFFFFF" stroke-width="1.5"/>
+                <path d="M130 152 C88 130, 48 128, 30 140 C46 158, 82 168, 126 166 Z" fill="url(#wingPlumeL)" stroke="#FFFFFF" stroke-width="1.4"/>
+                <path d="M132 164 C98 156, 66 160, 52 174 C70 184, 100 184, 130 176 Z" fill="url(#wingPlumeL)" stroke="#FFFFFF" stroke-width="1.2"/>
+            </g>
+            <!-- 右翼：三层流光灵羽 -->
+            <g class="fairy-wing-right">
+                <path d="M228 138 C268 98, 314 86, 338 96 C328 120, 292 142, 236 154 Z" fill="url(#wingPlumeR)" stroke="#FFFFFF" stroke-width="1.5"/>
+                <path d="M230 152 C272 130, 312 128, 330 140 C314 158, 278 168, 234 166 Z" fill="url(#wingPlumeR)" stroke="#FFFFFF" stroke-width="1.4"/>
+                <path d="M228 164 C262 156, 294 160, 308 174 C290 184, 260 184, 230 176 Z" fill="url(#wingPlumeR)" stroke="#FFFFFF" stroke-width="1.2"/>
+            </g>
+            <!-- 璀璨星芒粒子 -->
+            <path class="svg-star-twinkle s1" d="M180 24 Q180 32 188 32 Q180 32 180 40 Q180 32 172 32 Q180 32 180 24 Z" fill="#FBBF24"/>
+            <path class="svg-star-twinkle s2" d="M56 66 Q56 73 63 73 Q56 73 56 80 Q56 73 49 73 Q56 73 56 66 Z" fill="#FFFFFF"/>
+            <path class="svg-star-twinkle s3" d="M304 66 Q304 73 311 73 Q304 73 304 80 Q304 73 297 73 Q304 73 304 66 Z" fill="#FEF08A"/>
+        </svg>`;
+}
+
+function renderStagePropVisualHtml(icon, idx, petMeta) {
+    const uid = `${petMeta.id}_${idx}`;
+    if (icon === '💧') {
+        return `
+            <svg class="prop-mini-svg" width="32" height="36" viewBox="0 0 34 38" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient id="dropG_${uid}" cx="36%" cy="34%" r="68%">
+                        <stop offset="0%" stop-color="#FFFFFF"/>
+                        <stop offset="38%" stop-color="#7DD3FC"/>
+                        <stop offset="82%" stop-color="#0EA5E9"/>
+                        <stop offset="100%" stop-color="#0284C7"/>
+                    </radialGradient>
+                </defs>
+                <path d="M17 4 C17 4, 6 17, 6 24.5 C6 30.8, 10.9 35.5, 17 35.5 C23.1 35.5, 28 30.8, 28 24.5 C28 17, 17 4, 17 4 Z" fill="url(#dropG_${uid})" stroke="#E0F2FE" stroke-width="1.2"/>
+                <ellipse cx="13" cy="21" rx="2.6" ry="4.2" transform="rotate(16 13 21)" fill="#FFFFFF" opacity="0.88"/>
+                <circle cx="19.5" cy="29.5" r="1.6" fill="#BAE6FD" opacity="0.85"/>
+            </svg>`;
+    }
+    if (icon === '🪷' || icon === '🌸') {
+        return `
+            <svg class="prop-mini-svg" width="38" height="32" viewBox="0 0 42 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="lotusP_${uid}" x1="21" y1="4" x2="21" y2="29" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#FFF1F2"/>
+                        <stop offset="52%" stop-color="#F472B6"/>
+                        <stop offset="100%" stop-color="#DB2777"/>
+                    </linearGradient>
+                </defs>
+                <ellipse cx="21" cy="28.5" rx="16" ry="4.8" fill="#34D399" opacity="0.85"/>
+                <path d="M8 17 C8 24, 14 28, 21 29 C16 23, 13 18, 8 17 Z" fill="#FBCFE8"/>
+                <path d="M34 17 C34 24, 28 28, 21 29 C26 23, 29 18, 34 17 Z" fill="#FBCFE8"/>
+                <path d="M13 10 C11 19, 15 26, 21 29 C19 21, 17 14, 13 10 Z" fill="#F9A8D4" stroke="#FFF1F2" stroke-width="0.8"/>
+                <path d="M29 10 C31 19, 27 26, 21 29 C23 21, 25 14, 29 10 Z" fill="#F9A8D4" stroke="#FFF1F2" stroke-width="0.8"/>
+                <path d="M21 5 C15 13, 15 23, 21 29 C27 23, 27 13, 21 5 Z" fill="url(#lotusP_${uid})" stroke="#FFF1F2" stroke-width="1"/>
+                <circle cx="21" cy="23" r="2.8" fill="#FBBF24"/>
+            </svg>`;
+    }
+    if (icon === '🎵') {
+        return `
+            <svg class="prop-mini-svg" width="32" height="34" viewBox="0 0 34 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="noteG_${uid}" x1="8" y1="4" x2="28" y2="32" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#FDE047"/>
+                        <stop offset="50%" stop-color="#F472B6"/>
+                        <stop offset="100%" stop-color="#8B5CF6"/>
+                    </linearGradient>
+                </defs>
+                <path d="M14 25 V8 L28 5 V22" stroke="url(#noteG_${uid})" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+                <ellipse cx="10.5" cy="26" rx="5" ry="3.8" transform="rotate(-18 10.5 26)" fill="url(#noteG_${uid})"/>
+                <ellipse cx="24.5" cy="23" rx="5" ry="3.8" transform="rotate(-18 24.5 23)" fill="url(#noteG_${uid})"/>
+            </svg>`;
+    }
+    // 其余各宠专属伴生灵物：包裹在晶莹半透明 3D 幻彩精灵泡泡球中，精致统一不突兀
+    return `<span class="stage-prop-bubble"><span class="spb-icon">${icon}</span></span>`;
 }
 
 // ==================== 全屏高帧率飞行徽章与礼花粒子引擎 ====================
@@ -273,6 +783,10 @@ class PetWonderTownApp {
         this._feedStepIdx = 0;
         this._cheerStepIdx = 0;
         this._activeSpeechOverride = null;
+
+        // 单词收集册筛选与慢速自然拼读状态
+        this.reportVocabFilter = 'all'; // 'all' | 'mastered' | 'unlearned'
+        this.reportSlowPhonics = false;
 
         // 个人档案弹窗临时编辑状态
         this.editingUserId = null;
@@ -455,6 +969,10 @@ class PetWonderTownApp {
             return;
         }
 
+        const accTag = (visitor.accessory && visitor.accessory !== 'none')
+            ? ` ${getAccessoryById(visitor.accessory).icon || '🎀'}`
+            : '';
+
         if (homeBtn) {
             homeBtn.style.display = 'flex';
             homeBtn.classList.toggle('has-gift', !visitor.giftClaimedToday);
@@ -462,7 +980,7 @@ class PetWonderTownApp {
             const title = document.getElementById('siblingHomeTitle');
             const sub = document.getElementById('siblingHomeSub');
             if (img) img.src = visitor.petMeta.img;
-            if (title) title.textContent = `${visitor.siblingAvatar} ${visitor.siblingName}来串门`;
+            if (title) title.textContent = `${visitor.siblingAvatar} ${visitor.siblingName}来串门${accTag}`;
             if (sub) {
                 sub.textContent = visitor.giftClaimedToday
                     ? `💞 ${visitor.petMeta.name} Lv.${visitor.petLevel} 陪你玩`
@@ -476,7 +994,7 @@ class PetWonderTownApp {
             const tTitle = document.getElementById('townSiblingTitle');
             const tCta = document.getElementById('townSiblingCta');
             if (tImg) tImg.src = visitor.petMeta.img;
-            if (tTitle) tTitle.textContent = `${visitor.siblingAvatar} ${visitor.siblingName}带着【${visitor.petMeta.name} Lv.${visitor.petLevel}】来串门`;
+            if (tTitle) tTitle.textContent = `${visitor.siblingAvatar} ${visitor.siblingName}带着【${visitor.petMeta.name}${accTag} Lv.${visitor.petLevel}】来串门`;
             if (tCta) {
                 tCta.textContent = visitor.giftClaimedToday
                     ? `✨ 今日友谊星礼已领 · 点击互动问好`
@@ -490,7 +1008,11 @@ class PetWonderTownApp {
         if (!visitor) return;
         const cx = (evt && evt.clientX) || window.innerWidth * 0.52;
         const cy = (evt && evt.clientY) || window.innerHeight * 0.62;
-        soundEngine.speakEnglish(visitor.petMeta.enGreeting || 'Hello friend!', false);
+        soundEngine.speakAsPet(visitor.petMeta.id, {
+            zhText: `嗨！我是${visitor.siblingName}养的${visitor.petMeta.name}，来找你一起玩啦！`,
+            enText: visitor.petMeta.enGreeting || 'Hello friend!',
+            preferEnglish: false
+        });
 
         const res = profileManager.claimSiblingVisitGift ? profileManager.claimSiblingVisitGift() : { ok: false };
         if (res.ok) {
@@ -629,6 +1151,9 @@ class PetWonderTownApp {
         const accEl = document.getElementById('heroAccessoryBadge');
         const nurtureBtnIcon = document.getElementById('nurtureBtnIcon');
         const nurtureBtnText = document.getElementById('nurtureBtnText');
+        const freeTreatBtn = document.getElementById('btnFreeTreatLv5');
+        const freeTreatIcon = document.getElementById('freeTreatIcon');
+        const tapHintTag = document.getElementById('heroTapHintTag');
         const leftMascot = document.getElementById('mascotLeftIcon');
 
         if (!isShopMode) {
@@ -649,20 +1174,32 @@ class PetWonderTownApp {
                 stageCenter.dataset.pet = petMeta.id;
                 stageCenter.style.setProperty('--pet-stage-scale', String(stageStyle.scale));
             }
+            const stageRenderKey = `${petMeta.id}_${effectiveStage}`;
             if (pedestalEl) {
-                pedestalEl.style.display = 'block';
+                pedestalEl.style.display = 'flex';
                 pedestalEl.className = `pet-stage-pedestal ${stageStyle.pedestalClass}`;
+                if (pedestalEl.dataset.renderKey !== stageRenderKey) {
+                    pedestalEl.dataset.renderKey = stageRenderKey;
+                    pedestalEl.innerHTML = renderStagePedestalHtml(effectiveStage, petMeta);
+                }
             }
             if (auraEl) {
-                auraEl.style.display = 'block';
+                auraEl.style.display = effectiveStage >= 2 ? 'flex' : 'none';
                 auraEl.className = `pet-stage-back-aura ${stageStyle.auraClass}`;
+                if (auraEl.dataset.renderKey !== stageRenderKey) {
+                    auraEl.dataset.renderKey = stageRenderKey;
+                    auraEl.innerHTML = renderStageBackAuraHtml(effectiveStage, petMeta);
+                }
             }
             if (propsLayer) {
                 propsLayer.style.display = 'block';
-                const propsArr = (petMeta.stageProps || []).slice(0, stageStyle.propCount);
-                propsLayer.innerHTML = propsArr
-                    .map((ic, idx) => `<span class="stage-prop-orb slot-${idx}">${ic}</span>`)
-                    .join('');
+                if (propsLayer.dataset.renderKey !== stageRenderKey) {
+                    propsLayer.dataset.renderKey = stageRenderKey;
+                    const propsArr = (petMeta.stageProps || []).slice(0, stageStyle.propCount);
+                    propsLayer.innerHTML = propsArr
+                        .map((ic, idx) => `<span class="stage-prop-orb slot-${idx}">${renderStagePropVisualHtml(ic, idx, petMeta)}</span>`)
+                        .join('');
+                }
             }
 
             document.getElementById('heroTitle').textContent = petMeta.name;
@@ -699,8 +1236,8 @@ class PetWonderTownApp {
                             return;
                         }
                         profileManager.setPetDisplayStage(petMeta.id, s);
-                        soundEngine.playPetVoice(petMeta.id);
                         const stageLine = petMeta.talkLines[s - 1] || petMeta.talkLines[0];
+                        soundEngine.speakAsPet(petMeta.id, { zhText: stageLine, withCry: true });
                         this.setHeroSpeech(`✨ 已切换 Lv.${s}【${petMeta.stageTitles[s - 1]}】样式：${stageLine}`, 5500);
                         this.renderHeroHomeView();
                         this.triggerPetRigAnimation('anim-stage-transform');
@@ -712,6 +1249,7 @@ class PetWonderTownApp {
 
             mainSprite.src = petMeta.img;
             subSprite.style.display = 'none';
+            if (tapHintTag) tapHintTag.textContent = '👆 点我摸摸头互动';
 
             if (pState.accessory && pState.accessory !== 'none') {
                 const visualHtml = renderAccessoryVisualHtml(pState.accessory, false);
@@ -724,10 +1262,15 @@ class PetWonderTownApp {
 
             if (pState.level >= 5) {
                 nurtureBtnIcon.textContent = '🏪';
-                nurtureBtnText.textContent = '已毕业！去配对开店';
+                nurtureBtnText.textContent = '已毕业·去开店';
+                if (freeTreatBtn) {
+                    freeTreatBtn.style.display = 'inline-flex';
+                    if (freeTreatIcon) freeTreatIcon.textContent = petMeta.foodIcon || '🍓';
+                }
             } else {
                 nurtureBtnIcon.textContent = petMeta.foodIcon;
                 nurtureBtnText.textContent = `喂${petMeta.foodName.slice(0, 4)} (-${FEED_BADGE_COST}🏅)`;
+                if (freeTreatBtn) freeTreatBtn.style.display = 'none';
             }
 
             const ov = this._activeSpeechOverride;
@@ -738,7 +1281,7 @@ class PetWonderTownApp {
                 document.getElementById('heroSpeechBubble').textContent = line;
             }
         } else {
-            // 店铺经营展示模式
+            // 店铺经营展示模式（暖金繁华底座与光晕 + 点击收银互动）
             const shopMeta = getShopById(u.activeShopId);
             const sState = u.shops[u.activeShopId] || { level: 1, exp: 0, managerPetId: u.activePetId };
             const mgrPet = getPetById(sState.managerPetId || u.activePetId);
@@ -746,15 +1289,37 @@ class PetWonderTownApp {
             const pct = sState.level >= 5 ? 100 : Math.min(100, Math.max(6, Math.round((sState.exp / maxExp) * 100)));
 
             if (leftMascot) leftMascot.textContent = mgrPet.emoji;
+            if (heroCard) {
+                heroCard.style.setProperty('--pet-aura', '#f59e0b');
+                heroCard.style.setProperty('--pet-aura-sec', '#fb7185');
+            }
             if (stageCenter) {
-                stageCenter.dataset.stage = '1';
+                stageCenter.dataset.stage = String(Math.min(5, Math.max(2, sState.level)));
                 stageCenter.dataset.pet = mgrPet.id;
                 stageCenter.style.setProperty('--pet-stage-scale', '1');
             }
-            if (pedestalEl) pedestalEl.style.display = 'none';
-            if (auraEl) auraEl.style.display = 'none';
+            const shopRenderKey = `shop_${u.activeShopId}_${sState.level}`;
+            const shopThemeMock = { auraColor: '#F59E0B', auraSecondary: '#FB7185' };
+            if (pedestalEl) {
+                pedestalEl.style.display = 'flex';
+                pedestalEl.className = 'pet-stage-pedestal pedestal-lv4';
+                if (pedestalEl.dataset.renderKey !== shopRenderKey) {
+                    pedestalEl.dataset.renderKey = shopRenderKey;
+                    pedestalEl.innerHTML = renderStagePedestalHtml(Math.min(5, Math.max(3, sState.level)), shopThemeMock);
+                }
+            }
+            if (auraEl) {
+                auraEl.style.display = 'flex';
+                auraEl.className = 'pet-stage-back-aura aura-lv3';
+                if (auraEl.dataset.renderKey !== shopRenderKey) {
+                    auraEl.dataset.renderKey = shopRenderKey;
+                    auraEl.innerHTML = renderStageBackAuraHtml(3, shopThemeMock);
+                }
+            }
             if (propsLayer) propsLayer.style.display = 'none';
             if (styleBarEl) styleBarEl.style.display = 'none';
+            if (freeTreatBtn) freeTreatBtn.style.display = 'none';
+            if (tapHintTag) tapHintTag.textContent = '👆 点店铺收银互动';
 
             document.getElementById('heroTitle').textContent = `${mgrPet.name}的${shopMeta.name}`;
             document.getElementById('heroStageSubtitle').textContent =
@@ -897,8 +1462,14 @@ class PetWonderTownApp {
                 btnLabel = pet.isBlindbox ? '🎁 去盲盒抽取' : `领养 (${pet.unlockCost}🏅)`;
             }
 
+            const hasEquippedAcc = pState.unlocked && pState.accessory && pState.accessory !== 'none';
+            const accBadgeHtml = hasEquippedAcc
+                ? `<span class="pet-card-acc-chip" title="已佩戴：${getAccessoryById(pState.accessory).name}">${renderAccessoryVisualHtml(pState.accessory, true)}</span>`
+                : '';
+
             card.innerHTML = `
                 ${topTag}
+                ${accBadgeHtml}
                 <img src="${pet.img}" alt="${pet.name}" />
                 <div class="pet-card-name">${pet.emoji} ${pet.name}</div>
                 <div class="pet-card-action">${btnLabel}</div>
@@ -916,14 +1487,16 @@ class PetWonderTownApp {
                     this.showQuickToast('💡 温馨提示', res.msg);
                     return;
                 }
+                const effSt = profileManager.getEffectivePetStage(pet.id);
+                const greetLine = pet.talkLines[effSt - 1] || pet.talkLines[0];
                 if (res.action === 'unlocked') {
                     soundEngine.playLevelUp();
+                    soundEngine.speakAsPet(pet.id, { zhText: greetLine, enText: pet.enGreeting, withCry: false });
                     this.fx.spawnBurst(window.innerWidth * 0.35, window.innerHeight * 0.45, 35);
                 } else {
-                    soundEngine.playPetVoice(pet.id);
+                    soundEngine.speakAsPet(pet.id, { zhText: greetLine, enText: pet.enGreeting, withCry: true });
                 }
-                const effSt = profileManager.getEffectivePetStage(pet.id);
-                this.setHeroSpeech(pet.talkLines[effSt - 1] || pet.talkLines[0], 5500);
+                this.setHeroSpeech(greetLine, 5500);
                 this.renderAll();
                 this.switchWorldView('home');
                 this.triggerPetRigAnimation('anim-joy-spin');
@@ -999,7 +1572,7 @@ class PetWonderTownApp {
         if (this.townPendingPlacement) {
             banner.innerHTML = `📍 <strong>选址模式</strong>：请点击下方任意一块绿色草坪地块，放置你的【${this.townPendingPlacement.label}】！`;
         } else {
-            banner.innerHTML = `🚂 <strong>${u.name}的星语海滨萌宠小镇</strong> · 点击任意草坪地块可建店、更换位置或添置游乐景观！`;
+            banner.innerHTML = `🚂 <strong>${u.name}的星语海滨萌宠小镇</strong> · 点击头顶闪烁 🪙 的店铺可领每日巡店星礼，点击任意地块可建店或装扮景观！`;
         }
 
         TOWN_PLOTS.forEach(plot => {
@@ -1014,8 +1587,13 @@ class PetWonderTownApp {
                 const sState = u.shops[placed.itemId] || { level: 1 };
                 const mgrPet = getPetById(placed.managerPetId || sState.managerPetId || u.activePetId);
                 const spriteUrl = sState.level >= 4 ? shopMeta.imgLv5 : shopMeta.imgLv1;
+                const canPatrolToday = !profileManager.isTownPlotPatrolledToday(plot.id, u);
+                const patrolBubble = canPatrolToday
+                    ? `<div class="plot-patrol-bubble" title="点击巡店收取今日营业星礼！">🪙 巡店领+2⭐</div>`
+                    : '';
 
                 node.innerHTML = `
+                    ${patrolBubble}
                     <img src="${spriteUrl}" alt="${shopMeta.name}" class="plot-shop-sprite" />
                     <div class="plot-pet-avatar-bubble"><img src="${mgrPet.img}" alt="${mgrPet.name}" /></div>
                     <div class="plot-name-plate">${mgrPet.name}的${shopMeta.name} Lv.${sState.level}</div>
@@ -1032,9 +1610,9 @@ class PetWonderTownApp {
                 `;
             }
 
-            node.onclick = () => {
-                soundEngine.playTap();
+            node.onclick = (evt) => {
                 if (this.townPendingPlacement) {
+                    soundEngine.playTap();
                     const res = profileManager.placeOnTownPlot(plot.id, this.townPendingPlacement.payload);
                     if (!res.ok) {
                         this.showQuickToast('💡 徽章不足', res.msg);
@@ -1045,6 +1623,47 @@ class PetWonderTownApp {
                     this.renderAll();
                     return;
                 }
+                if (placed && placed.type === 'shop' && !profileManager.isTownPlotPatrolledToday(plot.id, u)) {
+                    const shopMeta = getShopById(placed.itemId);
+                    const sState = u.shops[placed.itemId] || { level: 1 };
+                    const mgrPet = getPetById(placed.managerPetId || sState.managerPetId || u.activePetId);
+                    const shopTitle = `${mgrPet.name}的${shopMeta.name}`;
+                    const patrolRes = profileManager.claimTownShopPatrol(plot.id, shopTitle);
+                    if (patrolRes.ok) {
+                        soundEngine.playCoinChime();
+                        const shopLine = mgrPet.shopLines?.[0] || `欢迎巡视${shopTitle}，今日营业大丰收啦！`;
+                        soundEngine.speakAsPet(mgrPet.id, { zhText: shopLine, withCry: false });
+                        const cx = evt?.clientX || window.innerWidth * 0.35;
+                        const cy = evt?.clientY || window.innerHeight * 0.45;
+                        this.fx.spawnBurst(cx, cy, 34);
+                        if (patrolRes.grantedBadges > 0) {
+                            this.fx.flyBadges(node, document.getElementById('hudBadgeBox'), patrolRes.grantedBadges);
+                        }
+                        this.renderAll();
+                        const rewardLine = patrolRes.grantedBadges > 0
+                            ? `<div style="color:#d97706; font-weight:900; font-size:14px;">🎉 集满3星直接合成 +${patrolRes.grantedBadges} 枚荣誉徽章 🏅！</div>`
+                            : `<div style="color:#7c5cfc; font-weight:900; font-size:14px;">⭐ 已收入 +2 颗今日学习星（当前集星 ${patrolRes.starProgress}/3）！</div>`;
+                        this.showQuickModal(
+                            '🪙 小镇巡店收银成功！',
+                            `<div style="text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px;">
+                                <img src="${mgrPet.img}" style="width:94px; height:94px; object-fit:contain;" />
+                                <div style="font-size:16px; font-weight:900; color:#4c1d95;">店长【${mgrPet.name}】向你汇报今日营收！</div>
+                                <div style="font-size:12.5px; color:#5e547d;">“${shopLine}”</div>
+                                ${rewardLine}
+                                <button type="button" id="btnOpenPlotManageAfterPatrol" class="btn-soft-action" style="margin-top:4px; padding:7px 14px;">⚙️ 调整或迁移此地块建筑</button>
+                            </div>`
+                        );
+                        const manageBtn = document.getElementById('btnOpenPlotManageAfterPatrol');
+                        if (manageBtn) {
+                            manageBtn.onclick = () => {
+                                soundEngine.playTap();
+                                this.openTownPlotMenu(plot, placed);
+                            };
+                        }
+                        return;
+                    }
+                }
+                soundEngine.playTap();
                 this.openTownPlotMenu(plot, placed);
             };
 
@@ -1106,7 +1725,7 @@ class PetWonderTownApp {
                 const res = profileManager.placeOnTownPlot(plot.id, { type: 'decor', itemId: did });
                 if (!res.ok) {
                     soundEngine.playWrong();
-                    alert(res.msg);
+                    this.showQuickToast('💡 温馨提示', res.msg);
                     return;
                 }
                 soundEngine.playFeed();
@@ -1812,12 +2431,18 @@ class PetWonderTownApp {
     spawnStageEmotes(emotes = ['💕', '✨'], expText = '') {
         const fxLayer = document.getElementById('heroAnimFxLayer');
         if (!fxLayer) return;
+        const ripple = document.createElement('div');
+        ripple.className = 'stage-magic-ripple';
+        fxLayer.appendChild(ripple);
+        setTimeout(() => ripple.remove(), 920);
+
         emotes.forEach((em, idx) => {
+            const isTextChip = Array.from(em).length > 2;
             const span = document.createElement('span');
-            span.className = 'floating-pet-emote';
+            span.className = isTextChip ? 'floating-pet-emote emote-chip' : 'floating-pet-emote';
             span.textContent = em;
-            const leftPct = 36 + idx * 14 + (Math.random() - 0.5) * 10;
-            const topPct = 32 + (idx % 2) * 10;
+            const leftPct = 35 + idx * 14 + (Math.random() - 0.5) * 8;
+            const topPct = 31 + (idx % 2) * 10;
             span.style.left = `${leftPct}%`;
             span.style.top = `${topPct}%`;
             span.style.animationDelay = `${idx * 0.08}s`;
@@ -1868,9 +2493,38 @@ class PetWonderTownApp {
 
     triggerPetInteractSequence(e) {
         const u = profileManager.getActiveUser();
-        const petId = u.stageMode === 'shop' ? (u.shops[u.activeShopId]?.managerPetId || u.activePetId) : u.activePetId;
+        const isShopMode = u.stageMode === 'shop';
+        const petId = isShopMode ? (u.shops[u.activeShopId]?.managerPetId || u.activePetId) : u.activePetId;
         const petMeta = getPetById(petId);
         const pState = u.pets?.[petId] || {};
+        const step = this._interactStepIdx++;
+
+        if (isShopMode) {
+            const shopMeta = getShopById(u.activeShopId);
+            const shopLines = petMeta.shopLines?.length
+                ? petMeta.shopLines
+                : [`${petMeta.emoji} 欢迎光临${petMeta.name}的${shopMeta.name}！今日生意超红火！`];
+            const shopSpeech = shopLines[step % shopLines.length];
+            soundEngine.playCoinChime();
+            soundEngine.speakAsPet(petMeta.id, {
+                zhText: shopSpeech,
+                enText: petMeta.enGreeting,
+                preferEnglish: step % 3 === 2,
+                withCry: true
+            });
+            this.setHeroSpeech(shopSpeech, 5800);
+            this.triggerPetRigAnimation('anim-cheer-jump');
+            const subSprite = document.getElementById('heroManagerSubSprite');
+            if (subSprite) {
+                subSprite.classList.remove('shop-greet-jump');
+                void subSprite.offsetWidth;
+                subSprite.classList.add('shop-greet-jump');
+                setTimeout(() => subSprite.classList.remove('shop-greet-jump'), 900);
+            }
+            this.spawnStageEmotes(['🪙 营业兴隆!', '🛍️', '💖']);
+            this.fx.spawnBurst(e?.clientX || window.innerWidth * 0.35, e?.clientY || window.innerHeight * 0.4, 18);
+            return;
+        }
 
         const moves = [
             { anim: 'anim-pat-squash', tag: '💕 摸摸头~' },
@@ -1878,19 +2532,22 @@ class PetWonderTownApp {
             { anim: 'anim-tickle-wiggle', tag: '😆 嘻嘻好痒~' },
             { anim: 'anim-highfive-leap', tag: '🙌 击掌冲鸭!' }
         ];
-        const step = this._interactStepIdx++;
         const move = moves[step % moves.length];
 
-        soundEngine.playPetVoice(petMeta.id);
         const enList = petMeta.enInteractPhrases?.length ? petMeta.enInteractPhrases : [petMeta.enGreeting];
-        soundEngine.speakEnglish(enList[step % enList.length], false);
-
         const zhList = petMeta.interactLines?.length ? petMeta.interactLines : petMeta.talkLines;
         let speechText = zhList[step % zhList.length];
         if ((petMeta.id === 'frog' || petMeta.id === 'prince_frog') && String(pState.accessory || '').startsWith('lotus_') && step % 3 === 0) {
             const accObj = getAccessoryById(pState.accessory);
             speechText = `呱呱～我头上的【${accObj.name}】还挂着晶莹小露珠呢，是不是超清凉帅气呀！🌿🐸`;
         }
+
+        soundEngine.speakAsPet(petMeta.id, {
+            zhText: speechText,
+            enText: enList[step % enList.length],
+            preferEnglish: step % 3 === 2,
+            withCry: true
+        });
 
         this.setHeroSpeech(speechText, 5800);
         this.triggerPetRigAnimation(move.anim);
@@ -1917,19 +2574,24 @@ class PetWonderTownApp {
             setTimeout(() => expTrack.classList.remove('exp-pulse'), 900);
         }
 
-        soundEngine.playEatSound(petMeta.id);
-        this.triggerPetRigAnimation('anim-eating');
-
         const fStep = this._feedStepIdx++;
         const feedLines = petMeta.feedLines?.length
             ? petMeta.feedLines
             : [`😋 啊呜一口吃掉${petMeta.foodName}，好美味呀！`];
-        this.setHeroSpeech(feedLines[fStep % feedLines.length], 6000);
+        const yummyLine = feedLines[fStep % feedLines.length];
+
+        soundEngine.playEatSound(petMeta.id, yummyLine);
+        this.triggerPetRigAnimation('anim-eating');
+        this.setHeroSpeech(yummyLine, 6000);
+
+        const expPillText = expGain > 0
+            ? `+${expGain} 成长值 ✨`
+            : `${petMeta.foodIcon || '🍓'} 饱饱解馋啦 ✨`;
 
         setTimeout(() => {
             this.spawnStageEmotes(
                 ['😋', '💖', petMeta.foodIcon || '✨'],
-                `+${expGain} 成长值 ✨`
+                expPillText
             );
             this.fx.spawnBurst(window.innerWidth * 0.36, window.innerHeight * 0.42, 24);
             if (levelUpEvent) {
@@ -2063,8 +2725,8 @@ class PetWonderTownApp {
                     soundEngine.playWrong();
                     return;
                 }
-                soundEngine.playPetVoice(petMeta.id);
                 const stageLine = petMeta.talkLines[targetStage - 1] || petMeta.talkLines[0];
+                soundEngine.speakAsPet(petMeta.id, { zhText: stageLine, withCry: true });
                 this.setHeroSpeech(`✨ 切换为 Lv.${targetStage}【${petMeta.stageTitles[targetStage - 1]}】样式：${stageLine}`, 5800);
                 this.closeModal('modalQuickPopup');
                 this.renderAll();
@@ -2082,11 +2744,17 @@ class PetWonderTownApp {
                     this.showQuickToast('💡 装扮兑换提示', res.msg);
                     return;
                 }
-                soundEngine.playPetVoice(petMeta.id);
+                let outfitLine = '';
                 if (accId.startsWith('lotus_') && (petMeta.id === 'frog' || petMeta.id === 'prince_frog')) {
-                    this.setHeroSpeech(`呱呱！戴上【${res.accMeta.name}】清清凉凉带露珠，简直为本蛙量身定做！🌿🐸`, 6000);
+                    outfitLine = `呱呱！戴上【${res.accMeta.name}】清清凉凉带露珠，简直为本蛙量身定做！🌿🐸`;
                 } else if (accId !== 'none') {
-                    this.setHeroSpeech(`${petMeta.voiceTag || petMeta.emoji} 哇！新戴上的【${res.accMeta.name}】好看吗？陪你继续闯关啰！✨`, 5500);
+                    outfitLine = `${petMeta.voiceTag || petMeta.emoji} 哇！新戴上的【${res.accMeta.name}】好看吗？陪你继续闯关啰！✨`;
+                }
+                if (outfitLine) {
+                    soundEngine.speakAsPet(petMeta.id, { zhText: outfitLine, withCry: true });
+                    this.setHeroSpeech(outfitLine, 6000);
+                } else {
+                    soundEngine.playPetVoice(petMeta.id);
                 }
                 this.closeModal('modalQuickPopup');
                 this.renderAll();
@@ -2352,6 +3020,7 @@ class PetWonderTownApp {
         document.getElementById('reportKidName').textContent = u.name;
 
         const masteredCount = Object.values(u.wordMastery || {}).filter(v => v >= 1).length;
+        const unlearnedCount = ALL_WORDS.length - masteredCount;
         document.getElementById('reportStatsStrip').innerHTML = `
             <div class="rep-stat-box"><strong>${u.stats?.totalMathCorrect || 0}</strong><span>数学答对总数</span></div>
             <div class="rep-stat-box"><strong>${u.stats?.totalEnglishCorrect || 0}</strong><span>英语闯关答对</span></div>
@@ -2359,28 +3028,89 @@ class PetWonderTownApp {
             <div class="rep-stat-box"><strong>🔥 x${u.stats?.bestCombo || 0}</strong><span>最高连对纪录</span></div>
         `;
 
+        const activeRepTab = document.querySelector('.rep-tab-btn.active')?.dataset.reptab || 'vocab';
+        const toolbar = document.getElementById('reportFilterToolbar');
+        if (toolbar) {
+            toolbar.style.display = activeRepTab === 'vocab' ? 'flex' : 'none';
+            toolbar.innerHTML = `
+                <div class="rep-filter-pills">
+                    <button type="button" class="rep-filter-pill ${this.reportVocabFilter === 'all' ? 'active' : ''}" data-vfilter="all">全部 ${ALL_WORDS.length}</button>
+                    <button type="button" class="rep-filter-pill ${this.reportVocabFilter === 'mastered' ? 'active' : ''}" data-vfilter="mastered">🌟 已点亮 ${masteredCount}</button>
+                    <button type="button" class="rep-filter-pill ${this.reportVocabFilter === 'unlearned' ? 'active' : ''}" data-vfilter="unlearned">🌱 未背 ${unlearnedCount}</button>
+                </div>
+                <button type="button" id="btnToggleReportSlowPhonics" class="rep-slow-toggle ${this.reportSlowPhonics ? 'active' : ''}">
+                    🐢 ${this.reportSlowPhonics ? '慢速拼读：已开启' : '慢速自然拼读'}
+                </button>
+            `;
+            toolbar.querySelectorAll('.rep-filter-pill').forEach(btn => {
+                btn.onclick = () => {
+                    soundEngine.playTap();
+                    this.reportVocabFilter = btn.dataset.vfilter;
+                    this.openReportModal();
+                };
+            });
+            const slowBtn = document.getElementById('btnToggleReportSlowPhonics');
+            if (slowBtn) {
+                slowBtn.onclick = () => {
+                    soundEngine.playTap();
+                    this.reportSlowPhonics = !this.reportSlowPhonics;
+                    this.openReportModal();
+                };
+            }
+        }
+
         const wall = document.getElementById('reportVocabWall');
         wall.innerHTML = '';
-        ALL_WORDS.forEach(w => {
+        const filteredWords = ALL_WORDS.filter(w => {
             const stars = u.wordMastery?.[w.id] || 0;
-            const starLabel = stars === 0 ? '🌱 未背' : (stars === 1 ? '⭐ 眼熟' : (stars === 2 ? '⭐⭐ 掌握' : '👑 牢记'));
-            const card = document.createElement('div');
-            card.className = `vocab-mini-card ${stars >= 2 ? 'mastered' : ''}`;
-            card.innerHTML = `
-                <div style="font-size:28px;">${w.icon}</div>
-                <strong style="font-size:15px; color:#2b2147;">${w.word}</strong>
-                <span style="font-size:12px; color:#6c628c;">${w.zh}</span>
-                <span style="font-size:11px; font-weight:800; color:#d97706;">${starLabel} 🔊</span>
-            `;
-            card.onclick = () => soundEngine.speakEnglish(w.word, false);
-            wall.appendChild(card);
+            if (this.reportVocabFilter === 'mastered') return stars >= 1;
+            if (this.reportVocabFilter === 'unlearned') return stars === 0;
+            return true;
         });
+
+        if (filteredWords.length === 0) {
+            wall.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:18px; color:#6c628c; font-weight:800;">${this.reportVocabFilter === 'mastered' ? '🌱 还没有点亮的单词哦，快去右侧背单词闯关点亮第一颗星吧！' : '👑 太牛啦！360个核心单词已经全部点亮！'}</div>`;
+        } else {
+            filteredWords.forEach(w => {
+                const stars = u.wordMastery?.[w.id] || 0;
+                const starLabel = stars === 0 ? '🌱 未背' : (stars === 1 ? '⭐ 眼熟' : (stars === 2 ? '⭐⭐ 掌握' : '👑 牢记'));
+                const card = document.createElement('div');
+                card.className = `vocab-mini-card ${stars >= 2 ? 'mastered' : ''}`;
+                const phonicsLine = this.reportSlowPhonics && w.phonics
+                    ? `<small style="font-size:10.5px; color:#7c5cfc; font-weight:800;">${w.phonics}</small>`
+                    : '';
+                card.innerHTML = `
+                    <div style="font-size:28px;">${w.icon}</div>
+                    <strong style="font-size:15px; color:#2b2147;">${w.word}</strong>
+                    ${phonicsLine}
+                    <span style="font-size:12px; color:#6c628c;">${w.zh}</span>
+                    <span style="font-size:11px; font-weight:800; color:#d97706;">${starLabel} ${this.reportSlowPhonics ? '🐢🔊' : '🔊'}</span>
+                `;
+                card.onclick = () => soundEngine.speakEnglish(w.word, this.reportSlowPhonics, w.phonics);
+                wall.appendChild(card);
+            });
+        }
 
         const mBox = document.getElementById('reportMistakesList');
         mBox.innerHTML = '';
-        if ((u.mathMistakes?.length || 0) === 0 && (u.englishMistakes?.length || 0) === 0) {
+        const mCount = u.mathMistakes?.length || 0;
+        const eCount = u.englishMistakes?.length || 0;
+        if (mCount === 0 && eCount === 0) {
             mBox.innerHTML = `<div class="record-row-item"><div class="rec-left-title">🎉 太优秀啦！当前没有任何遗留错题或生词！</div></div>`;
         } else {
+            const jumpBtn = document.createElement('button');
+            jumpBtn.type = 'button';
+            jumpBtn.id = 'btnJumpToReviewFromReport';
+            jumpBtn.className = 'btn-purple-wide';
+            jumpBtn.style.cssText = 'width:100%; margin-bottom:6px;';
+            jumpBtn.textContent = `⚡ 立即去右侧【双倍复习】攻克全部 ${mCount + eCount} 道错题（拿2倍🏅）`;
+            jumpBtn.onclick = () => {
+                soundEngine.playTap();
+                this.closeModal('modalReport');
+                this.switchSubjectTab('review', true, false);
+            };
+            mBox.appendChild(jumpBtn);
+
             (u.mathMistakes || []).forEach(m => {
                 const row = document.createElement('div');
                 row.className = 'record-row-item';
@@ -2396,14 +3126,15 @@ class PetWonderTownApp {
             (u.englishMistakes || []).forEach(e => {
                 const row = document.createElement('div');
                 row.className = 'record-row-item';
+                row.style.cursor = 'pointer';
                 row.innerHTML = `
                     <div>
-                        <div class="rec-left-title">🔤 ${e.icon} ${e.word} (${e.zh})</div>
-                        <div class="rec-left-meta">点击右侧【双倍复习】即可挑战清零</div>
+                        <div class="rec-left-title">🔤 ${e.icon} ${e.word} (${e.zh}) 🔊</div>
+                        <div class="rec-left-meta">点击朗读发音 · 去【双倍复习】即可挑战清零</div>
                     </div>
                     <span class="rec-delta-pill spend">待复习</span>
                 `;
-                row.onclick = () => soundEngine.speakEnglish(e.word, false);
+                row.onclick = () => soundEngine.speakEnglish(e.word, this.reportSlowPhonics);
                 mBox.appendChild(row);
             });
         }
@@ -2614,6 +3345,15 @@ class PetWonderTownApp {
                 if (res.levelUpEvent) this.celebrateLevelUp(res.levelUpEvent);
             }
         };
+
+        const btnFreeTreatLv5 = document.getElementById('btnFreeTreatLv5');
+        if (btnFreeTreatLv5) {
+            btnFreeTreatLv5.onclick = () => {
+                const u = profileManager.getActiveUser();
+                const petMeta = getPetById(u.activePetId);
+                this.triggerPetFeedSequence(petMeta, 0, null);
+            };
+        }
 
         document.getElementById('btnQuickChange').onclick = () => {
             soundEngine.playTap();
@@ -2915,6 +3655,8 @@ class PetWonderTownApp {
                 soundEngine.playTap();
                 const isVocab = btn.dataset.reptab === 'vocab';
                 document.querySelectorAll('.rep-tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+                const toolbar = document.getElementById('reportFilterToolbar');
+                if (toolbar) toolbar.style.display = isVocab ? 'flex' : 'none';
                 document.getElementById('reportVocabWall').style.display = isVocab ? 'grid' : 'none';
                 document.getElementById('reportMistakesList').style.display = isVocab ? 'none' : 'flex';
             };

@@ -11,9 +11,12 @@ class SharedSpeechHelper {
     constructor() {
         this.muted = false;
         this.enVoice = null;
+        this.enAltDeepVoice = null;
         this.zhVoice = null;
+        this.zhAltDeepVoice = null;
         this.warmedUp = false;
         this._slowTimer = null;
+        this._petTimer = null;
         this.initVoices();
         this._bindFirstGestureWarmup();
     }
@@ -37,13 +40,24 @@ class SharedSpeechHelper {
                 voices.find(v => v.lang && v.lang.toLowerCase().startsWith('en')) ||
                 null;
 
+            // 为青蛙、白虎、熊猫、王子蛙等帅气/浑厚角色挑选不同声线的男声/第二英语音色
+            this.enAltDeepVoice =
+                enCandidates.find(v => /Daniel|Aaron|Arthur|Alex|Guy|Christopher|Eric|Google UK English Male|Rishi/i.test(v.name)) ||
+                enCandidates.find(v => this.enVoice && v.name !== this.enVoice.name) ||
+                this.enVoice;
+
             const zhCandidates = voices.filter(v => v.lang && /^zh/i.test(v.lang));
             this.zhVoice =
                 zhCandidates.find(v => /Premium|Enhanced|Natural/i.test(v.name)) ||
-                zhCandidates.find(v => /Tingting|Ting-Ting|Yu-shu|Meijia|Google 普通话/i.test(v.name)) ||
+                zhCandidates.find(v => /Tingting|Ting-Ting|Yu-shu|Meijia|Xiaoxiao|Xiaoyi|Google 普通话/i.test(v.name)) ||
                 zhCandidates.find(v => /zh[-_]CN/i.test(v.lang)) ||
                 zhCandidates[0] ||
                 null;
+
+            this.zhAltDeepVoice =
+                zhCandidates.find(v => /Yunxi|Yunjian|Kangkang|Sin-ji|Li-mu|Yu-shu/i.test(v.name) && (!this.zhVoice || v.name !== this.zhVoice.name)) ||
+                zhCandidates.find(v => this.zhVoice && v.name !== this.zhVoice.name) ||
+                this.zhVoice;
         };
         load();
         if (window.speechSynthesis.onvoiceschanged !== undefined) {
@@ -163,6 +177,62 @@ class SharedSpeechHelper {
             utter.volume = 1.0;
             window.speechSynthesis.speak(utter);
         } catch (e) {}
+    }
+
+    cancelAllSpeech() {
+        if (this._slowTimer) {
+            clearTimeout(this._slowTimer);
+            this._slowTimer = null;
+        }
+        if (this._petTimer) {
+            clearTimeout(this._petTimer);
+            this._petTimer = null;
+        }
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            try { window.speechSynthesis.cancel(); } catch (e) {}
+        }
+    }
+
+    /**
+     * 萌宠角色专属变声朗读：支持不同宠物的音高(pitch)、语速(rate)、声线(preferAltVoice)与Emoji净化
+     */
+    speakPetCharacter(text, { lang = 'zh-CN', pitch = 1.1, rate = 1.0, preferAltVoice = false, delayMs = 0 } = {}) {
+        if (this.muted || !text) return;
+        if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+        this.cancelAllSpeech();
+
+        // 剥离 Emoji 图标、HTML 标签与装饰符，避免语音引擎生硬朗读“青蛙脸/闪光”
+        const cleanText = String(text)
+            .replace(/<[^>]+>/g, '')
+            .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]/gu, '')
+            .replace(/[✦✧★☆♪♫]/g, '')
+            .trim();
+        if (!cleanText) return;
+
+        const runSpeak = () => {
+            if (this.muted) return;
+            try {
+                if (!this.enVoice && !this.zhVoice) this.initVoices();
+                window.speechSynthesis.resume();
+                const utter = new SpeechSynthesisUtterance(cleanText);
+                const isZh = /^zh/i.test(lang);
+                utter.lang = isZh ? 'zh-CN' : 'en-US';
+                const chosenVoice = isZh
+                    ? (preferAltVoice ? (this.zhAltDeepVoice || this.zhVoice) : this.zhVoice)
+                    : (preferAltVoice ? (this.enAltDeepVoice || this.enVoice) : this.enVoice);
+                if (chosenVoice) utter.voice = chosenVoice;
+                utter.pitch = Math.max(0.2, Math.min(2.0, Number(pitch) || 1.0));
+                utter.rate = Math.max(0.55, Math.min(1.5, Number(rate) || 1.0));
+                utter.volume = 1.0;
+                window.speechSynthesis.speak(utter);
+            } catch (e) {}
+        };
+
+        if (delayMs > 0) {
+            this._petTimer = setTimeout(runSpeak, delayMs);
+        } else {
+            runSpeak();
+        }
     }
 }
 

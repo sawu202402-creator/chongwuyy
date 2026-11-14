@@ -1453,6 +1453,44 @@ export class UserProfileManager {
         this.save();
         return { checked: true, awarded, badgeGain };
     }
+
+    isTownPlotPatrolledToday(plotId, userObj = null) {
+        const u = userObj || this.getActiveUser();
+        if (!u || !plotId) return false;
+        const today = todayDateKey();
+        return u.townPatrolClaims?.[plotId] === today;
+    }
+
+    claimTownShopPatrol(plotId, shopTitle = '海滨店铺') {
+        const u = this.getActiveUser();
+        if (!u || !plotId) return { ok: false, msg: '地块无效' };
+        const placed = u.townPlacements?.[plotId];
+        if (!placed || placed.type !== 'shop') return { ok: false, msg: '该地块尚未开设店铺' };
+        if (!u.townPatrolClaims || typeof u.townPatrolClaims !== 'object') {
+            u.townPatrolClaims = {};
+        }
+        const today = todayDateKey();
+        if (u.townPatrolClaims[plotId] === today) {
+            return { ok: false, alreadyClaimed: true, msg: '今日已收取过这家店铺的营业星礼啦，明天再来巡店吧！' };
+        }
+        u.townPatrolClaims[plotId] = today;
+        const rewardRes = this.awardLearningProgress({
+            title: `🏪 小镇巡店收银【${shopTitle}】`,
+            subjectTag: '小镇巡店',
+            badges: 0,
+            stars: 2,
+            gotTicket: false,
+            combo: 1,
+            isMath: true
+        });
+        this.save();
+        return {
+            ok: true,
+            starsAdded: 2,
+            grantedBadges: rewardRes?.actualBadges || 0,
+            starProgress: rewardRes?.starProgress || 0
+        };
+    }
 }
 
 export const profileManager = new UserProfileManager();

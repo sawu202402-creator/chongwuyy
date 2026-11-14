@@ -463,18 +463,47 @@ button:active {
     gap: 6px;
 }
 
+.hero-primary-row {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+}
+
 .btn-primary-feed {
+    flex: 1;
+    min-width: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 7px;
-    padding: 9px 12px;
+    gap: 6px;
+    padding: 9px 10px;
     border-radius: 15px;
     background: linear-gradient(135deg, #ff9f2e, #ff6e1a);
     color: #fff;
-    font-size: 14.5px;
+    font-size: 13.8px;
     font-weight: 900;
+    white-space: nowrap;
     box-shadow: 0 4px 0 #d45508, 0 8px 18px rgba(255, 118, 26, 0.32);
+}
+
+.btn-free-treat-lv5 {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 8px 9px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #ff6b9d, #ec4899);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+    box-shadow: 0 4px 0 #be185d, 0 6px 14px rgba(236, 72, 153, 0.28);
+}
+
+.btn-free-treat-lv5:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #be185d;
 }
 
 .hero-sub-btns {
@@ -516,200 +545,135 @@ button:active {
 
 .speech-cloud {
     position: absolute;
-    top: 2px;
+    top: 3px;
     left: 4px;
     right: 178px;
     width: fit-content;
     max-width: calc(100% - 182px);
     margin: 0 auto;
-    background: rgba(255, 255, 255, 0.96);
-    border: 2px solid #dcd0ff;
-    padding: 5px 12px;
-    border-radius: 15px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(250, 247, 255, 0.96) 100%);
+    border: 1.8px solid color-mix(in srgb, var(--pet-aura, #9d7aff) 42%, #e2d8ff);
+    padding: 6px 14px;
+    border-radius: 16px;
     font-size: 12px;
     font-weight: 800;
-    line-height: 1.32;
-    color: #46337a;
-    box-shadow: 0 6px 16px rgba(100, 70, 180, 0.14);
+    line-height: 1.34;
+    color: #3f2d70;
+    box-shadow:
+        0 8px 20px rgba(96, 66, 178, 0.13),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95);
     white-space: normal;
     text-align: center;
     z-index: 8;
     transform-origin: center bottom;
 }
 
-.speech-cloud.speech-pop {
-    animation: speechBubblePop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
-    border-color: var(--pet-aura, #9d7aff);
-}
-
-/* ==================== Lv.1 ~ Lv.5 逐级进化底座与圣环羽翼 ==================== */
-.pet-stage-pedestal {
-    position: absolute;
-    bottom: 40px;
-    left: 50%;
-    transform: translateX(-50%);
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: 1;
-    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.pedestal-lv1 {
-    width: 162px;
-    height: 32px;
-    background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.92) 0%, rgba(232, 220, 255, 0.65) 70%, transparent 100%);
-    border: 2px dashed rgba(157, 122, 255, 0.42);
-}
-
-.pedestal-lv2 {
-    width: 204px;
-    height: 42px;
-    background: radial-gradient(ellipse at center, #ffffff 0%, color-mix(in srgb, var(--pet-aura) 28%, #ffffff) 64%, transparent 100%);
-    border: 2.5px solid color-mix(in srgb, var(--pet-aura) 55%, #ffffff);
-    box-shadow: 0 4px 16px color-mix(in srgb, var(--pet-aura) 30%, transparent);
-}
-
-.pedestal-lv2::after {
+.speech-cloud::after {
     content: '';
     position: absolute;
-    inset: -6px;
-    border-radius: 50%;
-    border: 2px solid color-mix(in srgb, var(--pet-aura) 40%, transparent);
-    animation: pedestalRipple 2.6s ease-out infinite;
+    bottom: -7px;
+    left: 50%;
+    width: 11px;
+    height: 11px;
+    background: #faf7ff;
+    border-right: 1.8px solid color-mix(in srgb, var(--pet-aura, #9d7aff) 42%, #e2d8ff);
+    border-bottom: 1.8px solid color-mix(in srgb, var(--pet-aura, #9d7aff) 42%, #e2d8ff);
+    transform: translateX(-50%) rotate(45deg);
+    border-bottom-right-radius: 3px;
 }
 
-.pedestal-lv3 {
-    width: 232px;
-    height: 48px;
-    background: radial-gradient(ellipse at center, #fffef5 0%, color-mix(in srgb, var(--pet-aura) 36%, #ffffff) 62%, transparent 100%);
-    border: 2.5px solid color-mix(in srgb, var(--pet-aura) 72%, #ffd166);
-    box-shadow: 0 0 22px color-mix(in srgb, var(--pet-aura) 38%, transparent);
+.speech-cloud.speech-pop {
+    animation: speechBubblePop 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border-color: color-mix(in srgb, var(--pet-aura, #9d7aff) 72%, #ffffff);
 }
 
-.pedestal-lv3::before {
-    content: '✦ ✧ ✦ ✧ ✦';
+/* ==================== Lv.1 ~ Lv.5 高精柔光底座与流光圣环羽翼（零生硬虚线） ==================== */
+.pet-stage-pedestal {
     position: absolute;
-    bottom: -3px;
+    bottom: 54px;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 11px;
-    letter-spacing: 8px;
-    color: var(--pet-aura);
-    font-weight: 900;
-    white-space: nowrap;
+    width: 316px;
+    height: 98px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 1;
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.35s ease;
 }
 
-.pedestal-lv4 {
-    width: 254px;
-    height: 54px;
-    background: radial-gradient(ellipse at center, #fffbeb 0%, color-mix(in srgb, var(--pet-aura) 42%, #fde68a) 68%, transparent 100%);
-    border: 3px double #f59e0b;
-    box-shadow: 0 0 28px rgba(245, 158, 11, 0.38), inset 0 0 14px rgba(255, 255, 255, 0.9);
+.stage-pedestal-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    filter: drop-shadow(0 6px 14px color-mix(in srgb, var(--pet-aura) 22%, transparent));
 }
 
-.pedestal-lv5 {
-    width: 276px;
-    height: 60px;
-    background:
-        radial-gradient(ellipse at center, #ffffff 0%, #fef08a 34%, color-mix(in srgb, var(--pet-aura) 48%, #f472b6) 72%, transparent 100%);
-    border: 3px solid #fbbf24;
-    box-shadow:
-        0 0 32px rgba(251, 191, 36, 0.52),
-        0 0 18px color-mix(in srgb, var(--pet-aura) 45%, transparent);
+.ped-ripple-wave {
+    transform-origin: 140px 47px;
+    animation: pedRipplePulse 3.4s ease-in-out infinite;
 }
 
-.pedestal-lv5::before {
-    content: '👑 ✦ 🌈 ✦ 👑';
-    position: absolute;
-    bottom: -4px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 11px;
-    letter-spacing: 5px;
-    white-space: nowrap;
-    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.18));
+.ped-ripple-wave.delay {
+    animation-delay: -1.7s;
 }
 
-/* 等级背光圣环与彩虹流光神翼 (Lv.1~Lv.5) */
+/* 等级背光柔雾、彗星光带与多层灵羽（纯矢量光晕，无任何粗糙边框） */
 .pet-stage-back-aura {
     position: absolute;
     top: 52%;
     left: 50%;
-    transform: translate(-50%, -52%);
+    transform: translate(-50%, -50%);
+    width: 344px;
+    height: 278px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     pointer-events: none;
     z-index: 2;
-    transition: all 0.4s ease;
 }
 
-.aura-lv1 {
-    width: 0;
-    height: 0;
-    opacity: 0;
+.stage-aura-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
 }
 
-.aura-lv2 {
-    width: 155px;
-    height: 155px;
-    border-radius: 50%;
-    background: radial-gradient(circle, color-mix(in srgb, var(--pet-aura) 22%, transparent) 0%, transparent 70%);
+.stage-aura-lv5-svg {
+    width: 364px;
+    height: 288px;
+    filter: drop-shadow(0 4px 16px rgba(251, 191, 36, 0.28));
 }
 
-.aura-lv3 {
-    width: 184px;
-    height: 184px;
-    border-radius: 50%;
-    border: 2px dashed color-mix(in srgb, var(--pet-aura) 52%, #fbbf24);
-    background: radial-gradient(circle, color-mix(in srgb, var(--pet-aura) 26%, #ffffff) 0%, transparent 72%);
-    animation: slowAuraSpin 16s linear infinite;
+.aura-orbit-slow {
+    transform-box: view-box;
+    transform-origin: center center;
+    animation: auraOrbitSpin 22s linear infinite;
 }
 
-.aura-lv4 {
-    width: 204px;
-    height: 204px;
-    border-radius: 50%;
-    border: 3px solid rgba(251, 191, 36, 0.72);
-    outline: 2px dashed color-mix(in srgb, var(--pet-aura) 65%, #ffffff);
-    outline-offset: 7px;
-    background: radial-gradient(circle, rgba(254, 243, 199, 0.65) 0%, color-mix(in srgb, var(--pet-aura) 26%, transparent) 62%, transparent 76%);
-    box-shadow: 0 0 26px rgba(251, 191, 36, 0.34);
-    animation: slowAuraSpin 14s linear infinite;
+.aura-bokeh-dot {
+    animation: bokehFloat 3.8s ease-in-out infinite;
+}
+.aura-bokeh-dot.b2 { animation-delay: -1.3s; }
+.aura-bokeh-dot.b3 { animation-delay: -2.5s; }
+
+.svg-star-twinkle {
+    transform-box: fill-box;
+    transform-origin: center center;
+    animation: svgStarTwinkle 2.4s ease-in-out infinite;
+}
+.svg-star-twinkle.s2 { animation-delay: -0.8s; }
+.svg-star-twinkle.s3 { animation-delay: -1.6s; }
+
+.fairy-wing-left {
+    transform-origin: 134px 152px;
+    animation: wingFlutterLeft 2.8s ease-in-out infinite;
 }
 
-.aura-lv5 {
-    width: 226px;
-    height: 226px;
-    border-radius: 50%;
-    background:
-        conic-gradient(from 0deg, rgba(255, 126, 179, 0.32), rgba(253, 224, 71, 0.36), rgba(52, 211, 153, 0.32), rgba(96, 165, 250, 0.32), rgba(192, 132, 252, 0.35), rgba(255, 126, 179, 0.32));
-    border: 3px solid rgba(255, 255, 255, 0.9);
-    box-shadow:
-        0 0 34px rgba(251, 191, 36, 0.45),
-        0 0 22px color-mix(in srgb, var(--pet-aura) 45%, transparent);
-    animation: slowAuraSpin 11s linear infinite;
-}
-
-.aura-lv5::before,
-.aura-lv5::after {
-    content: '';
-    position: absolute;
-    top: 26%;
-    width: 68px;
-    height: 98px;
-    background: linear-gradient(160deg, rgba(255, 255, 255, 0.92), rgba(254, 240, 138, 0.78), color-mix(in srgb, var(--pet-aura) 48%, #ffffff));
-    border: 2px solid rgba(255, 255, 255, 0.95);
-    box-shadow: 0 6px 16px rgba(251, 191, 36, 0.32);
-}
-
-.aura-lv5::before {
-    left: -34px;
-    border-radius: 80% 20% 70% 30% / 55% 35% 65% 45%;
-    transform: rotate(-24deg);
-}
-
-.aura-lv5::after {
-    right: -34px;
-    border-radius: 20% 80% 30% 70% / 35% 55% 45% 65%;
-    transform: rotate(24deg);
+.fairy-wing-right {
+    transform-origin: 226px 152px;
+    animation: wingFlutterRight 2.8s ease-in-out infinite;
 }
 
 /* 萌宠与装扮联动骨骼容器 */
@@ -735,46 +699,91 @@ button:active {
 
 .stage-prop-orb {
     position: absolute;
-    font-size: 24px;
-    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.16));
-    animation: propFloatOrbit 2.8s ease-in-out infinite;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    filter: drop-shadow(0 6px 12px color-mix(in srgb, var(--pet-aura) 30%, rgba(45, 25, 95, 0.14)));
+    animation: propFloatOrbit 3.2s ease-in-out infinite;
 }
 
 .stage-prop-orb.slot-0 {
-    left: -22px;
-    bottom: 26px;
+    left: -26px;
+    bottom: 34px;
     animation-delay: 0s;
 }
 
 .stage-prop-orb.slot-1 {
-    right: -22px;
-    top: 36px;
+    right: -26px;
+    top: 38px;
     animation-delay: -1.1s;
 }
 
 .stage-prop-orb.slot-2 {
-    left: -14px;
-    top: 14px;
-    font-size: 21px;
-    animation-delay: -1.9s;
+    left: -18px;
+    top: 18px;
+    transform: scale(0.9);
+    animation-delay: -2.1s;
+}
+
+.prop-mini-svg {
+    display: block;
+    overflow: visible;
+}
+
+/* 幻彩半透明3D精灵泡泡球（承载各宠伴生小道具） */
+.stage-prop-bubble {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(
+        circle at 32% 28%,
+        rgba(255, 255, 255, 0.96) 0%,
+        rgba(255, 255, 255, 0.58) 46%,
+        color-mix(in srgb, var(--pet-aura) 30%, rgba(255, 255, 255, 0.72)) 100%
+    );
+    border: 1.5px solid rgba(255, 255, 255, 0.92);
+    box-shadow:
+        inset 0 -3px 6px color-mix(in srgb, var(--pet-aura) 24%, transparent),
+        0 4px 12px color-mix(in srgb, var(--pet-aura) 26%, rgba(80, 50, 150, 0.12));
+}
+
+.stage-prop-bubble::before {
+    content: '';
+    position: absolute;
+    top: 5px;
+    left: 7px;
+    width: 9px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.92);
+    transform: rotate(-28deg);
+}
+
+.stage-prop-bubble .spb-icon {
+    font-size: 19px;
+    line-height: 1;
 }
 
 /* 头顶与荷叶特色装扮层（随角色同步运动！） */
 .pet-accessory-floating {
     position: absolute;
-    top: -2px;
+    top: -4px;
     left: 50%;
     transform: translateX(-50%);
     font-size: 36px;
     line-height: 1;
     z-index: 7;
-    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.20));
+    filter: drop-shadow(0 5px 8px rgba(15, 45, 35, 0.22));
     pointer-events: none;
 }
 
 .hero-diorama-center[data-pet="frog"] .pet-accessory-floating.acc-pos-head,
 .hero-diorama-center[data-pet="prince_frog"] .pet-accessory-floating.acc-pos-head {
-    top: 14px;
+    top: 11px;
 }
 
 .pet-accessory-floating.acc-pos-eyes {
@@ -783,17 +792,22 @@ button:active {
 }
 
 .pet-accessory-floating.acc-pos-umbrella {
-    top: 4px;
+    top: 2px;
     left: auto;
-    right: 2px;
+    right: 0px;
     transform: none;
     transform-origin: 28% 88%;
-    animation: umbrellaSway 3s ease-in-out infinite;
+    animation: umbrellaSway 3.2s ease-in-out infinite;
 }
 
 .lotus-svg-art {
     display: block;
     overflow: visible;
+}
+
+.lotus-hat-breathe {
+    transform-origin: center bottom;
+    animation: lotusHatMicroSway 3.4s ease-in-out infinite;
 }
 
 .hero-main-sprite {
@@ -868,13 +882,40 @@ button:active {
     animation: foodArcToMouth 0.44s cubic-bezier(0.22, 0.82, 0.36, 1) forwards;
 }
 
+.stage-magic-ripple {
+    position: absolute;
+    left: 50%;
+    top: 56%;
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%) scale(0.45);
+    background: radial-gradient(
+        circle,
+        transparent 52%,
+        color-mix(in srgb, var(--pet-aura, #9d7aff) 38%, rgba(255, 255, 255, 0.85)) 70%,
+        transparent 76%
+    );
+    animation: magicRippleOut 0.88s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 .floating-pet-emote {
     position: absolute;
     font-size: 22px;
     font-weight: 900;
     white-space: nowrap;
-    filter: drop-shadow(0 3px 6px rgba(80, 45, 150, 0.2));
-    animation: floatUpEmote 1.05s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    filter: drop-shadow(0 4px 8px rgba(80, 45, 150, 0.18));
+    animation: floatUpEmote 1.08s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.floating-pet-emote.emote-chip {
+    font-size: 12.5px;
+    color: #4b3286;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1.5px solid color-mix(in srgb, var(--pet-aura, #9d7aff) 45%, #ffffff);
+    padding: 3px 10px;
+    border-radius: 999px;
+    box-shadow: 0 5px 14px rgba(90, 58, 175, 0.16);
 }
 
 .floating-exp-pill {
@@ -3177,22 +3218,214 @@ button:active {
     100% { transform: scale(1) translateY(0); }
 }
 
-@keyframes pedestalRipple {
-    0%   { transform: scale(0.94); opacity: 0.75; }
-    100% { transform: scale(1.16); opacity: 0; }
+@keyframes pedRipplePulse {
+    0%, 100% { transform: scale(0.95); opacity: 0.55; }
+    50%      { transform: scale(1.05); opacity: 0.95; }
 }
 
-@keyframes slowAuraSpin {
-    from { transform: translate(-50%, -52%) rotate(0deg); }
-    to   { transform: translate(-50%, -52%) rotate(360deg); }
+@keyframes auraOrbitSpin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
+@keyframes bokehFloat {
+    0%, 100% { transform: translateY(0px) scale(0.92); opacity: 0.45; }
+    50%      { transform: translateY(-8px) scale(1.15); opacity: 0.88; }
+}
+
+@keyframes svgStarTwinkle {
+    0%, 100% { transform: scale(0.68) rotate(0deg); opacity: 0.42; }
+    50%      { transform: scale(1.18) rotate(12deg); opacity: 1; }
+}
+
+@keyframes wingFlutterLeft {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    50%      { transform: rotate(7deg) scale(1.04, 0.97); }
+}
+
+@keyframes wingFlutterRight {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    50%      { transform: rotate(-7deg) scale(1.04, 0.97); }
+}
+
+@keyframes lotusHatMicroSway {
+    0%, 100% { transform: rotate(-1.5deg) translateY(0); }
+    50%      { transform: rotate(2deg) translateY(-1.5px); }
+}
+
+@keyframes magicRippleOut {
+    0%   { transform: translate(-50%, -50%) scale(0.45); opacity: 0.92; }
+    100% { transform: translate(-50%, -50%) scale(1.65); opacity: 0; }
 }
 
 @keyframes propFloatOrbit {
-    0%, 100% { transform: translateY(0px) rotate(-5deg) scale(1); }
-    50%      { transform: translateY(-10px) rotate(6deg) scale(1.08); }
+    0%, 100% { transform: translateY(0px) rotate(-4deg) scale(1); }
+    50%      { transform: translateY(-9px) rotate(5deg) scale(1.06); }
 }
 
 @keyframes umbrellaSway {
-    0%, 100% { transform: rotate(8deg) translateY(0px); }
-    50%      { transform: rotate(15deg) translateY(-4px); }
+    0%, 100% { transform: rotate(7deg) translateY(0px); }
+    50%      { transform: rotate(13deg) translateY(-4px); }
+}
+
+/* ==================== 12大萌宠专属头顶/眼部 3D 装扮贴合微调 ==================== */
+.acc-svg-art {
+    display: block;
+    overflow: visible;
+}
+
+.hero-diorama-center[data-pet="rabbit"] .pet-accessory-floating.acc-pos-head,
+.hero-diorama-center[data-pet="astro_rabbit"] .pet-accessory-floating.acc-pos-head {
+    top: -10px;
+}
+
+.hero-diorama-center[data-pet="shiba"] .pet-accessory-floating.acc-pos-head,
+.hero-diorama-center[data-pet="tiger"] .pet-accessory-floating.acc-pos-head,
+.hero-diorama-center[data-pet="mecha_cat"] .pet-accessory-floating.acc-pos-head {
+    top: 2px;
+}
+
+.hero-diorama-center[data-pet="panda"] .pet-accessory-floating.acc-pos-head,
+.hero-diorama-center[data-pet="pixiu"] .pet-accessory-floating.acc-pos-head {
+    top: 4px;
+}
+
+.hero-diorama-center[data-pet="unicorn"] .pet-accessory-floating.acc-pos-head,
+.hero-diorama-center[data-pet="star_dragon"] .pet-accessory-floating.acc-pos-head {
+    top: -6px;
+}
+
+.hero-diorama-center[data-pet="succulent"] .pet-accessory-floating.acc-pos-head {
+    top: 8px;
+}
+
+.hero-diorama-center[data-pet="frog"] .pet-accessory-floating.acc-pos-eyes,
+.hero-diorama-center[data-pet="prince_frog"] .pet-accessory-floating.acc-pos-eyes {
+    top: 48px;
+}
+
+.hero-diorama-center[data-pet="rabbit"] .pet-accessory-floating.acc-pos-eyes,
+.hero-diorama-center[data-pet="astro_rabbit"] .pet-accessory-floating.acc-pos-eyes {
+    top: 52px;
+}
+
+.hero-diorama-center[data-pet="panda"] .pet-accessory-floating.acc-pos-eyes,
+.hero-diorama-center[data-pet="shiba"] .pet-accessory-floating.acc-pos-eyes,
+.hero-diorama-center[data-pet="tiger"] .pet-accessory-floating.acc-pos-eyes {
+    top: 46px;
+}
+
+.hero-diorama-center .pet-accessory-floating.acc-pos-chest {
+    top: auto;
+    bottom: 24px;
+}
+
+/* 选宠卡片右上角已佩戴装扮徽记 */
+.pet-card-acc-chip {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1.5px solid #e5d8ff;
+    box-shadow: 0 3px 8px rgba(96, 66, 178, 0.14);
+    display: grid;
+    place-items: center;
+    z-index: 3;
+}
+
+.pet-card-acc-chip svg {
+    width: 21px !important;
+    height: 21px !important;
+}
+
+/* 店铺模式店长欢跳迎宾与小镇每日巡店气泡 */
+.hero-manager-sub-sprite.shop-greet-jump {
+    animation: shopKeeperGreet 0.72s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes shopKeeperGreet {
+    0%   { transform: translateY(0) scale(1); }
+    35%  { transform: translateY(-16px) scale(1.12) rotate(-6deg); }
+    70%  { transform: translateY(-6px) scale(1.05) rotate(5deg); }
+    100% { transform: translateY(0) scale(1); }
+}
+
+.plot-patrol-bubble {
+    position: absolute;
+    top: -18px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #fef08a 0%, #f59e0b 100%);
+    color: #581c0c;
+    border: 2px solid #ffffff;
+    border-radius: 999px;
+    padding: 2px 9px;
+    font-size: 11px;
+    font-weight: 900;
+    white-space: nowrap;
+    box-shadow: 0 5px 12px rgba(245, 158, 11, 0.42);
+    z-index: 10;
+    animation: patrolCoinFloat 1.8s ease-in-out infinite;
+}
+
+@keyframes patrolCoinFloat {
+    0%, 100% { transform: translateX(-50%) translateY(0) scale(1); }
+    50%      { transform: translateX(-50%) translateY(-5px) scale(1.06); }
+}
+
+/* 单词星级收集册筛选条与慢速自然拼读开关 */
+.report-filter-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 8px 0 10px;
+    padding: 8px 12px;
+    background: #f6f2ff;
+    border: 1.5px solid #e3d8ff;
+    border-radius: 14px;
+}
+
+.rep-filter-pills {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.rep-filter-pill {
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    background: #ffffff;
+    color: #5b4d82;
+    border: 1.5px solid #dcd0fa;
+}
+
+.rep-filter-pill.active {
+    background: #7c5cfc;
+    color: #ffffff;
+    border-color: #7c5cfc;
+}
+
+.rep-slow-toggle {
+    padding: 5px 13px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 900;
+    background: #ffffff;
+    color: #0f766e;
+    border: 1.5px solid #99f6e4;
+}
+
+.rep-slow-toggle.active {
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    color: #ffffff;
+    border-color: #0d9488;
+    box-shadow: 0 4px 10px rgba(13, 148, 136, 0.25);
 }

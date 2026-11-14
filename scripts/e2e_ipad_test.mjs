@@ -346,9 +346,15 @@ async function main() {
         // Switch top tab to Math -> single-project 'clock_money'
         document.querySelector('.smart-mode-tab[data-topcat="math"]').click();
         document.querySelector('.smart-entry-pill[data-emode="clock_money"]').click();
+        const hudBottom = document.querySelector('.carrot-hud').getBoundingClientRect().bottom;
+        const mascotsRect = document.querySelector('.chalkboard-mascots').getBoundingClientRect();
+        const cardRect = document.querySelector('.chalkboard-card').getBoundingClientRect();
+        const noScrollCarrot = document.documentElement.scrollHeight <= window.innerHeight + 2;
         return {
             mathBoxes,
             enBoxes,
+            mascotsUnclipped: mascotsRect.top >= hudBottom - 1 && mascotsRect.top >= cardRect.top,
+            noScrollCarrot,
             goldBefore: window.gameEngine.gold,
             qKind: window.mathEngine.currentQuestion.kind,
             qAns: String(window.mathEngine.currentQuestion.answer)
@@ -357,6 +363,8 @@ async function main() {
     console.log('Carrot interactive math setup:', carrotSetupRes);
     assert.equal(carrotSetupRes.mathBoxes, 9);
     assert.equal(carrotSetupRes.enBoxes, 10);
+    assert.equal(carrotSetupRes.mascotsUnclipped, true, 'Carrot top bunny/frog mascots must NOT be clipped under header');
+    assert.equal(carrotSetupRes.noScrollCarrot, true, 'Carrot must maintain zero vertical overflow at 1180x820');
     assert.equal(carrotSetupRes.qKind, 'clock_money');
 
     // Solve the clock_money widget in Carrot and verify gold reward!
@@ -627,26 +635,131 @@ async function main() {
     await sleep(1100);
     await saveShot('pet_frog_lotus_hat.png');
 
-    // Open Wardrobe modal and verify 5 stage style cards & 3 frog lotus outfits!
+    // Open Wardrobe modal and verify 5 stage style cards, 3 frog lotus outfits, and ALL 9 non-none accessories rendered as 3D SVGs!
     const wardrobeCheck = await evalJs(`(() => {
         document.getElementById('btnOpenDressup').click();
         return {
             styleCardsInModal: document.querySelectorAll('#modalQuickPopup .stage-style-card').length,
-            frogSpecialCards: document.querySelectorAll('#modalQuickPopup .acc-pick-btn.frog-special').length
+            frogSpecialCards: document.querySelectorAll('#modalQuickPopup .acc-pick-btn.frog-special').length,
+            svgAccessoryCount: document.querySelectorAll('#modalQuickPopup .acc-preview-icon svg').length
         };
     })()`);
     assert.equal(wardrobeCheck.styleCardsInModal, 5, 'Wardrobe must display all 5 stage style cards');
     assert.equal(wardrobeCheck.frogSpecialCards, 3, 'Wardrobe must display 3 frog lotus leaf outfits');
+    assert.equal(wardrobeCheck.svgAccessoryCount, 9, 'All 9 non-none accessories must render custom 3D SVGs');
     await sleep(300);
     await saveShot('pet_wardrobe_styles_lotus.png');
 
     // Equip lotus_umbrella in modal and capture the live Lv.3 Frog with Lotus Umbrella + Feed Animation!
-    await evalJs(`(() => {
+    const auraNoDashedCheck = await evalJs(`(() => {
         document.querySelector('#modalQuickPopup .acc-pick-btn[data-acc="lotus_umbrella"]')?.click();
         document.getElementById('btnPrimaryNurture')?.click();
+        const auraStyle = getComputedStyle(document.getElementById('heroStageBackAura'));
+        const pedStyle = getComputedStyle(document.getElementById('heroStagePedestal'));
+        return {
+            auraBorderStyle: auraStyle.borderTopStyle,
+            pedBorderStyle: pedStyle.borderTopStyle,
+            hasAuraSvg: Boolean(document.querySelector('#heroStageBackAura svg.stage-aura-svg')),
+            hasPedSvg: Boolean(document.querySelector('#heroStagePedestal svg.stage-pedestal-svg'))
+        };
     })()`);
+    assert.notEqual(auraNoDashedCheck.auraBorderStyle, 'dashed', 'Aura must NEVER use ugly CSS dashed border');
+    assert.notEqual(auraNoDashedCheck.pedBorderStyle, 'dashed', 'Pedestal must NEVER use CSS dashed border');
+    assert.equal(auraNoDashedCheck.hasAuraSvg, true, 'Aura must render custom vector light SVG');
+    assert.equal(auraNoDashedCheck.hasPedSvg, true, 'Pedestal must render custom 3D perspective SVG');
     await sleep(260);
     await saveShot('pet_frog_lotus_and_stage.png');
+
+    // Also feed Frog to Lv.5 & equip lotus_crown to visually verify Lv.5 Fairy Wings + Cloud Throne + Lv.5 Free Treat + Distinct Pet Voices + Town Patrol!
+    const optVerifyRes = await evalJs(`(async () => {
+        const { profileManager } = await import('./js/profileManager.js');
+        const u = profileManager.getActiveUser();
+        u.badges = 200;
+        for (let i = 0; i < 25; i++) {
+            const r = profileManager.feedActivePet();
+            if (!r.ok) break;
+        }
+        profileManager.unlockOrEquipAccessory('lotus_crown');
+        window.__petTownApp.closeModal('modalQuickPopup');
+        window.__petTownApp.renderAll();
+
+        // Spy on speechSynthesis.speak to verify distinct voice pitch/rate per pet!
+        const spokenUtterances = [];
+        const origSpeak = window.speechSynthesis.speak.bind(window.speechSynthesis);
+        window.speechSynthesis.speak = (utt) => {
+            spokenUtterances.push({ text: utt.text, pitch: Number(utt.pitch.toFixed(2)), rate: Number(utt.rate.toFixed(2)), lang: utt.lang });
+        };
+
+        // 1) Tap Frog on stage -> wait 420ms for delayed speakPetCharacter
+        document.getElementById('heroDioramaStage').click();
+        await new Promise(r => setTimeout(r, 440));
+        const frogUtt = spokenUtterances[spokenUtterances.length - 1];
+
+        // 2) Switch to Rabbit -> tap Rabbit on stage -> wait 420ms
+        profileManager.selectOrUnlockPet('rabbit');
+        window.__petTownApp.renderAll();
+        document.getElementById('heroDioramaStage').click();
+        await new Promise(r => setTimeout(r, 440));
+        const rabbitUtt = spokenUtterances[spokenUtterances.length - 1];
+
+        // Restore Frog Lv.5 for screenshot & test #btnFreeTreatLv5!
+        profileManager.selectOrUnlockPet('frog');
+        window.__petTownApp.renderAll();
+        const freeTreatBtn = document.getElementById('btnFreeTreatLv5');
+        const freeTreatVisible = Boolean(freeTreatBtn && getComputedStyle(freeTreatBtn).display !== 'none');
+        const badgesBeforeFree = profileManager.getActiveUser().badges;
+        freeTreatBtn.click();
+        const eatingRig = document.getElementById('heroPetActorRig').classList.contains('anim-eating');
+        const badgesAfterFree = profileManager.getActiveUser().badges;
+
+        // 3) Test Town Map daily patrol bubble & +2⭐ claim!
+        profileManager.pairShopAndManager('sweetshop', 'frog', 'plot_2');
+        window.__petTownApp.switchWorldView('town');
+        const patrolBubblesBefore = document.querySelectorAll('#townPlotsLayer .plot-patrol-bubble').length;
+        document.querySelector('#townPlotsLayer .plot-patrol-bubble')?.closest('.town-plot-node')?.click();
+        window.__petTownApp.closeModal('modalQuickPopup');
+        const patrolledAfter = profileManager.isTownPlotPatrolledToday('plot_2');
+
+        // 4) Test Report Modal slow phonics toggle & filter pills!
+        profileManager.getActiveUser().stageMode = 'pet';
+        profileManager.save();
+        window.__petTownApp.switchWorldView('home');
+        document.getElementById('btnOpenReport').click();
+        const filterPills = document.querySelectorAll('#reportFilterToolbar .rep-filter-pill').length;
+        document.getElementById('btnToggleReportSlowPhonics')?.click();
+        const slowActive = document.getElementById('btnToggleReportSlowPhonics')?.classList.contains('active');
+        window.__petTownApp.closeModal('modalReport');
+
+        window.speechSynthesis.speak = origSpeak;
+        const noScrollFinal = document.documentElement.scrollHeight <= window.innerHeight + 2;
+
+        return {
+            frogUtt,
+            rabbitUtt,
+            freeTreatVisible,
+            eatingRig,
+            freeCostZero: badgesBeforeFree === badgesAfterFree,
+            patrolBubblesBefore,
+            patrolledAfter,
+            filterPills,
+            slowActive,
+            noScrollFinal
+        };
+    })()`);
+    console.log('Distinct Pet Voices, Lv.5 Free Treat, Town Patrol & Report Check:', optVerifyRes);
+    assert.ok(optVerifyRes.frogUtt && optVerifyRes.rabbitUtt, 'Both Frog and Rabbit taps must speak via character TTS');
+    assert.notEqual(optVerifyRes.frogUtt.pitch, optVerifyRes.rabbitUtt.pitch, 'Frog and Rabbit MUST have distinct TTS pitches');
+    assert.ok(optVerifyRes.frogUtt.pitch <= 0.78 && optVerifyRes.rabbitUtt.pitch >= 1.50, 'Frog pitch (~0.72) vs Rabbit pitch (~1.56) verified');
+    assert.equal(optVerifyRes.freeTreatVisible, true, 'Lv.5 pet must show 🍓 解馋喂 button');
+    assert.equal(optVerifyRes.eatingRig, true, 'Clicking 解馋喂 must play eating animation');
+    assert.equal(optVerifyRes.freeCostZero, true, 'Lv.5 解馋喂 must cost 0 badges');
+    assert.ok(optVerifyRes.patrolBubblesBefore >= 1, 'Built town shop must display 🪙 巡店领+2⭐ bubble');
+    assert.equal(optVerifyRes.patrolledAfter, true, 'Clicking town shop with patrol bubble must claim daily patrol bonus');
+    assert.equal(optVerifyRes.filterPills, 3, 'Report modal must render 3 mastery filter pills');
+    assert.equal(optVerifyRes.slowActive, true, 'Slow phonics toggle in Report modal must activate');
+    assert.equal(optVerifyRes.noScrollFinal, true, 'Pet Town final view must maintain zero overflow');
+    await sleep(900);
+    await saveShot('pet_lv5_fairy_wings.png');
 
     console.log('Console errors:', consoleErrors.length);
     console.log('Failed local network requests:', failedLocalUrls.length);

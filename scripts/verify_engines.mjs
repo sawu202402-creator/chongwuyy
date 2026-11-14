@@ -14,7 +14,7 @@ import {
     COURSE_SUB_MODES,
     ALL_COURSE_SUB_IDS
 } from '../shared/englishEngine.js';
-import { PETS_CATALOG, PET_STAGE_STYLES, PET_ACCESSORIES, SHOPS_CATALOG, TOWN_PLOTS } from '../pet/js/config.js';
+import { PETS_CATALOG, PET_STAGE_STYLES, PET_ACCESSORIES, PET_VOICE_PROFILES, getPetVoiceProfile, SHOPS_CATALOG, TOWN_PLOTS } from '../pet/js/config.js';
 import { UserProfileManager, isValidSmartMode } from '../shared/unifiedProfile.js';
 import { LEVEL_CONFIGS, STAGE_SUMMARIES, ensureStageConfigLoaded } from '../carrot/js/map.js';
 
@@ -480,5 +480,29 @@ const umbRes = pm.unlockOrEquipAccessory('lotus_umbrella');
 assert.equal(umbRes.ok, true);
 assert.equal(pm.getActiveUser().pets.frog.accessory, 'lotus_umbrella');
 
-console.log('   ✅ Unified UserProfileManager, Pet Persona Speech, 5-Stage Style Switcher & Frog Lotus Leaf Outfits verified!');
+// 7. Verify 12 Distinct Pet Voice Profiles & Town Shop Daily Patrol Bonus
+assert.equal(Object.keys(PET_VOICE_PROFILES).length, 12, 'Must define distinct voice profiles for all 12 pets');
+for (const pet of PETS_CATALOG) {
+    const vp = getPetVoiceProfile(pet.id);
+    assert.ok(vp.pitch >= 0.4 && vp.pitch <= 1.8, `Invalid pitch for ${pet.id}`);
+    assert.ok(vp.rate >= 0.7 && vp.rate <= 1.35, `Invalid rate for ${pet.id}`);
+}
+assert.ok(getPetVoiceProfile('tiger').pitch <= 0.52, 'Tiger must have deep bass voice');
+assert.ok(getPetVoiceProfile('frog').pitch <= 0.75, 'Frog must have resonant low-mid voice');
+assert.ok(getPetVoiceProfile('rabbit').pitch >= 1.50, 'Rabbit must have sweet high voice');
+assert.equal(getPetVoiceProfile('tiger').preferAltVoice, true);
+assert.equal(getPetVoiceProfile('frog').preferAltVoice, true);
+assert.equal(getPetVoiceProfile('rabbit').preferAltVoice, false);
+
+pm.setActiveUser(kid1.id);
+pm.pairShopAndManager('sweetshop', 'frog', 'plot_2');
+assert.equal(pm.isTownPlotPatrolledToday('plot_2'), false);
+const patrol1 = pm.claimTownShopPatrol('plot_2', '小青蛙的糖果甜品屋');
+assert.equal(patrol1.ok, true);
+assert.equal(patrol1.starsAdded, 2);
+assert.equal(pm.isTownPlotPatrolledToday('plot_2'), true);
+const patrolDup = pm.claimTownShopPatrol('plot_2', '小青蛙的糖果甜品屋');
+assert.equal(patrolDup.ok, false, 'Cannot claim town patrol bonus twice on the same plot in one day');
+
+console.log('   ✅ Unified UserProfileManager, 12 Pet Voice Profiles, Town Patrol Bonus, 5-Stage Style Switcher & Frog Lotus Leaf Outfits verified!');
 console.log('\n🎉 ALL ENGINE, VOCABULARY (360 WORDS), & PET EVOLUTION CHECKS PASSED!');

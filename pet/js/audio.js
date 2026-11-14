@@ -4,6 +4,7 @@
  */
 
 import { sharedSpeech } from '../../shared/audioTTS.js';
+import { getPetVoiceProfile } from './config.js';
 
 class SoundAndSpeechEngine {
     constructor() {
@@ -169,75 +170,158 @@ class SoundAndSpeechEngine {
         });
     }
 
-    // 不同宠物的专属特色叫声/互动音效 (Web Audio 纯合成)
+    // 不同宠物的专属高辨识度共振峰拟声 + 角色专属声线朗读
     playPetVoice(petId = 'rabbit') {
-        if (this.muted || !this.throttle('petVoice', 100)) return;
+        if (this.muted || !this.throttle('petVoice', 90)) return;
         if (!this.ensureContext()) return;
         const now = this.ctx.currentTime;
 
-        const playSweep = (type, fStart, fEnd, tOffset, dur, vol = 0.24) => {
+        const playSweep = (type, fStart, fEnd, tOffset, dur, vol = 0.36) => {
             const osc = this.ctx.createOscillator();
             const gain = this.ctx.createGain();
             osc.type = type;
-            osc.frequency.setValueAtTime(fStart, now + tOffset);
+            osc.frequency.setValueAtTime(Math.max(40, fStart), now + tOffset);
             osc.frequency.exponentialRampToValueAtTime(Math.max(40, fEnd), now + tOffset + dur);
-            gain.gain.setValueAtTime(vol, now + tOffset);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + tOffset + dur + 0.02);
+            gain.gain.setValueAtTime(0.001, now + tOffset);
+            gain.gain.linearRampToValueAtTime(vol, now + tOffset + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + tOffset + dur + 0.025);
             osc.connect(gain);
             gain.connect(this.ctx.destination);
             this._cleanup(osc, gain);
             osc.start(now + tOffset);
-            osc.stop(now + tOffset + dur + 0.03);
+            osc.stop(now + tOffset + dur + 0.035);
+        };
+
+        const playFormantCall = (type, fStart, fEnd, filterStart, filterEnd, qVal, tOffset, dur, vol = 0.42) => {
+            const osc = this.ctx.createOscillator();
+            const filter = this.ctx.createBiquadFilter();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(Math.max(40, fStart), now + tOffset);
+            osc.frequency.exponentialRampToValueAtTime(Math.max(40, fEnd), now + tOffset + dur);
+            filter.type = 'bandpass';
+            filter.Q.setValueAtTime(qVal, now + tOffset);
+            filter.frequency.setValueAtTime(filterStart, now + tOffset);
+            filter.frequency.exponentialRampToValueAtTime(filterEnd, now + tOffset + dur);
+            gain.gain.setValueAtTime(0.001, now + tOffset);
+            gain.gain.linearRampToValueAtTime(vol, now + tOffset + 0.018);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + tOffset + dur + 0.03);
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.onended = () => {
+                try { osc.disconnect(); filter.disconnect(); gain.disconnect(); } catch (e) {}
+            };
+            osc.start(now + tOffset);
+            osc.stop(now + tOffset + dur + 0.04);
         };
 
         if (petId === 'frog' || petId === 'prince_frog') {
-            // 呱呱～双连清脆蛙鸣
-            playSweep('triangle', 220, 460, 0, 0.085, 0.26);
-            playSweep('triangle', 250, 560, 0.12, 0.11, 0.28);
-            if (petId === 'prince_frog') playSweep('sine', 880, 1318, 0.24, 0.14, 0.18);
-        } else if (petId === 'rabbit' || petId === 'astro_rabbit') {
-            // 噗啾～Q弹蹦跳铃音
-            playSweep('sine', 480, 920, 0, 0.09, 0.25);
-            playSweep('sine', 660, 1180, 0.10, 0.12, 0.24);
-            if (petId === 'astro_rabbit') playSweep('triangle', 1320, 990, 0.22, 0.12, 0.16);
+            // 逼真鸣囊共振“呱～呱！”双蛙鸣 + 荷塘水珠清音
+            playFormantCall('sawtooth', 145, 225, 340, 960, 4.2, 0, 0.12, 0.48);
+            playFormantCall('sawtooth', 160, 265, 380, 1120, 4.5, 0.15, 0.14, 0.50);
+            playSweep('sine', 640, 1320, 0.28, 0.08, 0.24);
+            if (petId === 'prince_frog') {
+                [523.25, 659.25, 783.99].forEach((f, idx) => playSweep('triangle', f, f * 1.01, 0.24 + idx * 0.045, 0.14, 0.22));
+            }
+        } else if (petId === 'rabbit') {
+            // 软萌高音“噗啾啾～”三连兔鸣
+            playSweep('sine', 780, 1360, 0, 0.075, 0.36);
+            playSweep('sine', 960, 1620, 0.085, 0.085, 0.38);
+            playSweep('triangle', 1180, 1480, 0.18, 0.09, 0.26);
+        } else if (petId === 'astro_rabbit') {
+            // NASA 太空通讯“哔—嘟！”电波 + 太空兔啾啾音
+            playSweep('sine', 2475, 2475, 0, 0.065, 0.24);
+            playSweep('sine', 880, 1520, 0.08, 0.09, 0.34);
+            playSweep('triangle', 1320, 1980, 0.18, 0.11, 0.28);
         } else if (petId === 'shiba') {
-            // 汪汪～元气短促双吠
-            playSweep('triangle', 340, 620, 0, 0.075, 0.27);
-            playSweep('triangle', 390, 720, 0.11, 0.095, 0.27);
+            // 元气奶柴“汪！汪呜！”短促双吠
+            playFormantCall('sawtooth', 260, 520, 550, 1350, 3.2, 0, 0.09, 0.46);
+            playFormantCall('sawtooth', 300, 610, 620, 1500, 3.2, 0.12, 0.11, 0.48);
         } else if (petId === 'panda') {
-            // 呼噜～圆润竹木琴音
-            playSweep('sine', 330, 440, 0, 0.11, 0.26);
-            playSweep('sine', 440, 587, 0.12, 0.14, 0.25);
+            // 憨萌竹熊“嗯～呼噜”低柔撒娇音 + 清脆竹节声
+            playFormantCall('triangle', 210, 310, 360, 680, 3.0, 0, 0.15, 0.46);
+            playFormantCall('sine', 290, 230, 480, 360, 2.5, 0.14, 0.16, 0.42);
+            playSweep('triangle', 740, 520, 0.26, 0.05, 0.25);
         } else if (petId === 'tiger') {
-            // 嗷呜～霸气又软萌的小虎啸
-            playSweep('sawtooth', 190, 340, 0, 0.14, 0.16);
-            playSweep('triangle', 340, 220, 0.13, 0.16, 0.22);
+            // 小白虎王“嗷——呜！”浑厚虎啸 + 雷电火花
+            playFormantCall('sawtooth', 115, 250, 280, 820, 3.5, 0, 0.16, 0.48);
+            playFormantCall('sawtooth', 240, 135, 760, 320, 3.5, 0.15, 0.19, 0.46);
         } else if (petId === 'mecha_cat') {
-            // 滴嘟喵～赛博电子猫音
-            playSweep('square', 784, 1046, 0, 0.055, 0.12);
-            playSweep('square', 1046, 1318, 0.065, 0.055, 0.12);
-            playSweep('sine', 920, 620, 0.14, 0.16, 0.24);
-        } else if (petId === 'unicorn' || petId === 'star_dragon') {
-            // 叮铃/星吟～梦幻竖琴泛音琶音
-            [587.33, 783.99, 987.77, 1318.51].forEach((f, idx) => {
-                playSweep('sine', f, f * 1.03, idx * 0.055, 0.22, 0.20);
+            // 赛博电子音 + 逼真“喵～呜”共振峰猫叫
+            playSweep('square', 987.77, 1318.5, 0, 0.05, 0.16);
+            playFormantCall('sawtooth', 520, 880, 850, 1850, 4.0, 0.06, 0.12, 0.40);
+            playFormantCall('triangle', 860, 510, 1750, 820, 3.8, 0.17, 0.15, 0.38);
+        } else if (petId === 'unicorn') {
+            // 梦幻水晶竖琴滑音 + 仙驹轻鸣
+            [587.33, 739.99, 880, 1174.66, 1479.98].forEach((f, idx) => {
+                playSweep('sine', f, f * 1.02, idx * 0.045, 0.22, 0.26);
             });
+        } else if (petId === 'star_dragon') {
+            // 深空星海龙吟五度和弦 + 流星泛音
+            playSweep('triangle', 196, 293.66, 0, 0.28, 0.34);
+            playSweep('sine', 392, 587.33, 0.04, 0.28, 0.28);
+            playSweep('sine', 1174.66, 1760, 0.16, 0.20, 0.22);
         } else if (petId === 'succulent') {
-            // 沙沙滴答～晨露水珠清音
-            playSweep('sine', 620, 1240, 0, 0.08, 0.24);
-            playSweep('sine', 880, 1480, 0.11, 0.11, 0.20);
+            // 森林晨露水珠双连清脆叮咚
+            playSweep('sine', 540, 1320, 0, 0.085, 0.36);
+            playSweep('sine', 820, 1760, 0.10, 0.11, 0.32);
         } else if (petId === 'pixiu') {
-            // 叮当～招财金铃清脆双响
-            playSweep('triangle', 1046.5, 1567.98, 0, 0.14, 0.22);
-            playSweep('triangle', 1318.5, 1975.5, 0.11, 0.18, 0.20);
+            // 招财金铃喜庆三连脆响
+            [1046.5, 1318.5, 1567.98, 2093].forEach((f, idx) => {
+                playSweep('triangle', f, f * 1.01, idx * 0.055, 0.18, 0.28);
+            });
         } else {
             this.playFeed();
         }
     }
 
-    // 投喂美食专属“咔嚓嚼嚼 + 满足欢叫”音效
-    playEatSound(petId = 'rabbit') {
+    /**
+     * 先播放宠物专属拟声叫声，随后用该宠物的专属变声音高/语速/声线说出角色台词！
+     */
+    speakAsPet(petId = 'rabbit', { zhText = '', enText = '', preferEnglish = false, withCry = true } = {}) {
+        if (this.muted) return;
+        sharedSpeech.cancelAllSpeech();
+        if (withCry) {
+            this.playPetVoice(petId);
+        }
+        const profile = getPetVoiceProfile(petId);
+        const useEn = preferEnglish && Boolean(enText);
+        const text = useEn ? enText : (zhText || enText);
+        if (!text) return;
+        sharedSpeech.speakPetCharacter(text, {
+            lang: useEn ? 'en-US' : 'zh-CN',
+            pitch: profile.pitch,
+            rate: profile.rate,
+            preferAltVoice: profile.preferAltVoice,
+            delayMs: withCry ? 340 : 40
+        });
+    }
+
+    // 店铺收银/巡店金币叮当音效
+    playCoinChime() {
+        if (this.muted || !this.throttle('coin', 90)) return;
+        if (!this.ensureContext()) return;
+        const now = this.ctx.currentTime;
+        [987.77, 1318.51, 1975.53].forEach((f, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(f, now + idx * 0.065);
+            gain.gain.setValueAtTime(0.30, now + idx * 0.065);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.065 + 0.28);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            this._cleanup(osc, gain);
+            osc.start(now + idx * 0.065);
+            osc.stop(now + idx * 0.065 + 0.31);
+        });
+    }
+
+    // 投喂美食专属“咔嚓嚼嚼 + 满足欢叫 + 角色美味发言”音效
+    playEatSound(petId = 'rabbit', yummyLine = '') {
         if (this.muted || !this.throttle('eat', 120)) return;
+        sharedSpeech.cancelAllSpeech();
         if (!this.ensureContext()) return;
         const now = this.ctx.currentTime;
         // 三声Q弹咀嚼音 (nom-nom-nom)
@@ -248,7 +332,7 @@ class SoundAndSpeechEngine {
             const baseF = 260 + idx * 45;
             osc.frequency.setValueAtTime(baseF, now + t);
             osc.frequency.exponentialRampToValueAtTime(baseF * 1.65, now + t + 0.075);
-            gain.gain.setValueAtTime(0.24, now + t);
+            gain.gain.setValueAtTime(0.30, now + t);
             gain.gain.exponentialRampToValueAtTime(0.001, now + t + 0.085);
             osc.connect(gain);
             gain.connect(this.ctx.destination);
@@ -256,8 +340,18 @@ class SoundAndSpeechEngine {
             osc.start(now + t);
             osc.stop(now + t + 0.09);
         });
-        // 紧接宠物特色欢快叫声
-        setTimeout(() => this.playPetVoice(petId), 360);
+        // 紧接宠物特色欢快叫声 + 专属变声美味发言
+        setTimeout(() => this.playPetVoice(petId), 340);
+        if (yummyLine) {
+            const profile = getPetVoiceProfile(petId);
+            sharedSpeech.speakPetCharacter(yummyLine, {
+                lang: 'zh-CN',
+                pitch: profile.pitch,
+                rate: profile.rate,
+                preferAltVoice: profile.preferAltVoice,
+                delayMs: 680
+            });
+        }
     }
 
     // 升级 / 满级毕业 / 店铺建成华丽礼花凯歌

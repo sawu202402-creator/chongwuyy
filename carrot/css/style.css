@@ -546,16 +546,16 @@ canvas#battleCanvas {
 /* ================= 4. 右侧：保卫萝卜风【森林小黑板算术法阵】 ================= */
 .chalkboard-card {
     background: #34495e;
-    border: 7px solid #8d6e63;
+    border: 6px solid #8d6e63;
     border-radius: 24px;
     box-shadow: 
         0 6px 0 #5d4037,
         0 12px 26px rgba(0, 0, 0, 0.35),
         inset 0 0 25px rgba(0, 0, 0, 0.5);
-    padding: 10px 12px;
+    padding: 8px 11px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
     position: relative;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
@@ -581,27 +581,36 @@ canvas#battleCanvas {
     }
 }
 
-/* 小动物探头助教 */
+/* 小动物助教横幅（嵌入黑板顶部内侧，彻底告别顶部遮挡半截问题） */
 .chalkboard-mascots {
-    position: absolute;
-    top: -38px;
-    left: 16px;
-    right: 16px;
+    position: relative;
+    top: 0;
+    left: 0;
+    right: 0;
     display: flex;
+    align-items: center;
     justify-content: space-between;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 12px;
+    padding: 3px 8px;
     pointer-events: none;
 }
 
 .mascot-peep {
     display: flex;
-    align-items: flex-end;
-    gap: 5px;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
 }
 
 .mascot-emoji {
-    font-size: 32px;
-    filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.3));
+    font-size: 22px;
+    line-height: 1;
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
     animation: peepBounce 2s infinite alternate ease-in-out;
+    flex-shrink: 0;
 }
 
 .frog-peep .mascot-emoji {
@@ -610,20 +619,20 @@ canvas#battleCanvas {
 
 @keyframes peepBounce {
     from { transform: translateY(0); }
-    to { transform: translateY(-5px); }
+    to { transform: translateY(-3px); }
 }
 
 .mascot-talk {
     background: #fff;
-    border: 2px solid #4e342e;
-    border-radius: 14px;
-    padding: 2px 8px;
-    font-size: 11px;
+    border: 1.5px solid #4e342e;
+    border-radius: 12px;
+    padding: 1px 7px;
+    font-size: 10.5px;
     font-weight: 800;
     color: #2d3436;
     box-shadow: 0 2px 0 #4e342e;
     white-space: nowrap;
-    max-width: 112px;
+    max-width: 118px;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -1914,14 +1923,14 @@ canvas#battleCanvas {
     background: linear-gradient(180deg, #ffeaa7 0%, #fdcb6e 100%);
     border: 1px solid #d68910;
     border-radius: 6px;
-    padding: 2px 5px;
+    padding: 2px 6px;
     font-size: 10px;
     font-weight: 900;
     color: #783800;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 90px;
+    max-width: 155px;
     display: inline-block;
 }
 

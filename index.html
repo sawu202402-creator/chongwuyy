@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>奇趣数英游乐园 · 三合一儿童学习大厅 (iPad版)</title>
-    <meta name="description" content="小豌豆与川川的专属三合一数英游乐园！奇妙萌宠店长 + 保卫兔蛙塔防 + 植物大战僵尸，支持数英大随机与17种单项目直达、数学9大题型、英语8大题型与20主题360词洗牌防重！">
+    <meta name="description" content="小豌豆与川川的专属三合一数英游乐园！奇妙萌宠店长 + 保卫兔蛙塔防 + 植物大战僵尸，支持数英大随机与19种单项目直达、数学9大题型、英语10大题型与20主题360词洗牌防重！">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -16,8 +16,8 @@
     <meta name="theme-color" content="#7c5cfc">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/hub.css?v=20261114_mem_v2">
-    <link rel="stylesheet" href="shared/smartChalkboard.css?v=20261114_mem_v2">
+    <link rel="stylesheet" href="css/hub.css?v=20261114_opt_v1">
+    <link rel="stylesheet" href="shared/smartChalkboard.css?v=20261114_opt_v1">
 </head>
 <body>
     <div class="hub-app" id="hubApp">
@@ -122,7 +122,7 @@
                 <div class="card-hero-art">
                     <img src="pet/assets/town/town_bg.jpg" alt="海滨小镇" class="card-bg-cover" />
                     <span class="card-ribbon-tag">🐾 电子萌宠养成 · 小镇开店</span>
-                    <span class="card-new-upgrade-pill">🎲 大随机·17题型</span>
+                    <span class="card-new-upgrade-pill">🎲 大随机·19题型</span>
                     <div class="card-characters-cluster">
                         <img src="pet/assets/pets/rabbit.png" alt="垂耳兔" class="hero-char-img" />
                         <img src="pet/assets/shops/supermarket_lv5.png" alt="阳光超市" class="hero-char-img secondary" />
@@ -136,7 +136,7 @@
                         <div class="card-subjects-row">
                             <span class="subj-badge subj-calc">🎲 数英大随机</span>
                             <span class="subj-badge subj-word">🔢 9种数学互动</span>
-                            <span class="subj-badge subj-data">🔤 8种英语闯关</span>
+                            <span class="subj-badge subj-data">🔤 10种英语闯关</span>
                             <span class="subj-badge subj-en">📚 20主题360词</span>
                         </div>
                     </div>
@@ -362,11 +362,11 @@
         </div>
     </div>
 
-    <script type="module" src="js/hub.js?v=20261114_easy_v1"></script>
+    <script type="module" src="js/hub.js?v=20261114_opt_v1"></script>
     <script>
         if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js').catch(() => {});
+                navigator.serviceWorker.register('./sw.js?v=20261114_opt_v1').catch(() => {});
             });
         }
     </script>

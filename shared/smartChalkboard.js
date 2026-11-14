@@ -133,12 +133,34 @@ export class SmartChalkboard {
         this.cardEl.insertBefore(tabsWrap, this.bbInnerEl);
         this.tabsWrap = tabsWrap;
 
-        // 2B. 注入单行横向滚动【单项目直达胶囊条】
+        // 2B. 注入单行横向滚动【单项目直达胶囊条】（支持触控滑动与鼠标拖拽横滑）
         const subStrip = document.createElement('div');
         subStrip.className = 'smart-sub-entry-strip';
         subStrip.id = 'smartSubEntryStrip';
         this.cardEl.insertBefore(subStrip, this.bbInnerEl);
         this.subStripEl = subStrip;
+
+        let isDownStrip = false;
+        let startXStrip = 0;
+        let scrollLeftStrip = 0;
+        let draggedStrip = false;
+        subStrip.addEventListener('pointerdown', (ev) => {
+            if (ev.pointerType === 'touch') return;
+            isDownStrip = true;
+            draggedStrip = false;
+            startXStrip = ev.pageX - subStrip.offsetLeft;
+            scrollLeftStrip = subStrip.scrollLeft;
+        });
+        window.addEventListener('pointerup', () => { isDownStrip = false; });
+        subStrip.addEventListener('pointermove', (ev) => {
+            if (!isDownStrip) return;
+            const x = ev.pageX - subStrip.offsetLeft;
+            const walk = x - startXStrip;
+            if (Math.abs(walk) > 5) {
+                draggedStrip = true;
+                subStrip.scrollLeft = scrollLeftStrip - walk;
+            }
+        });
 
         tabsWrap.addEventListener('click', (e) => {
             const btn = e.target.closest('.smart-mode-tab');
@@ -152,6 +174,10 @@ export class SmartChalkboard {
         });
 
         subStrip.addEventListener('click', (e) => {
+            if (draggedStrip) {
+                draggedStrip = false;
+                return;
+            }
             const filterBtn = e.target.closest('[data-filter-modal]');
             if (filterBtn) {
                 this.onSoundResume();
@@ -200,8 +226,8 @@ export class SmartChalkboard {
 
         const latestLesson = COURSE_LESSONS[0];
         const courseLessonOptionsHtml = [
-            `<option value="latest">📚 最新: ${latestLesson ? `${latestLesson.code} (${latestLesson.dateLabel})` : 'S1U1W1'}</option>`,
-            ...(COURSE_LESSONS.length > 1 ? [`<option value="all_courses">🌟 全部已学课次 (${COURSE_LESSONS.length}课)</option>`] : []),
+            `<option value="latest">📚 ${latestLesson ? `${latestLesson.code} (${latestLesson.dateLabel})` : 'S1U1W1'}</option>`,
+            ...(COURSE_LESSONS.length > 1 ? [`<option value="all_courses">🌟 全部课次 (${COURSE_LESSONS.length}课)</option>`] : []),
             ...COURSE_LESSONS.map(l => `<option value="${l.id}">📖 ${l.code} · ${l.dateLabel}</option>`)
         ].join('');
 

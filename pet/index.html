@@ -14,8 +14,8 @@
     <meta name="apple-mobile-web-app-title" content="萌宠店长">
     <link rel="manifest" href="site.webmanifest">
     <meta name="theme-color" content="#7c5cfc">
-    <link rel="stylesheet" href="css/style.css?v=20261114_pet_v4">
-    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261114_pet_v3">
+    <link rel="stylesheet" href="css/style.css?v=20261114_opt_v1">
+    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261114_opt_v1">
 </head>
 <body>
     <!-- 全屏飞行徽章与彩虹礼花粒子画布 -->
@@ -97,10 +97,16 @@
                             <div class="hero-stage-style-bar" id="heroStageStyleBar" aria-label="切换等级形态样式"></div>
 
                             <div class="hero-actions-stack">
-                                <button class="btn-primary-feed" id="btnPrimaryNurture" type="button">
-                                    <span id="nurtureBtnIcon">🥕</span>
-                                    <span id="nurtureBtnText">投喂美食 (-5🏅)</span>
-                                </button>
+                                <div class="hero-primary-row">
+                                    <button class="btn-primary-feed" id="btnPrimaryNurture" type="button">
+                                        <span id="nurtureBtnIcon">🥕</span>
+                                        <span id="nurtureBtnText">投喂美食 (-5🏅)</span>
+                                    </button>
+                                    <button class="btn-free-treat-lv5" id="btnFreeTreatLv5" type="button" style="display:none;" title="满级毕业专属福利：免徽章随时投喂看吃东西动画！">
+                                        <span id="freeTreatIcon">🥕</span>
+                                        <span>解馋喂</span>
+                                    </button>
+                                </div>
                                 <div class="hero-sub-btns">
                                     <button class="btn-soft-action" id="btnQuickChange" type="button">⇄ 更换宠/店</button>
                                     <button class="btn-soft-action" id="btnOpenDressup" type="button">🎀 换装·样式</button>
@@ -522,7 +528,7 @@
                         <div class="s-label">选择适合宝贝的英语闯关难度预设：</div>
                         <div class="preset-cards-stack" id="engLevelCards"></div>
 
-                        <div class="s-label" style="margin-top:12px;">🎯 勾选启用上场的英语题型（共8种互动题型，可自由组合）：</div>
+                        <div class="s-label" style="margin-top:12px;">🎯 勾选启用上场的英语题型（共9种互动题型，可自由组合）：</div>
                         <div id="petEnTypesBox"></div>
 
                         <div class="s-label" style="margin-top:12px;">默认词库范围（支持全部360词洗牌防重或指定主题）：</div>
@@ -549,6 +555,7 @@
                     <button class="rep-tab-btn active" data-reptab="vocab" type="button">🔤 英语单词星级墙 (点读发音)</button>
                     <button class="rep-tab-btn" data-reptab="mistakes" type="button">📖 待攻克错题与生词</button>
                 </div>
+                <div id="reportFilterToolbar" class="report-filter-toolbar"></div>
                 <div id="reportVocabWall" class="vocab-wall-grid"></div>
                 <div id="reportMistakesList" class="mistakes-wall-list" style="display:none;"></div>
             </div>
@@ -566,6 +573,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=20261114_easy_v1"></script>
+    <script type="module" src="js/main.js?v=20261114_opt_v1"></script>
 </body>
 </html>

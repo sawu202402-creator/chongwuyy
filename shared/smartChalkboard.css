@@ -297,10 +297,10 @@
     color: #fff;
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 9px;
-    padding: 3px 5px;
+    padding: 3px 6px;
     font-size: 11px;
     font-weight: 800;
-    max-width: 112px;
+    max-width: 146px;
 }
 
 /* 单词学习卡 & 闯关题面 */
@@ -1855,6 +1855,17 @@
     background: linear-gradient(180deg, #fff3c4 0%, #ffe082 100%) !important;
     color: #6d3b00 !important;
     font-weight: 900;
+}
+
+.smart-sub-entry-strip {
+    cursor: grab;
+    -webkit-mask-image: linear-gradient(to right, #000 90%, rgba(0, 0, 0, 0.35) 100%);
+    mask-image: linear-gradient(to right, #000 90%, rgba(0, 0, 0, 0.35) 100%);
+    padding-right: 12px;
+}
+
+.smart-sub-entry-strip:active {
+    cursor: grabbing;
 }
 
 

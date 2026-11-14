@@ -38,7 +38,7 @@ import {
     renderCourseReadAloudBoard
 } from '../shared/questionWidgets.js';
 import { openRandomFilterModal } from '../shared/randomFilterModal.js';
-import { AVATAR_LIST, DAILY_BADGE_CAP_OPTIONS, getPetById } from '../pet/js/config.js';
+import { AVATAR_LIST, DAILY_BADGE_CAP_OPTIONS, getPetById, getAccessoryById } from '../pet/js/config.js';
 import { sharedSpeech } from '../shared/audioTTS.js';
 import { requireParentGate } from '../shared/parentGate.js';
 
@@ -64,6 +64,8 @@ class PortalHubApp {
         };
         this.activeReportTab = 'math';
         this.enReportPackFilter = 'all';
+        this.enReportMasteryFilter = 'all';
+        this.enReportSlowPhonics = false;
 
         // 错题重练消消乐状态
         this.practiceState = {
@@ -125,6 +127,39 @@ class PortalHubApp {
                 }
             });
         });
+
+        // 支持桌面/平板鼠标按住横向拖拽滚动出题入口条
+        const hubStrip = document.getElementById('hubSmartModeStrip');
+        if (hubStrip) {
+            let isDown = false;
+            let startX = 0;
+            let scrollLeft = 0;
+            let dragged = false;
+            hubStrip.addEventListener('pointerdown', (ev) => {
+                if (ev.pointerType === 'touch') return;
+                isDown = true;
+                dragged = false;
+                startX = ev.pageX - hubStrip.offsetLeft;
+                scrollLeft = hubStrip.scrollLeft;
+            });
+            window.addEventListener('pointerup', () => { isDown = false; });
+            hubStrip.addEventListener('pointermove', (ev) => {
+                if (!isDown) return;
+                const x = ev.pageX - hubStrip.offsetLeft;
+                const walk = x - startX;
+                if (Math.abs(walk) > 5) {
+                    dragged = true;
+                    hubStrip.scrollLeft = scrollLeft - walk;
+                }
+            });
+            hubStrip.addEventListener('click', (ev) => {
+                if (dragged) {
+                    ev.stopPropagation();
+                    ev.preventDefault();
+                    dragged = false;
+                }
+            }, true);
+        }
         document.getElementById('btnCloseHubSettings')?.addEventListener('click', () => {
             document.getElementById('hubSettingsModal')?.classList.remove('show');
         });
@@ -319,12 +354,19 @@ class PortalHubApp {
 
         // 3. 三张游戏卡的实时独立个性化进度
         const unlockedPetsCount = Object.values(active.pets || {}).filter(p => p.unlocked).length;
-        const activePetState = active.pets?.[active.activePetId] || { level: 1 };
+        const activePetState = active.pets?.[active.activePetId] || { level: 1, accessory: 'none' };
+        const effStage = profileManager.getEffectivePetStage
+            ? profileManager.getEffectivePetStage(active.activePetId, active)
+            : (activePetState.level || 1);
+        const stageTitle = petMeta.stageTitles?.[effStage - 1] || petMeta.name;
+        const accIcon = (activePetState.accessory && activePetState.accessory !== 'none')
+            ? ` ${getAccessoryById(activePetState.accessory).icon || '🎀'}`
+            : '';
         const statPetEl = document.getElementById('liveStatPet');
         if (statPetEl) {
             statPetEl.innerHTML = `
-                <span>🐾 已领养：${unlockedPetsCount} 只萌宠</span>
-                <span>❤️ ${petMeta.name} Lv.${activePetState.level}</span>
+                <span>🐾 已领养 ${unlockedPetsCount} 只</span>
+                <span>❤️ ${stageTitle}${accIcon} Lv.${activePetState.level}</span>
             `;
         }
 
@@ -1129,9 +1171,12 @@ class PortalHubApp {
                     ...WORD_PACKS.map(p => `<option value="${p.id}" ${this.enReportPackFilter === p.id ? 'selected' : ''}>${p.icon} ${p.name} (${p.words.length}词)</option>`)
                 ].join('');
                 toolbar.innerHTML = `
-                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
                         <select id="hubEnFilterSelect" class="hub-opt-pill" style="padding:5px 10px;">${packOpts}</select>
-                        <span style="font-size:12.5px;font-weight:800;color:#636e72;">已掌握(≥2⭐)：${u.stats?.totalWordsMastered || 0} / ${ALL_WORDS.length} 词</span>
+                        <button type="button" class="hub-opt-pill ${this.enReportMasteryFilter === 'all' ? 'selected' : ''}" data-mfilter="all">全部</button>
+                        <button type="button" class="hub-opt-pill ${this.enReportMasteryFilter === 'mastered' ? 'selected' : ''}" data-mfilter="mastered">🌟 已点亮</button>
+                        <button type="button" class="hub-opt-pill ${this.enReportMasteryFilter === 'unlearned' ? 'selected' : ''}" data-mfilter="unlearned">🌱 未背</button>
+                        <button type="button" class="hub-opt-pill ${this.enReportSlowPhonics ? 'selected' : ''}" id="btnHubSlowPhonicsToggle">🐢 ${this.enReportSlowPhonics ? '慢速拼读中' : '慢速自然拼读'}</button>
                     </div>
                     ${(mistakesList.length > 0 && !this.practiceState.active)
                         ? `<button type="button" class="hub-btn-start-practice" id="btnStartEnPrac">🎯 重练消灭生词 (${mistakesList.length}词)</button>`
@@ -1141,14 +1186,30 @@ class PortalHubApp {
                     this.enReportPackFilter = e.target.value;
                     this.renderReportList();
                 });
+                toolbar.querySelectorAll('[data-mfilter]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        this.enReportMasteryFilter = btn.getAttribute('data-mfilter') || 'all';
+                        this.renderReportList();
+                    });
+                });
+                toolbar.querySelector('#btnHubSlowPhonicsToggle')?.addEventListener('click', () => {
+                    this.enReportSlowPhonics = !this.enReportSlowPhonics;
+                    this.renderReportList();
+                });
                 toolbar.querySelector('#btnStartEnPrac')?.addEventListener('click', () => {
                     this.startMistakePractice('english');
                 });
             }
 
-            const basePool = this.enReportPackFilter === 'all'
+            const basePoolRaw = this.enReportPackFilter === 'all'
                 ? ALL_WORDS
                 : (WORD_PACKS.find(p => p.id === this.enReportPackFilter)?.words || ALL_WORDS);
+            const basePool = basePoolRaw.filter(w => {
+                const st = mastery[w.id] || 0;
+                if (this.enReportMasteryFilter === 'mastered') return st >= 1;
+                if (this.enReportMasteryFilter === 'unlearned') return st === 0;
+                return true;
+            });
 
             const sortedWords = [...basePool].sort((a, b) => {
                 const aErr = mistakesIds.has(a.id) ? 1 : 0;
@@ -1161,23 +1222,26 @@ class PortalHubApp {
                 const stars = mastery[w.id] || 0;
                 const isMistake = mistakesIds.has(w.id);
                 const starStr = '⭐'.repeat(stars) + '☆'.repeat(Math.max(0, 3 - stars));
+                const phonicsBadge = (this.enReportSlowPhonics && w.phonics)
+                    ? `<span style="background:#eef2ff;color:#5f3dc4;padding:1px 6px;border-radius:6px;font-size:11.5px;font-weight:900;">${w.phonics}</span>`
+                    : '';
                 const row = document.createElement('div');
                 row.className = 'hub-list-item';
                 row.innerHTML = `
                     <div style="display:flex; align-items:center; gap:10px;">
                         <span style="font-size:24px;">${w.icon}</span>
                         <div>
-                            <div><strong>${w.word}</strong> <span style="color:#888;font-size:12px;">${w.ipa || ''}</span> <span style="color:#636e72;">${w.zh}</span> ${isMistake ? '<span style="color:#d63031;font-size:11px;">(待强化)</span>' : ''}</div>
+                            <div><strong>${w.word}</strong> ${phonicsBadge} <span style="color:#888;font-size:12px;">${w.ipa || ''}</span> <span style="color:#636e72;">${w.zh}</span> ${isMistake ? '<span style="color:#d63031;font-size:11px;">(待强化)</span>' : ''}</div>
                             <div style="font-size:11.5px; color:#888;">${w.sentence}（${w.sentenceZh}）</div>
                         </div>
                     </div>
                     <div style="display:flex; align-items:center; gap:8px;">
                         <span>${starStr}</span>
-                        <button type="button" class="hub-opt-pill" data-speak="${w.word}">🔊 朗读</button>
+                        <button type="button" class="hub-opt-pill" data-speak="${w.word}">${this.enReportSlowPhonics ? '🐢 慢读' : '🔊 朗读'}</button>
                     </div>
                 `;
                 row.querySelector('[data-speak]')?.addEventListener('click', () => {
-                    sharedSpeech.speakEnglish(w.word, false);
+                    sharedSpeech.speakEnglish(w.word, this.enReportSlowPhonics, w.phonics);
                 });
                 box.appendChild(row);
             });
