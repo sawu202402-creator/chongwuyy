@@ -5,11 +5,13 @@
 import {
     AVATAR_LIST,
     PET_CATEGORIES,
+    PET_STAGE_STYLES,
     PETS_CATALOG,
     SHOPS_CATALOG,
     PET_ACCESSORIES,
     PET_LEVEL_MAX_EXP,
     FEED_BADGE_COST,
+    FEED_EXP_GAIN,
     SHOP_LEVEL_MAX_EXP,
     SHOP_UPGRADE_BADGE_COST,
     GACHA_BADGE_COST,
@@ -18,7 +20,9 @@ import {
     TOWN_PLOTS,
     TOWN_DECORS,
     getPetById,
-    getShopById
+    getShopById,
+    getAccessoryById,
+    getStageStyleMeta
 } from './config.js';
 import { soundEngine } from './audio.js';
 import { mathEngine, MathEngine, MATH_QUESTION_TYPES, ALL_MATH_TYPE_IDS } from './mathEngine.js';
@@ -49,6 +53,72 @@ import {
 } from '../../shared/questionWidgets.js';
 import { openRandomFilterModal } from '../../shared/randomFilterModal.js';
 import { requireParentGate } from '../../shared/parentGate.js';
+
+// ==================== 立体荷叶系列与萌宠头饰 SVG/视觉渲染器 ====================
+function getAccessoryPositionClass(accId) {
+    if (accId === 'lotus_umbrella') return 'acc-pos-umbrella';
+    if (accId === 'sunglasses') return 'acc-pos-eyes';
+    return 'acc-pos-head';
+}
+
+function renderAccessoryVisualHtml(accId, compact = false) {
+    if (!accId || accId === 'none') return '';
+    if (accId === 'lotus_hat') {
+        const w = compact ? 42 : 76;
+        const h = compact ? 26 : 46;
+        return `
+            <svg class="lotus-svg-art" width="${w}" height="${h}" viewBox="0 0 88 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="lhGrad" x1="12" y1="8" x2="76" y2="44" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#6EE7B7"/>
+                        <stop offset="48%" stop-color="#10B981"/>
+                        <stop offset="100%" stop-color="#047857"/>
+                    </linearGradient>
+                </defs>
+                <path d="M43 13 C44 5, 51 3, 54 7" stroke="#059669" stroke-width="3.2" stroke-linecap="round"/>
+                <path d="M8 35 C12 16, 30 11, 44 12 C58 11, 76 16, 80 35 C72 41, 61 36, 54 40 C47 43, 41 43, 34 40 C27 36, 16 41, 8 35 Z" fill="url(#lhGrad)" stroke="#ECFDF5" stroke-width="2"/>
+                <path d="M44 15 L44 39 M44 18 L24 34 M44 18 L64 34 M44 22 L14 33 M44 22 L74 33" stroke="#A7F3D0" stroke-width="1.5" stroke-linecap="round" opacity="0.82"/>
+                <ellipse cx="27" cy="27" rx="4.2" ry="2.8" fill="#E0F2FE" opacity="0.95"/>
+                <circle cx="25.8" cy="26" r="1.2" fill="#FFFFFF"/>
+                <circle cx="60" cy="29" r="2.6" fill="#E0F2FE" opacity="0.92"/>
+            </svg>`;
+    }
+    if (accId === 'lotus_umbrella') {
+        const w = compact ? 40 : 78;
+        const h = compact ? 40 : 78;
+        return `
+            <svg class="lotus-svg-art" width="${w}" height="${h}" viewBox="0 0 86 86" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="luLeaf" x1="10" y1="8" x2="76" y2="42" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#86EFAC"/>
+                        <stop offset="55%" stop-color="#10B981"/>
+                        <stop offset="100%" stop-color="#065F46"/>
+                    </linearGradient>
+                </defs>
+                <path d="M44 28 L35 72 C34 78, 26 78, 25 72" stroke="#059669" stroke-width="4" stroke-linecap="round"/>
+                <path d="M10 31 C16 13, 32 9, 46 11 C61 13, 75 21, 78 36 C69 40, 60 35, 51 38 C43 40, 35 37, 26 38 C18 39, 13 35, 10 31 Z" fill="url(#luLeaf)" stroke="#ECFDF5" stroke-width="2"/>
+                <path d="M45 14 L43 36 M45 16 L24 32 M45 16 L65 34" stroke="#BBF7D0" stroke-width="1.5" stroke-linecap="round"/>
+                <path d="M46 4 C42 9, 43 13, 46 14 C49 13, 50 9, 46 4 Z" fill="#F472B6" stroke="#FDF2F8" stroke-width="1.2"/>
+                <circle cx="16" cy="40" r="2.5" fill="#7DD3FC"/>
+                <circle cx="72" cy="43" r="2.2" fill="#BAE6FD"/>
+            </svg>`;
+    }
+    if (accId === 'lotus_crown') {
+        const w = compact ? 42 : 74;
+        const h = compact ? 28 : 48;
+        return `
+            <svg class="lotus-svg-art" width="${w}" height="${h}" viewBox="0 0 84 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="26" cy="36" rx="18" ry="8" transform="rotate(-12 26 36)" fill="#10B981" stroke="#D1FAE5" stroke-width="1.6"/>
+                <ellipse cx="58" cy="36" rx="18" ry="8" transform="rotate(12 58 36)" fill="#10B981" stroke="#D1FAE5" stroke-width="1.6"/>
+                <path d="M42 10 C35 19, 34 30, 42 36 C50 30, 49 19, 42 10 Z" fill="#F472B6" stroke="#FFF1F2" stroke-width="1.6"/>
+                <path d="M30 16 C28 25, 33 33, 41 36 C38 28, 36 20, 30 16 Z" fill="#FBCFE8" stroke="#FFF1F2" stroke-width="1.4"/>
+                <path d="M54 16 C56 25, 51 33, 43 36 C46 28, 48 20, 54 16 Z" fill="#FBCFE8" stroke="#FFF1F2" stroke-width="1.4"/>
+                <circle cx="42" cy="29" r="3.4" fill="#FBBF24"/>
+            </svg>`;
+    }
+    const accObj = getAccessoryById(accId);
+    return accObj ? `<span>${accObj.icon}</span>` : '';
+}
 
 // ==================== 全屏高帧率飞行徽章与礼花粒子引擎 ====================
 class CelebrationFX {
@@ -197,6 +267,12 @@ class PetWonderTownApp {
         this.activeWordPackId = 'all';       // 默认开启全部20主题·360词洗牌防重
         this.activeCourseLessonId = 'latest';
         this.quizLocked = false;
+
+        // 萌宠个性发言与互动动画轮播状态
+        this._interactStepIdx = 0;
+        this._feedStepIdx = 0;
+        this._cheerStepIdx = 0;
+        this._activeSpeechOverride = null;
 
         // 个人档案弹窗临时编辑状态
         this.editingUserId = null;
@@ -476,12 +552,34 @@ class PetWonderTownApp {
         document.getElementById('footerDiffSummary').textContent = `${mSum} ｜ ${eSum}`;
     }
 
+    setHeroSpeech(text, durationMs = 5200) {
+        const u = profileManager.getActiveUser();
+        const petId = u.stageMode === 'shop'
+            ? (u.shops[u.activeShopId]?.managerPetId || u.activePetId)
+            : u.activePetId;
+        this._activeSpeechOverride = {
+            text,
+            petId,
+            mode: u.stageMode,
+            expiresAt: Date.now() + durationMs
+        };
+        const bubble = document.getElementById('heroSpeechBubble');
+        if (bubble) {
+            bubble.textContent = text;
+            bubble.classList.remove('speech-pop');
+            void bubble.offsetWidth;
+            bubble.classList.add('speech-pop');
+        }
+    }
+
     updateComboHud(combo) {
         const pill = document.getElementById('hudComboPill');
         const valEl = document.getElementById('hudComboVal');
         const leftMascot = document.getElementById('mascotLeftIcon');
         const rightMascot = document.getElementById('mascotRightIcon');
         const talkEl = document.getElementById('mascotTalkText');
+        const u = profileManager.getActiveUser();
+        const activePet = getPetById(u?.activePetId || 'rabbit');
 
         if (combo >= 2) {
             pill.style.display = 'inline-flex';
@@ -491,16 +589,16 @@ class PetWonderTownApp {
         }
 
         if (combo >= 5) {
-            leftMascot.textContent = '👑';
-            rightMascot.textContent = '🚀';
-            talkEl.textContent = `🔥 ${combo}连对超神！额外奖励徽章与盲盒好运！`;
+            leftMascot.textContent = activePet.emoji;
+            rightMascot.textContent = '👑';
+            talkEl.textContent = `🔥 ${activePet.voiceTag || activePet.emoji} ${combo}连对超神！${activePet.name}为你摇旗呐喊！`;
         } else if (combo >= 3) {
-            leftMascot.textContent = '😎';
-            rightMascot.textContent = '🐸';
-            talkEl.textContent = `⚡ ${combo}连对狂热！兔兔戴墨镜为你加成徽章！`;
+            leftMascot.textContent = activePet.emoji;
+            rightMascot.textContent = '✨';
+            talkEl.textContent = `⚡ ${activePet.voiceTag || activePet.emoji} ${combo}连对狂热！${activePet.name}送你徽章加成！`;
         } else {
-            leftMascot.textContent = '🐰';
-            rightMascot.textContent = '🐸';
+            leftMascot.textContent = activePet.emoji;
+            rightMascot.textContent = activePet.id === 'frog' ? '🐰' : '🐸';
         }
     }
 
@@ -520,32 +618,106 @@ class PetWonderTownApp {
         document.getElementById('btnHeroModePet').classList.toggle('active', !isShopMode);
         document.getElementById('btnHeroModeShop').classList.toggle('active', isShopMode);
 
+        const heroCard = document.querySelector('.hero-stage-card');
+        const stageCenter = document.getElementById('heroDioramaStage');
+        const pedestalEl = document.getElementById('heroStagePedestal');
+        const auraEl = document.getElementById('heroStageBackAura');
+        const propsLayer = document.getElementById('heroStagePropsLayer');
+        const styleBarEl = document.getElementById('heroStageStyleBar');
         const mainSprite = document.getElementById('heroMainSprite');
         const subSprite = document.getElementById('heroManagerSubSprite');
         const accEl = document.getElementById('heroAccessoryBadge');
         const nurtureBtnIcon = document.getElementById('nurtureBtnIcon');
         const nurtureBtnText = document.getElementById('nurtureBtnText');
+        const leftMascot = document.getElementById('mascotLeftIcon');
 
         if (!isShopMode) {
             const petMeta = getPetById(u.activePetId);
-            const pState = u.pets[u.activePetId] || { level: 1, exp: 0, accessory: 'none' };
+            const pState = u.pets[u.activePetId] || { level: 1, exp: 0, accessory: 'none', displayStage: null };
+            const effectiveStage = profileManager.getEffectivePetStage(u.activePetId, u);
+            const stageStyle = getStageStyleMeta(effectiveStage);
             const maxExp = PET_LEVEL_MAX_EXP[pState.level] || 45;
             const pct = pState.level >= 5 ? 100 : Math.min(100, Math.max(6, Math.round((pState.exp / maxExp) * 100)));
 
+            if (leftMascot) leftMascot.textContent = petMeta.emoji;
+            if (heroCard) {
+                heroCard.style.setProperty('--pet-aura', petMeta.auraColor || '#9d7aff');
+                heroCard.style.setProperty('--pet-aura-sec', petMeta.auraSecondary || '#ff7eb3');
+            }
+            if (stageCenter) {
+                stageCenter.dataset.stage = String(effectiveStage);
+                stageCenter.dataset.pet = petMeta.id;
+                stageCenter.style.setProperty('--pet-stage-scale', String(stageStyle.scale));
+            }
+            if (pedestalEl) {
+                pedestalEl.style.display = 'block';
+                pedestalEl.className = `pet-stage-pedestal ${stageStyle.pedestalClass}`;
+            }
+            if (auraEl) {
+                auraEl.style.display = 'block';
+                auraEl.className = `pet-stage-back-aura ${stageStyle.auraClass}`;
+            }
+            if (propsLayer) {
+                propsLayer.style.display = 'block';
+                const propsArr = (petMeta.stageProps || []).slice(0, stageStyle.propCount);
+                propsLayer.innerHTML = propsArr
+                    .map((ic, idx) => `<span class="stage-prop-orb slot-${idx}">${ic}</span>`)
+                    .join('');
+            }
+
             document.getElementById('heroTitle').textContent = petMeta.name;
-            document.getElementById('heroStageSubtitle').textContent =
-                pState.level >= 5 ? `🎓 已毕业 · ${petMeta.stageTitles[4]}` : petMeta.stageTitles[pState.level - 1];
+            const stageTitle = petMeta.stageTitles[effectiveStage - 1] || petMeta.stageTitles[0];
+            if (effectiveStage !== pState.level) {
+                document.getElementById('heroStageSubtitle').textContent = `✨ ${stageTitle} (展示Lv.${effectiveStage}样式)`;
+            } else {
+                document.getElementById('heroStageSubtitle').textContent =
+                    pState.level >= 5 ? `🎓 已毕业 · ${petMeta.stageTitles[4]}` : stageTitle;
+            }
             document.getElementById('heroLvBadge').textContent = `Lv.${pState.level}`;
             document.getElementById('heroExpNums').textContent = pState.level >= 5 ? 'MAX 满级毕业' : `${pState.exp} / ${maxExp}`;
             document.getElementById('heroExpFill').style.width = `${pct}%`;
+
+            // 渲染历代等级外观样式快捷切换条 (1~5级)
+            if (styleBarEl) {
+                styleBarEl.style.display = 'flex';
+                styleBarEl.innerHTML = `<span class="stage-style-label">样式</span>`;
+                for (let s = 1; s <= 5; s++) {
+                    const unlocked = s <= pState.level;
+                    const isActive = effectiveStage === s;
+                    const chip = document.createElement('button');
+                    chip.type = 'button';
+                    chip.className = `stage-style-chip ${isActive ? 'active' : ''} ${unlocked ? '' : 'locked'}`;
+                    chip.dataset.stagepick = String(s);
+                    chip.title = unlocked
+                        ? `点击切换为 Lv.${s} 样式：${petMeta.stageTitles[s - 1]}`
+                        : `升至 Lv.${s} 解锁【${petMeta.stageTitles[s - 1]}】样式`;
+                    chip.textContent = unlocked ? `Lv.${s}` : `${s}🔒`;
+                    chip.onclick = () => {
+                        if (!unlocked) {
+                            soundEngine.playTap();
+                            this.setHeroSpeech(`${petMeta.voiceTag || petMeta.emoji} 再喂我升级到 Lv.${s}，就能解锁【${petMeta.stageTitles[s - 1]}】新样式啦！✨`, 4500);
+                            return;
+                        }
+                        profileManager.setPetDisplayStage(petMeta.id, s);
+                        soundEngine.playPetVoice(petMeta.id);
+                        const stageLine = petMeta.talkLines[s - 1] || petMeta.talkLines[0];
+                        this.setHeroSpeech(`✨ 已切换 Lv.${s}【${petMeta.stageTitles[s - 1]}】样式：${stageLine}`, 5500);
+                        this.renderHeroHomeView();
+                        this.triggerPetRigAnimation('anim-stage-transform');
+                        this.spawnStageEmotes(['✨', petMeta.stageProps?.[0] || '🌟']);
+                    };
+                    styleBarEl.appendChild(chip);
+                }
+            }
 
             mainSprite.src = petMeta.img;
             subSprite.style.display = 'none';
 
             if (pState.accessory && pState.accessory !== 'none') {
-                const accObj = PET_ACCESSORIES.find(a => a.id === pState.accessory);
-                accEl.textContent = accObj ? accObj.icon : '';
-                accEl.style.display = accObj ? 'block' : 'none';
+                const visualHtml = renderAccessoryVisualHtml(pState.accessory, false);
+                accEl.className = `pet-accessory-floating ${getAccessoryPositionClass(pState.accessory)}`;
+                accEl.innerHTML = visualHtml;
+                accEl.style.display = visualHtml ? 'block' : 'none';
             } else {
                 accEl.style.display = 'none';
             }
@@ -558,15 +730,31 @@ class PetWonderTownApp {
                 nurtureBtnText.textContent = `喂${petMeta.foodName.slice(0, 4)} (-${FEED_BADGE_COST}🏅)`;
             }
 
-            const line = petMeta.talkLines[pState.level % petMeta.talkLines.length] || petMeta.talkLines[0];
-            document.getElementById('heroSpeechBubble').textContent = line;
+            const ov = this._activeSpeechOverride;
+            if (ov && ov.petId === petMeta.id && ov.mode === 'pet' && Date.now() < ov.expiresAt) {
+                document.getElementById('heroSpeechBubble').textContent = ov.text;
+            } else {
+                const line = petMeta.talkLines[effectiveStage - 1] || petMeta.talkLines[0];
+                document.getElementById('heroSpeechBubble').textContent = line;
+            }
         } else {
-            // 店铺经营展示模式 (对标参考图3: "垂耳兔的超市 Lv.5")
+            // 店铺经营展示模式
             const shopMeta = getShopById(u.activeShopId);
             const sState = u.shops[u.activeShopId] || { level: 1, exp: 0, managerPetId: u.activePetId };
             const mgrPet = getPetById(sState.managerPetId || u.activePetId);
             const maxExp = SHOP_LEVEL_MAX_EXP[sState.level] || 45;
             const pct = sState.level >= 5 ? 100 : Math.min(100, Math.max(6, Math.round((sState.exp / maxExp) * 100)));
+
+            if (leftMascot) leftMascot.textContent = mgrPet.emoji;
+            if (stageCenter) {
+                stageCenter.dataset.stage = '1';
+                stageCenter.dataset.pet = mgrPet.id;
+                stageCenter.style.setProperty('--pet-stage-scale', '1');
+            }
+            if (pedestalEl) pedestalEl.style.display = 'none';
+            if (auraEl) auraEl.style.display = 'none';
+            if (propsLayer) propsLayer.style.display = 'none';
+            if (styleBarEl) styleBarEl.style.display = 'none';
 
             document.getElementById('heroTitle').textContent = `${mgrPet.name}的${shopMeta.name}`;
             document.getElementById('heroStageSubtitle').textContent =
@@ -587,7 +775,14 @@ class PetWonderTownApp {
                 nurtureBtnIcon.textContent = '🏗️';
                 nurtureBtnText.textContent = `进货扩建 (-${SHOP_UPGRADE_BADGE_COST}🏅)`;
             }
-            document.getElementById('heroSpeechBubble').textContent = `${mgrPet.emoji} 欢迎光临${mgrPet.name}的${shopMeta.name}！答题越多生意越红火！`;
+            const ov = this._activeSpeechOverride;
+            if (ov && ov.petId === mgrPet.id && ov.mode === 'shop' && Date.now() < ov.expiresAt) {
+                document.getElementById('heroSpeechBubble').textContent = ov.text;
+            } else {
+                const shopLine = mgrPet.shopLines?.[sState.level % (mgrPet.shopLines.length || 1)] ||
+                    `${mgrPet.emoji} 欢迎光临${mgrPet.name}的${shopMeta.name}！答题越多生意越红火！`;
+                document.getElementById('heroSpeechBubble').textContent = shopLine;
+            }
         }
 
         const builtCount = Object.keys(u.townPlacements || {}).length;
@@ -725,10 +920,14 @@ class PetWonderTownApp {
                     soundEngine.playLevelUp();
                     this.fx.spawnBurst(window.innerWidth * 0.35, window.innerHeight * 0.45, 35);
                 } else {
-                    soundEngine.playFeed();
+                    soundEngine.playPetVoice(pet.id);
                 }
+                const effSt = profileManager.getEffectivePetStage(pet.id);
+                this.setHeroSpeech(pet.talkLines[effSt - 1] || pet.talkLines[0], 5500);
                 this.renderAll();
                 this.switchWorldView('home');
+                this.triggerPetRigAnimation('anim-joy-spin');
+                this.spawnStageEmotes([pet.emoji, '💖', pet.stageProps?.[0] || '✨']);
             };
             grid.appendChild(card);
         });
@@ -1133,7 +1332,7 @@ class PetWonderTownApp {
                 fb.textContent = `⭐ 答对集星！学习星 ${award.starProgress}/3（再集 ${3 - award.starProgress} 星合成 1 枚🏅）！`;
             }
 
-            this.triggerPetHappyReaction();
+            this.triggerPetAnswerReaction(true, res.combo);
             this.renderAll();
 
             if (award.reachedCapNow) {
@@ -1144,6 +1343,7 @@ class PetWonderTownApp {
             soundEngine.playWrong();
             profileManager.recordMathMistake(res.question, res.userAns);
             this.updateReviewCountBadge();
+            this.triggerPetAnswerReaction(false, 0);
             fb.textContent = `💪 差一点点（正确答案是 ${res.expected}），${res.question.visualTip || '下一题加油！'}`;
             return false;
         }
@@ -1445,7 +1645,7 @@ class PetWonderTownApp {
                 fb.textContent = `⭐ Awesome! ${displayKeyText} · 学习星 ${award.starProgress}/3！`;
             }
 
-            this.triggerPetHappyReaction();
+            this.triggerPetAnswerReaction(true, res.combo);
             this.renderAll();
 
             if (award.reachedCapNow) this.celebrateDailyCapReached(award.dailyCap);
@@ -1466,6 +1666,7 @@ class PetWonderTownApp {
                 }
             }
             this.updateReviewCountBadge();
+            this.triggerPetAnswerReaction(false, 0);
             fb.textContent = `💡 正确答案：${displayKeyText}，${retryNote}`;
             setTimeout(() => this.advanceEnglishStep(), 1800);
         }
@@ -1584,28 +1785,180 @@ class PetWonderTownApp {
         }
     }
 
-    // ==================== 辅助庆典、换装与交互反馈 ====================
+    // ==================== 辅助庆典、换装与多态互动/喂食动画系统 ====================
+    triggerPetRigAnimation(animClass = 'anim-cheer-jump') {
+        const rig = document.getElementById('heroPetActorRig');
+        const allClasses = [
+            'anim-pat-squash',
+            'anim-joy-spin',
+            'anim-tickle-wiggle',
+            'anim-highfive-leap',
+            'anim-eating',
+            'anim-cheer-jump',
+            'anim-comfort-nod',
+            'anim-stage-transform'
+        ];
+        if (rig) {
+            rig.classList.remove(...allClasses);
+            void rig.offsetWidth;
+            rig.classList.add(animClass);
+            if (this._rigAnimTimer) clearTimeout(this._rigAnimTimer);
+            this._rigAnimTimer = setTimeout(() => {
+                rig.classList.remove(animClass);
+            }, 1220);
+        }
+    }
+
+    spawnStageEmotes(emotes = ['💕', '✨'], expText = '') {
+        const fxLayer = document.getElementById('heroAnimFxLayer');
+        if (!fxLayer) return;
+        emotes.forEach((em, idx) => {
+            const span = document.createElement('span');
+            span.className = 'floating-pet-emote';
+            span.textContent = em;
+            const leftPct = 36 + idx * 14 + (Math.random() - 0.5) * 10;
+            const topPct = 32 + (idx % 2) * 10;
+            span.style.left = `${leftPct}%`;
+            span.style.top = `${topPct}%`;
+            span.style.animationDelay = `${idx * 0.08}s`;
+            fxLayer.appendChild(span);
+            setTimeout(() => span.remove(), 1250);
+        });
+        if (expText) {
+            const pill = document.createElement('div');
+            pill.className = 'floating-exp-pill';
+            pill.textContent = expText;
+            fxLayer.appendChild(pill);
+            setTimeout(() => pill.remove(), 1350);
+        }
+    }
+
     triggerPetHappyReaction() {
-        const sp = document.getElementById('heroMainSprite');
-        if (!sp) return;
-        sp.classList.remove('happy-bounce');
-        void sp.offsetWidth;
-        sp.classList.add('happy-bounce');
+        this.triggerPetRigAnimation('anim-cheer-jump');
+    }
+
+    triggerPetAnswerReaction(isCorrect, combo = 0) {
+        const u = profileManager.getActiveUser();
+        const petMeta = getPetById(
+            u.stageMode === 'shop' ? (u.shops[u.activeShopId]?.managerPetId || u.activePetId) : u.activePetId
+        );
+        const talkEl = document.getElementById('mascotTalkText');
+        this._cheerStepIdx = (this._cheerStepIdx || 0) + 1;
+
+        if (isCorrect) {
+            const lines = petMeta.cheerRightLines?.length ? petMeta.cheerRightLines : petMeta.talkLines;
+            const line = lines[this._cheerStepIdx % lines.length];
+            this.setHeroSpeech(line, 4600);
+            if (talkEl && combo < 3) {
+                talkEl.textContent = line;
+            }
+            this.triggerPetRigAnimation('anim-cheer-jump');
+            this.spawnStageEmotes([petMeta.emoji, '👏', petMeta.stageProps?.[0] || '✨']);
+        } else {
+            const lines = petMeta.cheerWrongLines?.length ? petMeta.cheerWrongLines : ['没关系～看清提示下一题加油！💪'];
+            const line = lines[this._cheerStepIdx % lines.length];
+            this.setHeroSpeech(line, 4800);
+            if (talkEl) {
+                talkEl.textContent = line;
+            }
+            this.triggerPetRigAnimation('anim-comfort-nod');
+            this.spawnStageEmotes(['💪', '🍀']);
+        }
+    }
+
+    triggerPetInteractSequence(e) {
+        const u = profileManager.getActiveUser();
+        const petId = u.stageMode === 'shop' ? (u.shops[u.activeShopId]?.managerPetId || u.activePetId) : u.activePetId;
+        const petMeta = getPetById(petId);
+        const pState = u.pets?.[petId] || {};
+
+        const moves = [
+            { anim: 'anim-pat-squash', tag: '💕 摸摸头~' },
+            { anim: 'anim-joy-spin', tag: '🎵 好开心!' },
+            { anim: 'anim-tickle-wiggle', tag: '😆 嘻嘻好痒~' },
+            { anim: 'anim-highfive-leap', tag: '🙌 击掌冲鸭!' }
+        ];
+        const step = this._interactStepIdx++;
+        const move = moves[step % moves.length];
+
+        soundEngine.playPetVoice(petMeta.id);
+        const enList = petMeta.enInteractPhrases?.length ? petMeta.enInteractPhrases : [petMeta.enGreeting];
+        soundEngine.speakEnglish(enList[step % enList.length], false);
+
+        const zhList = petMeta.interactLines?.length ? petMeta.interactLines : petMeta.talkLines;
+        let speechText = zhList[step % zhList.length];
+        if ((petMeta.id === 'frog' || petMeta.id === 'prince_frog') && String(pState.accessory || '').startsWith('lotus_') && step % 3 === 0) {
+            const accObj = getAccessoryById(pState.accessory);
+            speechText = `呱呱～我头上的【${accObj.name}】还挂着晶莹小露珠呢，是不是超清凉帅气呀！🌿🐸`;
+        }
+
+        this.setHeroSpeech(speechText, 5800);
+        this.triggerPetRigAnimation(move.anim);
+        const themeEmotes = (petMeta.id === 'frog' || petMeta.id === 'prince_frog')
+            ? [move.tag, '🪷', '💧']
+            : [move.tag, '💖', petMeta.stageProps?.[0] || '✨'];
+        this.spawnStageEmotes(themeEmotes);
+        this.fx.spawnBurst(e?.clientX || window.innerWidth * 0.35, e?.clientY || window.innerHeight * 0.4, 16);
+    }
+
+    triggerPetFeedSequence(petMeta, expGain, levelUpEvent) {
+        const fxLayer = document.getElementById('heroAnimFxLayer');
+        if (fxLayer) {
+            const foodEl = document.createElement('div');
+            foodEl.className = 'flying-food-item';
+            foodEl.textContent = petMeta.foodIcon || '🥕';
+            fxLayer.appendChild(foodEl);
+            setTimeout(() => foodEl.remove(), 520);
+        }
+
+        const expTrack = document.getElementById('heroExpTrack');
+        if (expTrack) {
+            expTrack.classList.add('exp-pulse');
+            setTimeout(() => expTrack.classList.remove('exp-pulse'), 900);
+        }
+
+        soundEngine.playEatSound(petMeta.id);
+        this.triggerPetRigAnimation('anim-eating');
+
+        const fStep = this._feedStepIdx++;
+        const feedLines = petMeta.feedLines?.length
+            ? petMeta.feedLines
+            : [`😋 啊呜一口吃掉${petMeta.foodName}，好美味呀！`];
+        this.setHeroSpeech(feedLines[fStep % feedLines.length], 6000);
+
+        setTimeout(() => {
+            this.spawnStageEmotes(
+                ['😋', '💖', petMeta.foodIcon || '✨'],
+                `+${expGain} 成长值 ✨`
+            );
+            this.fx.spawnBurst(window.innerWidth * 0.36, window.innerHeight * 0.42, 24);
+            if (levelUpEvent) {
+                this.triggerPetRigAnimation('anim-stage-transform');
+                this.celebrateLevelUp(levelUpEvent);
+            }
+        }, 360);
     }
 
     celebrateLevelUp(ev) {
         soundEngine.playLevelUp();
         this.fx.spawnBurst(window.innerWidth * 0.35, window.innerHeight * 0.42, 50);
         if (ev.type === 'pet') {
+            const stageDesc = ev.petMeta.stageDescs?.[ev.newLevel - 1] || getStageStyleMeta(ev.newLevel).summary;
+            const stageTalk = ev.petMeta.talkLines?.[ev.newLevel - 1] || '';
             const gradMsg = ev.newlyGraduated
-                ? `<br/><strong style="color:#e67e22;">🎓 恭喜满级毕业！已颁发毕业证书并获赠 1 张 🎟️ 盲盒券，现在可以去【配对开店】当大老板啦！</strong>`
+                ? `<div style="margin-top:6px; color:#e67e22; font-weight:900;">🎓 恭喜满级毕业！已颁发毕业证书并获赠 1 张 🎟️ 盲盒券，现在可以去【配对开店】当大老板啦！</div>`
                 : '';
             this.showQuickModal(
-                '🎉 萌宠升级啦！',
-                `<div style="text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;">
-                    <img src="${ev.petMeta.img}" style="width:130px; height:130px; object-fit:contain;" />
+                '🎉 萌宠升级 · 解锁新形态样式！',
+                `<div style="text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px;">
+                    <img src="${ev.petMeta.img}" style="width:124px; height:124px; object-fit:contain; filter:drop-shadow(0 8px 18px ${ev.petMeta.auraColor || '#9d7aff'});" />
                     <div style="font-size:18px; font-weight:900; color:#4f359b;">【${ev.petMeta.name}】升到了 Lv.${ev.newLevel}！</div>
-                    <p style="font-size:13px; color:#5e547d;">称号进阶：${ev.petMeta.stageTitles[ev.newLevel - 1]}${gradMsg}</p>
+                    <div style="background:#f4eeff; border:1.5px solid #d8c8ff; border-radius:12px; padding:6px 12px; font-size:12.5px; color:#4b368c; font-weight:800;">
+                        ✨ 解锁新样式：【${ev.petMeta.stageTitles[ev.newLevel - 1]}】（${stageDesc}）
+                    </div>
+                    ${stageTalk ? `<div style="font-size:12.5px; color:#5e547d;">💬 “${stageTalk}”</div>` : ''}
+                    <div style="font-size:11.5px; color:#7c6f9f;">💡 提示：在主页左侧【样式】栏或【🎀 换装·样式】中，可随时自由切回任意已解锁的历代等级样式哦！</div>
+                    ${gradMsg}
                 </div>`
             );
         } else {
@@ -1641,29 +1994,104 @@ class PetWonderTownApp {
 
     openDressupModal() {
         const u = profileManager.getActiveUser();
-        const curAcc = u.pets[u.activePetId]?.accessory || 'none';
-        let html = `<p style="font-size:13px; color:#655b88;">为你的萌宠佩戴可爱头饰（新头饰可通过【🎁 惊喜盲盒】抽取哦）：</p>`;
-        html += `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">`;
-        PET_ACCESSORIES.forEach(acc => {
-            const owned = u.ownedAccessories.includes(acc.id);
-            const active = curAcc === acc.id;
+        const petMeta = getPetById(u.activePetId);
+        const pState = u.pets[u.activePetId] || { level: 1, accessory: 'none', displayStage: null };
+        const effectiveStage = profileManager.getEffectivePetStage(u.activePetId, u);
+        const curAcc = pState.accessory || 'none';
+
+        let html = `<div class="wardrobe-wrap">`;
+
+        // 区块 1：选择历代等级外观样式
+        html += `
+            <div>
+                <div class="wardrobe-sec-title">
+                    <span>✨ ${petMeta.emoji} ${petMeta.name} · 等级形态样式（已解锁 ${pState.level}/5）</span>
+                    <span class="wardrobe-sec-sub">升级自动换新，也可自由切回旧等级样式</span>
+                </div>
+                <div class="stage-style-pick-grid" style="margin-top:6px;">
+        `;
+        PET_STAGE_STYLES.forEach(st => {
+            const s = st.stage;
+            const unlocked = s <= pState.level;
+            const isAct = effectiveStage === s;
+            const title = petMeta.stageTitles[s - 1] || st.badge;
+            const desc = petMeta.stageDescs?.[s - 1] || st.summary;
             html += `
-                <button type="button" class="acc-pick-btn" data-acc="${acc.id}" ${owned ? '' : 'disabled'} style="padding:10px; border-radius:14px; border:2px solid ${active ? '#7c5cfc' : '#e4dcf7'}; background:${owned ? '#faf7ff' : '#f3f3f3'}; opacity:${owned ? 1 : 0.55};">
-                    <div style="font-size:28px;">${acc.icon}</div>
-                    <div style="font-size:12px; font-weight:800; margin-top:4px;">${acc.name}</div>
-                    <div style="font-size:10px; color:#7c5cfc;">${active ? '佩戴中' : (owned ? '点击佩戴' : '盲盒限定')}</div>
+                <button type="button" class="stage-style-card ${isAct ? 'active' : ''} ${unlocked ? '' : 'locked'}" data-pickstage="${s}">
+                    <span class="ssc-lv">Lv.${s}</span>
+                    <div class="ssc-title">${title}</div>
+                    <div class="ssc-desc">${desc}</div>
+                    <div class="ssc-status" style="color:${isAct ? '#7c5cfc' : (unlocked ? '#16a34a' : '#9c8fb8')};">
+                        ${isAct ? '🌟 当前展示' : (unlocked ? '点击切换' : `🔒 Lv.${s}解锁`)}
+                    </div>
                 </button>
             `;
         });
-        html += `</div>`;
-        this.showQuickModal('🎀 萌宠百变衣帽间', html);
+        html += `</div></div>`;
 
-        document.querySelectorAll('.acc-pick-btn').forEach(btn => {
-            btn.onclick = () => {
-                profileManager.equipAccessory(btn.dataset.acc);
-                soundEngine.playFeed();
+        // 区块 2：荷叶系列与百变头饰装扮
+        html += `
+            <div>
+                <div class="wardrobe-sec-title">
+                    <span>🪷 萌宠百变装扮（可用 🏅 ${u.badges} 徽章兑换或盲盒抽取）</span>
+                    <span class="wardrobe-sec-sub">🐸 青蛙专属清凉荷叶帽免费拥有！</span>
+                </div>
+                <div class="acc-pick-grid" style="margin-top:6px;">
+        `;
+        PET_ACCESSORIES.forEach(acc => {
+            const owned = u.ownedAccessories.includes(acc.id) || Boolean(acc.freeDefault);
+            const active = curAcc === acc.id;
+            let statusTxt = active ? '🌟 佩戴中' : (owned ? '点击佩戴' : `🏅 ${acc.cost} 兑换`);
+            html += `
+                <button type="button" class="acc-pick-btn ${active ? 'active' : ''} ${acc.frogSpecial ? 'frog-special' : ''}" data-acc="${acc.id}">
+                    ${acc.frogSpecial ? `<span class="frog-tag-ribbon">🐸荷叶特供</span>` : ''}
+                    <div class="acc-preview-icon">${acc.id === 'none' ? '✨' : renderAccessoryVisualHtml(acc.id, true)}</div>
+                    <div style="font-size:12px; font-weight:900; color:#2b2148;">${acc.name}</div>
+                    <div style="font-size:10.5px; font-weight:800; color:${active ? '#7c5cfc' : (owned ? '#059669' : '#d97706')};">${statusTxt}</div>
+                </button>
+            `;
+        });
+        html += `</div></div></div>`;
+
+        this.showQuickModal('🎀 萌宠换装与历代等级样式馆', html);
+
+        document.querySelectorAll('#modalQuickPopup .stage-style-card').forEach(card => {
+            card.onclick = () => {
+                const targetStage = Number(card.dataset.pickstage);
+                const res = profileManager.setPetDisplayStage(petMeta.id, targetStage);
+                if (!res.ok) {
+                    soundEngine.playWrong();
+                    return;
+                }
+                soundEngine.playPetVoice(petMeta.id);
+                const stageLine = petMeta.talkLines[targetStage - 1] || petMeta.talkLines[0];
+                this.setHeroSpeech(`✨ 切换为 Lv.${targetStage}【${petMeta.stageTitles[targetStage - 1]}】样式：${stageLine}`, 5800);
                 this.closeModal('modalQuickPopup');
                 this.renderAll();
+                this.triggerPetRigAnimation('anim-stage-transform');
+                this.spawnStageEmotes(['✨', petMeta.stageProps?.[0] || '🌟']);
+            };
+        });
+
+        document.querySelectorAll('#modalQuickPopup .acc-pick-btn').forEach(btn => {
+            btn.onclick = () => {
+                const accId = btn.dataset.acc;
+                const res = profileManager.unlockOrEquipAccessory(accId);
+                if (!res.ok) {
+                    soundEngine.playWrong();
+                    this.showQuickToast('💡 装扮兑换提示', res.msg);
+                    return;
+                }
+                soundEngine.playPetVoice(petMeta.id);
+                if (accId.startsWith('lotus_') && (petMeta.id === 'frog' || petMeta.id === 'prince_frog')) {
+                    this.setHeroSpeech(`呱呱！戴上【${res.accMeta.name}】清清凉凉带露珠，简直为本蛙量身定做！🌿🐸`, 6000);
+                } else if (accId !== 'none') {
+                    this.setHeroSpeech(`${petMeta.voiceTag || petMeta.emoji} 哇！新戴上的【${res.accMeta.name}】好看吗？陪你继续闯关啰！✨`, 5500);
+                }
+                this.closeModal('modalQuickPopup');
+                this.renderAll();
+                this.triggerPetRigAnimation('anim-joy-spin');
+                this.spawnStageEmotes([res.accMeta.icon || '✨', '💖']);
             };
         });
     }
@@ -2142,18 +2570,12 @@ class PetWonderTownApp {
             this.renderHeroHomeView();
         };
 
-        // 主页3D萌宠点击互动说英语
+        // 主页3D萌宠点击多态互动（特色台词+英语问候+专属叫声+4种互动动作）
         document.getElementById('heroDioramaStage').onclick = (e) => {
-            const u = profileManager.getActiveUser();
-            const petMeta = getPetById(u.stageMode === 'shop' ? (u.shops[u.activeShopId]?.managerPetId || u.activePetId) : u.activePetId);
-            soundEngine.playFeed();
-            soundEngine.speakEnglish(petMeta.enGreeting, false);
-            this.triggerPetHappyReaction();
-            this.fx.spawnBurst(e.clientX || window.innerWidth * 0.35, e.clientY || window.innerHeight * 0.4, 16);
-            document.getElementById('heroSpeechBubble').textContent = `💬 "${petMeta.enGreeting}"`;
+            this.triggerPetInteractSequence(e);
         };
 
-        // 主页投喂美食 / 扩建店铺主按钮
+        // 主页投喂美食 / 扩建店铺主按钮（飞行食物+咔嚓咀嚼动画+特色满足发言）
         document.getElementById('btnPrimaryNurture').onclick = () => {
             const u = profileManager.getActiveUser();
             if (u.stageMode === 'pet') {
@@ -2170,11 +2592,8 @@ class PetWonderTownApp {
                     this.showQuickToast('🥕 投喂提示', res.msg);
                     return;
                 }
-                soundEngine.playFeed();
-                this.triggerPetHappyReaction();
-                this.fx.spawnBurst(window.innerWidth * 0.36, window.innerHeight * 0.42, 24);
                 this.renderAll();
-                if (res.levelUpEvent) this.celebrateLevelUp(res.levelUpEvent);
+                this.triggerPetFeedSequence(res.petMeta, FEED_EXP_GAIN, res.levelUpEvent);
             } else {
                 const sState = u.shops[u.activeShopId];
                 if (sState && sState.level >= 5) {

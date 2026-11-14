@@ -169,6 +169,97 @@ class SoundAndSpeechEngine {
         });
     }
 
+    // 不同宠物的专属特色叫声/互动音效 (Web Audio 纯合成)
+    playPetVoice(petId = 'rabbit') {
+        if (this.muted || !this.throttle('petVoice', 100)) return;
+        if (!this.ensureContext()) return;
+        const now = this.ctx.currentTime;
+
+        const playSweep = (type, fStart, fEnd, tOffset, dur, vol = 0.24) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(fStart, now + tOffset);
+            osc.frequency.exponentialRampToValueAtTime(Math.max(40, fEnd), now + tOffset + dur);
+            gain.gain.setValueAtTime(vol, now + tOffset);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + tOffset + dur + 0.02);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            this._cleanup(osc, gain);
+            osc.start(now + tOffset);
+            osc.stop(now + tOffset + dur + 0.03);
+        };
+
+        if (petId === 'frog' || petId === 'prince_frog') {
+            // 呱呱～双连清脆蛙鸣
+            playSweep('triangle', 220, 460, 0, 0.085, 0.26);
+            playSweep('triangle', 250, 560, 0.12, 0.11, 0.28);
+            if (petId === 'prince_frog') playSweep('sine', 880, 1318, 0.24, 0.14, 0.18);
+        } else if (petId === 'rabbit' || petId === 'astro_rabbit') {
+            // 噗啾～Q弹蹦跳铃音
+            playSweep('sine', 480, 920, 0, 0.09, 0.25);
+            playSweep('sine', 660, 1180, 0.10, 0.12, 0.24);
+            if (petId === 'astro_rabbit') playSweep('triangle', 1320, 990, 0.22, 0.12, 0.16);
+        } else if (petId === 'shiba') {
+            // 汪汪～元气短促双吠
+            playSweep('triangle', 340, 620, 0, 0.075, 0.27);
+            playSweep('triangle', 390, 720, 0.11, 0.095, 0.27);
+        } else if (petId === 'panda') {
+            // 呼噜～圆润竹木琴音
+            playSweep('sine', 330, 440, 0, 0.11, 0.26);
+            playSweep('sine', 440, 587, 0.12, 0.14, 0.25);
+        } else if (petId === 'tiger') {
+            // 嗷呜～霸气又软萌的小虎啸
+            playSweep('sawtooth', 190, 340, 0, 0.14, 0.16);
+            playSweep('triangle', 340, 220, 0.13, 0.16, 0.22);
+        } else if (petId === 'mecha_cat') {
+            // 滴嘟喵～赛博电子猫音
+            playSweep('square', 784, 1046, 0, 0.055, 0.12);
+            playSweep('square', 1046, 1318, 0.065, 0.055, 0.12);
+            playSweep('sine', 920, 620, 0.14, 0.16, 0.24);
+        } else if (petId === 'unicorn' || petId === 'star_dragon') {
+            // 叮铃/星吟～梦幻竖琴泛音琶音
+            [587.33, 783.99, 987.77, 1318.51].forEach((f, idx) => {
+                playSweep('sine', f, f * 1.03, idx * 0.055, 0.22, 0.20);
+            });
+        } else if (petId === 'succulent') {
+            // 沙沙滴答～晨露水珠清音
+            playSweep('sine', 620, 1240, 0, 0.08, 0.24);
+            playSweep('sine', 880, 1480, 0.11, 0.11, 0.20);
+        } else if (petId === 'pixiu') {
+            // 叮当～招财金铃清脆双响
+            playSweep('triangle', 1046.5, 1567.98, 0, 0.14, 0.22);
+            playSweep('triangle', 1318.5, 1975.5, 0.11, 0.18, 0.20);
+        } else {
+            this.playFeed();
+        }
+    }
+
+    // 投喂美食专属“咔嚓嚼嚼 + 满足欢叫”音效
+    playEatSound(petId = 'rabbit') {
+        if (this.muted || !this.throttle('eat', 120)) return;
+        if (!this.ensureContext()) return;
+        const now = this.ctx.currentTime;
+        // 三声Q弹咀嚼音 (nom-nom-nom)
+        [0, 0.13, 0.26].forEach((t, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            const baseF = 260 + idx * 45;
+            osc.frequency.setValueAtTime(baseF, now + t);
+            osc.frequency.exponentialRampToValueAtTime(baseF * 1.65, now + t + 0.075);
+            gain.gain.setValueAtTime(0.24, now + t);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + t + 0.085);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            this._cleanup(osc, gain);
+            osc.start(now + t);
+            osc.stop(now + t + 0.09);
+        });
+        // 紧接宠物特色欢快叫声
+        setTimeout(() => this.playPetVoice(petId), 360);
+    }
+
     // 升级 / 满级毕业 / 店铺建成华丽礼花凯歌
     playLevelUp() {
         if (this.muted) return;

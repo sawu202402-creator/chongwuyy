@@ -82,9 +82,10 @@ function createInitialPetsState() {
         pets[p.id] = {
             unlocked: Boolean(p.isStarter),
             level: 1,
+            displayStage: null,
             exp: 0,
             graduated: false,
-            accessory: 'none',
+            accessory: p.id === 'frog' ? 'lotus_hat' : 'none',
             graduatedDate: null
         };
     });
@@ -141,7 +142,8 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
                 managerPetId: activePetId || 'rabbit'
             }
         },
-        ownedAccessories: ['none'],
+        ownedAccessories: ['none', 'lotus_hat'],
+        frogLotusHatMigrated_v1: true,
         ownedDecors: [],
         mathConfig,
         difficulty: { ...mathConfig },
@@ -276,19 +278,40 @@ export class UserProfileManager {
             if ((u.id === 'child_guoguo' || u.id === 'user_2') && (u.name === '果果' || u.name === '朵朵')) {
                 u.name = '川川';
             }
+            if (!Array.isArray(u.ownedAccessories)) u.ownedAccessories = ['none'];
+            PET_ACCESSORIES.forEach(acc => {
+                if (acc.freeDefault && !u.ownedAccessories.includes(acc.id)) {
+                    u.ownedAccessories.push(acc.id);
+                }
+            });
             if (!u.pets) u.pets = createInitialPetsState();
             PETS_CATALOG.forEach(p => {
                 if (!u.pets[p.id]) {
                     u.pets[p.id] = {
                         unlocked: Boolean(p.isStarter),
                         level: 1,
+                        displayStage: null,
                         exp: 0,
                         graduated: false,
-                        accessory: 'none',
+                        accessory: p.id === 'frog' ? 'lotus_hat' : 'none',
                         graduatedDate: null
                     };
+                } else {
+                    const st = u.pets[p.id];
+                    if (st.displayStage !== null && st.displayStage !== undefined) {
+                        const ds = Number(st.displayStage);
+                        st.displayStage = (Number.isInteger(ds) && ds >= 1 && ds <= (st.level || 1)) ? ds : null;
+                    } else {
+                        st.displayStage = null;
+                    }
                 }
             });
+            if (!u.frogLotusHatMigrated_v1) {
+                if (u.pets.frog && (!u.pets.frog.accessory || u.pets.frog.accessory === 'none')) {
+                    u.pets.frog.accessory = 'lotus_hat';
+                }
+                u.frogLotusHatMigrated_v1 = true;
+            }
             if (!u.shops) u.shops = createInitialShopsState(u.activePetId);
             SHOPS_CATALOG.forEach(s => {
                 if (!u.shops[s.id]) {
@@ -862,6 +885,8 @@ export class UserProfileManager {
         }
 
         if (leveledUp) {
+            // 每次升级自动切换展示新解锁的等级样式，之后小朋友也可随时切回任意已解锁等级样式
+            pState.displayStage = pState.level;
             return {
                 type: 'pet',
                 petMeta,
@@ -870,6 +895,42 @@ export class UserProfileManager {
             };
         }
         return null;
+    }
+
+    getEffectivePetStage(petId = null, user = null) {
+        const u = user || this.getActiveUser();
+        const pid = petId || u?.activePetId || 'rabbit';
+        const pState = u?.pets?.[pid];
+        if (!pState) return 1;
+        const lv = Math.min(5, Math.max(1, Number(pState.level) || 1));
+        if (pState.displayStage !== null && pState.displayStage !== undefined) {
+            const ds = Number(pState.displayStage);
+            if (Number.isInteger(ds) && ds >= 1 && ds <= lv) return ds;
+        }
+        return lv;
+    }
+
+    setPetDisplayStage(petId, stageOrAuto) {
+        const u = this.getActiveUser();
+        const pid = petId || u.activePetId;
+        const pState = u.pets?.[pid];
+        if (!pState) return { ok: false, msg: '未找到该萌宠' };
+        const lv = Math.min(5, Math.max(1, Number(pState.level) || 1));
+        if (stageOrAuto === 'auto' || stageOrAuto === null) {
+            pState.displayStage = null;
+            this.save();
+            return { ok: true, effectiveStage: lv, isAuto: true };
+        }
+        const target = Number(stageOrAuto);
+        if (!Number.isInteger(target) || target < 1 || target > 5) {
+            return { ok: false, msg: '无效的等级样式' };
+        }
+        if (target > lv) {
+            return { ok: false, msg: `升到 Lv.${target} 即可解锁该形态样式哦！` };
+        }
+        pState.displayStage = target === lv ? null : target;
+        this.save();
+        return { ok: true, effectiveStage: target, isAuto: pState.displayStage === null };
     }
 
     feedActivePet() {
@@ -921,15 +982,36 @@ export class UserProfileManager {
     }
 
     equipAccessory(accId) {
+        const res = this.unlockOrEquipAccessory(accId);
+        return res.ok;
+    }
+
+    unlockOrEquipAccessory(accId) {
         const u = this.getActiveUser();
-        if (!u.ownedAccessories.includes(accId)) return false;
+        const accMeta = PET_ACCESSORIES.find(a => a.id === accId);
+        if (!accMeta) return { ok: false, msg: '未知装扮' };
         const pState = u.pets[u.activePetId];
-        if (pState) {
-            pState.accessory = accId;
-            this.save();
-            return true;
+        if (!pState) return { ok: false, msg: '未找到当前萌宠' };
+
+        const wasOwned = u.ownedAccessories.includes(accId);
+        if (!wasOwned) {
+            if (accMeta.freeDefault || !accMeta.cost) {
+                u.ownedAccessories.push(accId);
+            } else {
+                if (u.badges < accMeta.cost) {
+                    return {
+                        ok: false,
+                        msg: `兑换【${accMeta.name}】需要 ${accMeta.cost} 枚徽章（当前可用 ${u.badges} 枚），也可以在惊喜盲盒中免费抽取哦！`
+                    };
+                }
+                this._pushLedger(u, `${accMeta.icon} 兑换萌宠装扮【${accMeta.name}】`, -accMeta.cost);
+                u.ownedAccessories.push(accId);
+            }
         }
-        return false;
+
+        pState.accessory = accId;
+        this.save();
+        return { ok: true, accMeta, newlyUnlocked: !wasOwned };
     }
 
     // ==================== 店铺配对经营、扩建与小镇地图落点 ====================

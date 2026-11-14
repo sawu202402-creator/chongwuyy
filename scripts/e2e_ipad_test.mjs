@@ -560,6 +560,94 @@ async function main() {
     await sleep(250);
     await saveShot('mem_pet_word_meaning.png');
 
+    // Verify Pet Persona Speech, 5-Stage Evolution & Retro Style Switcher, Frog Lotus Leaf Outfits & Feed/Interact Animations!
+    const petEvolutionCheck = await evalJs(`(async () => {
+        const { profileManager } = await import('./js/profileManager.js');
+        const u = profileManager.getActiveUser();
+        u.badges = 100;
+        profileManager.selectOrUnlockPet('frog');
+        profileManager.save();
+        document.querySelector('.stage-nav-btn[data-view="home"]').click();
+
+        // Check default frog lotus_hat SVG rendered
+        const hasLotusSvg = Boolean(document.querySelector('#heroAccessoryBadge svg.lotus-svg-art'));
+        // Tap stage to trigger frog characteristic interaction
+        document.getElementById('heroDioramaStage').click();
+        const interactBubble = document.getElementById('heroSpeechBubble').textContent.trim();
+        const rigHasInteractAnim = /anim-/.test(document.getElementById('heroPetActorRig').className);
+
+        // Feed frog up to Lv.3 via Primary Feed button!
+        for (let i = 0; i < 11; i++) {
+            document.getElementById('btnPrimaryNurture').click();
+        }
+        await new Promise(r => setTimeout(r, 450));
+        // Close level-up celebration popup if open
+        document.querySelector('[data-close="modalQuickPopup"]')?.click();
+
+        const lvAfterFeed = document.getElementById('heroLvBadge').textContent.trim();
+        const stageAtLv3 = document.getElementById('heroDioramaStage').dataset.stage;
+        const propCountAtLv3 = document.querySelectorAll('#heroStagePropsLayer .stage-prop-orb').length;
+        const feedBubble = document.getElementById('heroSpeechBubble').textContent.trim();
+
+        // Test choosing previous Lv.1 style while at Lv.3!
+        document.querySelector('#heroStageStyleBar .stage-style-chip[data-stagepick="1"]').click();
+        const stageAfterRetroPick = document.getElementById('heroDioramaStage').dataset.stage;
+        const subtitleAtRetro = document.getElementById('heroStageSubtitle').textContent.trim();
+        const lvStill3 = document.getElementById('heroLvBadge').textContent.trim();
+
+        // Switch back to Lv.3 style for showcase!
+        document.querySelector('#heroStageStyleBar .stage-style-chip[data-stagepick="3"]').click();
+        const noScroll = document.documentElement.scrollHeight <= window.innerHeight + 2;
+
+        return {
+            hasLotusSvg,
+            interactBubble,
+            rigHasInteractAnim,
+            lvAfterFeed,
+            stageAtLv3,
+            propCountAtLv3,
+            feedBubble,
+            stageAfterRetroPick,
+            subtitleAtRetro,
+            lvStill3,
+            noScroll
+        };
+    })()`);
+    console.log('Pet Evolution, Persona, Lotus & Animation check:', petEvolutionCheck);
+    assert.equal(petEvolutionCheck.hasLotusSvg, true, 'Frog must render custom SVG lotus_hat');
+    assert.ok(/呱|蛙|荷叶/.test(petEvolutionCheck.interactBubble), 'Frog interaction must speak characteristic frog line');
+    assert.equal(petEvolutionCheck.rigHasInteractAnim, true, 'Tapping pet must trigger rig animation');
+    assert.equal(petEvolutionCheck.lvAfterFeed, 'Lv.3');
+    assert.equal(petEvolutionCheck.stageAtLv3, '3', 'Leveling up to Lv.3 must display Lv.3 stage style');
+    assert.equal(petEvolutionCheck.propCountAtLv3, 2, 'Lv.3 frog must display 2 companion lotus/droplet props');
+    assert.equal(petEvolutionCheck.stageAfterRetroPick, '1', 'Clicking Lv.1 style pill must switch visual stage to 1');
+    assert.equal(petEvolutionCheck.lvStill3, 'Lv.3', 'True pet level must remain Lv.3 when viewing Lv.1 style');
+    assert.ok(petEvolutionCheck.subtitleAtRetro.includes('展示Lv.1样式'));
+    assert.equal(petEvolutionCheck.noScroll, true, 'Pet Town must maintain zero viewport overflow');
+    await sleep(1100);
+    await saveShot('pet_frog_lotus_hat.png');
+
+    // Open Wardrobe modal and verify 5 stage style cards & 3 frog lotus outfits!
+    const wardrobeCheck = await evalJs(`(() => {
+        document.getElementById('btnOpenDressup').click();
+        return {
+            styleCardsInModal: document.querySelectorAll('#modalQuickPopup .stage-style-card').length,
+            frogSpecialCards: document.querySelectorAll('#modalQuickPopup .acc-pick-btn.frog-special').length
+        };
+    })()`);
+    assert.equal(wardrobeCheck.styleCardsInModal, 5, 'Wardrobe must display all 5 stage style cards');
+    assert.equal(wardrobeCheck.frogSpecialCards, 3, 'Wardrobe must display 3 frog lotus leaf outfits');
+    await sleep(300);
+    await saveShot('pet_wardrobe_styles_lotus.png');
+
+    // Equip lotus_umbrella in modal and capture the live Lv.3 Frog with Lotus Umbrella + Feed Animation!
+    await evalJs(`(() => {
+        document.querySelector('#modalQuickPopup .acc-pick-btn[data-acc="lotus_umbrella"]')?.click();
+        document.getElementById('btnPrimaryNurture')?.click();
+    })()`);
+    await sleep(260);
+    await saveShot('pet_frog_lotus_and_stage.png');
+
     console.log('Console errors:', consoleErrors.length);
     console.log('Failed local network requests:', failedLocalUrls.length);
     assert.equal(consoleErrors.length, 0, 'Console errors detected: ' + consoleErrors.join('; '));

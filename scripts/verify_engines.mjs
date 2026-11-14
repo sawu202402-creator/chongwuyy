@@ -14,7 +14,7 @@ import {
     COURSE_SUB_MODES,
     ALL_COURSE_SUB_IDS
 } from '../shared/englishEngine.js';
-import { PETS_CATALOG, SHOPS_CATALOG, TOWN_PLOTS } from '../pet/js/config.js';
+import { PETS_CATALOG, PET_STAGE_STYLES, PET_ACCESSORIES, SHOPS_CATALOG, TOWN_PLOTS } from '../pet/js/config.js';
 import { UserProfileManager, isValidSmartMode } from '../shared/unifiedProfile.js';
 import { LEVEL_CONFIGS, STAGE_SUMMARIES, ensureStageConfigLoaded } from '../carrot/js/map.js';
 
@@ -432,5 +432,53 @@ assert.deepEqual(pm2.getActiveUser().mathConfig.enabledTypes, ['calc', 'compare'
 
 const pairRes = pm.pairShopAndManager('sweetshop', 'frog', TOWN_PLOTS[3].id);
 assert.equal(pairRes.ok, true);
-console.log('   ✅ Unified UserProfileManager per-kid isolation, enabledTypes, sibling visit & backup verified!');
-console.log('\n🎉 ALL ENGINE, VOCABULARY (360 WORDS), & 17-MODE CHECKS PASSED!');
+
+// 6. Verify Pet Distinct Persona Speech, 5-Stage Style Evolution & Retro Choice, & Frog Lotus Leaf Outfits
+assert.equal(PET_STAGE_STYLES.length, 5);
+for (const pet of PETS_CATALOG) {
+    assert.ok(pet.voiceTag && pet.voiceTag.length >= 2, `Missing voiceTag on ${pet.id}`);
+    assert.equal(pet.talkLines.length, 5, `Pet ${pet.id} must have 5 stage-matched talkLines`);
+    assert.equal(pet.stageDescs.length, 5, `Pet ${pet.id} must have 5 stageDescs`);
+    assert.ok(pet.interactLines?.length >= 3, `Pet ${pet.id} must have rich interactLines`);
+    assert.ok(pet.feedLines?.length >= 2, `Pet ${pet.id} must have rich feedLines`);
+    assert.ok(pet.cheerRightLines?.length >= 2, `Pet ${pet.id} must have cheerRightLines`);
+    assert.ok(pet.cheerWrongLines?.length >= 1, `Pet ${pet.id} must have cheerWrongLines`);
+}
+const lotusIds = PET_ACCESSORIES.filter(a => a.frogSpecial).map(a => a.id);
+assert.deepEqual(lotusIds, ['lotus_hat', 'lotus_umbrella', 'lotus_crown']);
+
+pm.setActiveUser(kid2.id); // 川川 (starter frog)
+assert.ok(pm.getActiveUser().ownedAccessories.includes('lotus_hat'), 'lotus_hat must be owned by default');
+assert.equal(pm.getActiveUser().pets.frog.accessory, 'lotus_hat', 'Frog must default to wearing lotus_hat');
+assert.equal(pm.getEffectivePetStage('frog'), 1);
+assert.equal(pm.setPetDisplayStage('frog', 2).ok, false, 'Cannot select Lv.2 style before reaching Lv.2');
+
+// Give badges and feed frog up to Lv.3, verifying style auto-upgrades on each level-up AND retro selection works!
+pm.getActiveUser().badges = 120;
+pm.selectOrUnlockPet('frog');
+while (pm.getActiveUser().pets.frog.level < 3) {
+    const fRes = pm.feedActivePet();
+    assert.equal(fRes.ok, true);
+}
+assert.equal(pm.getActiveUser().pets.frog.level, 3);
+assert.equal(pm.getEffectivePetStage('frog'), 3, 'Leveling up to Lv.3 must auto-display Lv.3 style');
+
+// Switch back to Lv.1 style while keeping Lv.3!
+const retroRes = pm.setPetDisplayStage('frog', 1);
+assert.equal(retroRes.ok, true);
+assert.equal(pm.getEffectivePetStage('frog'), 1, 'Kid can freely choose previous Lv.1 style while at Lv.3');
+assert.equal(pm.getActiveUser().pets.frog.level, 3, 'Pet true level remains Lv.3');
+
+// Feed to Lv.4 -> automatically showcases newly unlocked Lv.4 style!
+while (pm.getActiveUser().pets.frog.level < 4) {
+    pm.feedActivePet();
+}
+assert.equal(pm.getEffectivePetStage('frog'), 4, 'Next level-up auto-displays newly unlocked Lv.4 style');
+
+// Redeem & equip lotus_umbrella with badges
+const umbRes = pm.unlockOrEquipAccessory('lotus_umbrella');
+assert.equal(umbRes.ok, true);
+assert.equal(pm.getActiveUser().pets.frog.accessory, 'lotus_umbrella');
+
+console.log('   ✅ Unified UserProfileManager, Pet Persona Speech, 5-Stage Style Switcher & Frog Lotus Leaf Outfits verified!');
+console.log('\n🎉 ALL ENGINE, VOCABULARY (360 WORDS), & PET EVOLUTION CHECKS PASSED!');

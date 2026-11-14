@@ -14,8 +14,8 @@
     <meta name="apple-mobile-web-app-title" content="萌宠店长">
     <link rel="manifest" href="site.webmanifest">
     <meta name="theme-color" content="#7c5cfc">
-    <link rel="stylesheet" href="css/style.css?v=20261114_mem_v2">
-    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261114_mem_v2">
+    <link rel="stylesheet" href="css/style.css?v=20261114_pet_v4">
+    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261114_pet_v3">
 </head>
 <body>
     <!-- 全屏飞行徽章与彩虹礼花粒子画布 -->
@@ -89,9 +89,12 @@
                                 <span class="lv-purple-badge" id="heroLvBadge">Lv.1</span>
                                 <span class="lv-exp-nums" id="heroExpNums">0 / 15</span>
                             </div>
-                            <div class="hero-exp-track">
+                            <div class="hero-exp-track" id="heroExpTrack">
                                 <div class="hero-exp-fill" id="heroExpFill" style="width: 8%;"></div>
                             </div>
+
+                            <!-- 历代等级形态样式快捷切换条（升级解锁新样式，也可自由切回之前等级样式） -->
+                            <div class="hero-stage-style-bar" id="heroStageStyleBar" aria-label="切换等级形态样式"></div>
 
                             <div class="hero-actions-stack">
                                 <button class="btn-primary-feed" id="btnPrimaryNurture" type="button">
@@ -100,21 +103,30 @@
                                 </button>
                                 <div class="hero-sub-btns">
                                     <button class="btn-soft-action" id="btnQuickChange" type="button">⇄ 更换宠/店</button>
-                                    <button class="btn-soft-action" id="btnOpenDressup" type="button">🎀 萌宠换装</button>
+                                    <button class="btn-soft-action" id="btnOpenDressup" type="button">🎀 换装·样式</button>
                                 </div>
                             </div>
                         </div>
 
                         <!-- 中央 3D 软萌角色与微缩店铺展示台 -->
-                        <div class="hero-diorama-center" id="heroDioramaStage" title="点击摸摸头互动听英语问候！">
+                        <div class="hero-diorama-center" id="heroDioramaStage" data-stage="1" data-pet="rabbit" title="点击摸摸头互动听特色问候！">
                             <div class="speech-cloud" id="heroSpeechBubble">兔兔最喜欢听你算口算和读英语啦！🐰</div>
-                            <div class="diorama-glow-disc"></div>
-                            <!-- 头顶装扮 -->
-                            <div class="pet-accessory-floating" id="heroAccessoryBadge" style="display:none;">👑</div>
-                            <!-- 主展示图 (宠物模式下为大萌宠，店铺模式下为大3D建筑+左下角店长萌宠！) -->
-                            <img src="assets/pets/rabbit.png" alt="当前展示" class="hero-main-sprite" id="heroMainSprite" />
+                            <div class="diorama-glow-disc" id="heroGlowDisc"></div>
+                            <!-- 等级进化底座与星纹魔法阵层 (Lv.1~Lv.5) -->
+                            <div class="pet-stage-pedestal pedestal-lv1" id="heroStagePedestal"></div>
+                            <!-- 等级进化圣环背光与彩虹羽翼层 (Lv.1~Lv.5) -->
+                            <div class="pet-stage-back-aura aura-lv1" id="heroStageBackAura"></div>
+                            <!-- 萌宠角色与同步装扮/伴生灵物联动骨骼层 -->
+                            <div class="pet-actor-rig" id="heroPetActorRig">
+                                <div class="pet-stage-props-layer" id="heroStagePropsLayer"></div>
+                                <div class="pet-accessory-floating" id="heroAccessoryBadge" style="display:none;">👑</div>
+                                <!-- 主展示图 (宠物模式下为大萌宠，店铺模式下为大3D建筑+左下角店长萌宠！) -->
+                                <img src="assets/pets/rabbit.png" alt="当前展示" class="hero-main-sprite" id="heroMainSprite" />
+                            </div>
                             <img src="assets/pets/rabbit.png" alt="店长萌宠" class="hero-manager-sub-sprite" id="heroManagerSubSprite" style="display:none;" />
-                            <div class="tap-hint-tag">👆 点我互动发音</div>
+                            <!-- 喂食飞行食物、互动爱心音符与+EXP飘字动画层 -->
+                            <div class="pet-anim-fx-layer" id="heroAnimFxLayer"></div>
+                            <div class="tap-hint-tag" id="heroTapHintTag">👆 点我摸摸头互动</div>
                         </div>
 
                         <!-- 右上角快捷前往宠物社区横幅 -->
