@@ -358,6 +358,18 @@ export class UserProfileManager {
                 }
                 u.englishConfig.enEasyDefaultMigrated_v1 = true;
             }
+            // 平滑补充新题型「👀 看词识义 (word_meaning)」到已开启认读题型的旧存档中
+            if (!u.englishConfig.enWordMeaningMigrated_v1) {
+                if (
+                    Array.isArray(u.englishConfig.enabledTypes) &&
+                    u.englishConfig.enabledTypes.includes('match_word') &&
+                    !u.englishConfig.enabledTypes.includes('word_meaning')
+                ) {
+                    const idx = u.englishConfig.enabledTypes.indexOf('match_word');
+                    u.englishConfig.enabledTypes.splice(idx + 1, 0, 'word_meaning');
+                }
+                u.englishConfig.enWordMeaningMigrated_v1 = true;
+            }
             if (!['easy', 'medium', 'all'].includes(u.englishConfig.wordDifficulty)) {
                 u.englishConfig.wordDifficulty = 'easy';
             }
@@ -1144,25 +1156,45 @@ export class UserProfileManager {
 
     updateWordProgress(wordObj, isCorrect, masteryBoost = 1) {
         const u = this.getActiveUser();
-        if (!wordObj || !wordObj.id) return;
+        if (!wordObj || !wordObj.id) return { resolvedMistake: false, mistakeStreak: 0 };
         const cur = u.wordMastery[wordObj.id] || 0;
+        let resolvedMistake = false;
+        let mistakeStreak = 0;
+
         if (isCorrect) {
             u.wordMastery[wordObj.id] = Math.min(3, cur + masteryBoost);
-            u.englishMistakes = u.englishMistakes.filter(w => w.wordId !== wordObj.id);
+            const mEntry = u.englishMistakes.find(w => w.wordId === wordObj.id);
+            if (mEntry) {
+                mistakeStreak = (mEntry.streak || 0) + (masteryBoost >= 2 ? 2 : 1);
+                if (mistakeStreak >= 2) {
+                    u.englishMistakes = u.englishMistakes.filter(w => w.wordId !== wordObj.id);
+                    resolvedMistake = true;
+                } else {
+                    mEntry.streak = mistakeStreak;
+                }
+            }
         } else {
-            if (!u.englishMistakes.some(w => w.wordId === wordObj.id)) {
+            // 答错时掉 1 颗星（最低 0 星），杜绝“蒙对升满星后忘光却不降级”的假掌握
+            u.wordMastery[wordObj.id] = Math.max(0, cur - 1);
+            const existing = u.englishMistakes.find(w => w.wordId === wordObj.id);
+            if (existing) {
+                existing.streak = 0;
+                existing.dateStr = nowTimeStr();
+            } else {
                 u.englishMistakes.unshift({
                     wordId: wordObj.id,
                     word: wordObj.word,
                     phonics: wordObj.phonics,
                     zh: wordObj.zh,
                     icon: wordObj.icon,
+                    streak: 0,
                     dateStr: nowTimeStr()
                 });
             }
         }
         u.stats.totalWordsMastered = Object.values(u.wordMastery).filter(v => v >= 2).length;
         this.save();
+        return { resolvedMistake, mistakeStreak };
     }
 
     // ==================== 家长守护锁、双宝串门彩蛋与存档备份导入导出 ====================

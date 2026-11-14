@@ -145,13 +145,13 @@ assert.equal(pvzRes.isCorrect, true);
 assert.ok(pvzRes.bonusSun >= 75);
 console.log('   ✅ Unified MathEngine (9 modes + enabledTypes + Spaced Repetition) passed!');
 
-console.log('4. Testing Expanded Shared EnglishEngine (20 packs, 360 words, 9 Modes incl. Course Special & Bag Shuffle)...');
+console.log('4. Testing Expanded Shared EnglishEngine (20 packs, 360 words, 10 Modes incl. Word-Meaning & Course Special & Bag Shuffle)...');
 assert.equal(WORD_PACKS.length, 20, 'Must have 20 graded English word packs');
 assert.equal(ALL_WORDS.length, 360, 'Must have 360 graded English words');
 assert.equal(new Set(ALL_WORDS.map(w => w.id)).size, 360, 'All 360 word IDs must be unique');
 assert.equal(new Set(ALL_WORDS.map(w => w.word.toLowerCase())).size, 360, 'All 360 English words must be unique');
-assert.equal(ENGLISH_QUESTION_TYPES.length, 9, 'Must have 9 English question modes (course_special + 8 general modes)');
-assert.equal(ALL_ENGLISH_TYPE_IDS.length, 9);
+assert.equal(ENGLISH_QUESTION_TYPES.length, 10, 'Must have 10 English question modes (course_special + 9 general modes)');
+assert.equal(ALL_ENGLISH_TYPE_IDS.length, 10);
 
 const generalEnTypes = ALL_ENGLISH_TYPE_IDS.filter(id => id !== 'course_special');
 const ee = new EnglishEngine({ level: 'mixed', wordDifficulty: 'all', courseAllowHardDictation: true, packId: 'all' });
@@ -208,9 +208,9 @@ for (const modeId of generalEnTypes) {
     }
 }
 
-console.log('4A. Testing New Kid-Friendly Easy Difficulty & Excluded Types...');
+console.log('4A. Testing New Kid-Friendly Easy Difficulty, Word-Meaning Mode & Excluded Types...');
 assert.equal(ENGLISH_DIFFICULTY_MODES.length, 3);
-assert.deepEqual(DEFAULT_EASY_ENGLISH_TYPES, ['course_special', 'listen_pic', 'match_word', 'bubble_pair', 'phonics_chunks']);
+assert.deepEqual(DEFAULT_EASY_ENGLISH_TYPES, ['course_special', 'listen_pic', 'match_word', 'word_meaning', 'bubble_pair', 'phonics_chunks']);
 const easyEngine = new EnglishEngine(); // default must be easy!
 assert.equal(easyEngine.config.wordDifficulty, 'easy');
 assert.equal(easyEngine.config.courseAllowHardDictation, false);
@@ -225,6 +225,8 @@ for (let i = 0; i < 15; i++) {
     assert.equal(lq.options.length, 3, 'Easy listen_pic must have 3 choices');
     const mq = easyEngine.nextQuickQuestion(null, 'match_word');
     assert.equal(mq.options.length, 3, 'Easy match_word must have 3 choices');
+    const wmq = easyEngine.nextQuickQuestion(null, 'word_meaning');
+    assert.equal(wmq.options.length, 3, 'Easy word_meaning must have 3 choices');
     const bq = easyEngine.nextQuickQuestion(null, 'bubble_pair');
     assert.equal(bq.pairCount, 2, 'Easy bubble_pair must have 2 pairs');
     assert.equal(bq.bubbles.length, 4, 'Easy bubble_pair must have 4 bubbles');
@@ -237,11 +239,15 @@ for (let i = 0; i < 15; i++) {
     }
 }
 
-// Verify Vocab Study Camp strictly respects excluded question types!
-easyEngine.setConfig({ wordDifficulty: 'easy', enabledTypes: ['listen_pic', 'match_word'] });
+// Verify Vocab Study Camp strictly respects excluded question types & re-queues missed words!
+easyEngine.setConfig({ wordDifficulty: 'easy', enabledTypes: ['listen_pic', 'match_word', 'word_meaning'] });
 const easyCamp = easyEngine.startVocabStudySession('all', {});
 assert.equal(easyCamp.quizQueue.length, 6);
-assert.ok(easyCamp.quizQueue.every(q => ['listen_pic', 'match_word'].includes(q.mode)), 'Vocab Camp must never emit excluded question types');
+assert.ok(easyCamp.quizQueue.every(q => ['listen_pic', 'match_word', 'word_meaning'].includes(q.mode)), 'Vocab Camp must never emit excluded question types');
+easyCamp.phase = 'quiz';
+assert.equal(easyEngine.enqueueCampRetryIfWrong(easyCamp.quizQueue[0]), true);
+assert.equal(easyCamp.quizQueue.length, 7, 'Missed camp word must be appended for reinforcement retry');
+assert.equal(easyCamp.quizQueue[6].isCampRetry, true);
 
 // Verify S1U1W1 easy random course_all (courseAllowHardDictation: false) yields 24 gentle items with ZERO blind dictation/ordering
 easyEngine.setConfig({ wordDifficulty: 'easy', courseAllowHardDictation: false, courseLessonId: 'S1U1W1' });
@@ -395,10 +401,19 @@ const claim2 = pm.claimSiblingVisitGift();
 assert.equal(claim2.ok, false);
 assert.equal(claim2.alreadyClaimed, true);
 
-// Clear history clears both mathMistakes & englishMistakes
+// Clear history clears both mathMistakes & englishMistakes + test mastery drop & 2-streak mistake resolution
 pm.recordMathMistake({ formula: '6 + 7 = ?', answer: 13 }, '12');
-pm.updateWordProgress(ALL_WORDS[0], false);
+pm.updateWordProgress(ALL_WORDS[0], true, 2); // set to 2 stars
+assert.equal(pm.getActiveUser().wordMastery[ALL_WORDS[0].id], 2);
+pm.updateWordProgress(ALL_WORDS[0], false); // wrong -> drops to 1 star & enters englishMistakes
+assert.equal(pm.getActiveUser().wordMastery[ALL_WORDS[0].id], 1);
 assert.equal(pm.getActiveUser().mathMistakes.length, 1);
+assert.equal(pm.getActiveUser().englishMistakes.length, 1);
+pm.updateWordProgress(ALL_WORDS[0], true, 1); // 1st normal right -> stays in englishMistakes (anti-lucky-guess)
+assert.equal(pm.getActiveUser().englishMistakes.length, 1);
+pm.updateWordProgress(ALL_WORDS[0], true, 1); // 2nd normal right -> truly mastered, removed from englishMistakes!
+assert.equal(pm.getActiveUser().englishMistakes.length, 0);
+pm.updateWordProgress(ALL_WORDS[1], false);
 assert.equal(pm.getActiveUser().englishMistakes.length, 1);
 pm.clearUserHistory(kid2.id);
 assert.equal(pm.getActiveUser().mathMistakes.length, 0);

@@ -186,7 +186,7 @@ class GameApp {
                 if (battleRes.isCorrect) {
                     const prefix = meta.isInteractiveMath
                         ? '🎉 数学答对！'
-                        : (meta.isCampFinish ? '🎉 5词背诵营通关！' : `🎉 英语答对【${meta.wordObj?.word || ''}】！`);
+                        : (meta.isCampFinish ? '🎉 5词背诵营通关！' : `🎉 答对【${meta.wordObj?.word || ''} · ${meta.wordObj?.zh || ''}】！`);
                     this.dom.feedbackMsg.innerText = `${prefix}+${battleRes.bonusSun} 阳光${meta.badgeSuffix || ''}`;
                     this.dom.mascotEmoji.innerText = '🌻';
                     this.dom.mascotTalk.innerText = '太棒啦！互动闯关也能召唤大阳光与觉醒大招！';

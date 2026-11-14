@@ -446,6 +446,10 @@ export class SmartChalkboard {
         }
         this._renderSubEntryStrip();
         this._syncBottomDiffTag();
+        if (this.feedbackEl) {
+            this.feedbackEl.className = 'bb-feedback';
+            this.feedbackEl.textContent = '';
+        }
 
         if (newMode === 'grand_random') {
             this._prepareNextGrandQuestion(false);
@@ -885,15 +889,23 @@ export class SmartChalkboard {
 
         if (isVocabMode) {
             const sess = englishEngine.studySession;
-            if (isCorrect) sess.correctInSession++;
+            if (isCorrect) {
+                sess.correctInSession++;
+                if (wordObj?.id && Array.isArray(sess.passedWordIds) && !sess.passedWordIds.includes(wordObj.id)) {
+                    sess.passedWordIds.push(wordObj.id);
+                }
+            } else {
+                // 背词营答错：将该生词追加到本轮检验队尾换角度重考，不糊弄通关！
+                englishEngine.enqueueCampRetryIfWrong(curQ);
+            }
             if (sess.quizIdx >= sess.quizQueue.length - 1) {
                 isCampFinish = true;
             }
         }
 
-        this.profileManager.updateWordProgress(wordObj, isCorrect, isCampFinish ? 2 : 1);
-
         const isReviewWord = !isVocabMode && Boolean(englishEngine.currentQuiz?.isReview);
+        this.profileManager.updateWordProgress(wordObj, isCorrect, (isCampFinish || isReviewWord) ? 2 : 1);
+
         const evalRes = englishEngine.evaluateResult(isCorrect, wordObj, isReviewWord);
         const battleRes = this.mathEngine.recordEnglishBattleAttempt({
             isCorrect,
@@ -939,7 +951,8 @@ export class SmartChalkboard {
             badgeSuffix
         });
 
-        const delayMs = isCorrect ? (isCampFinish ? 1100 : 520) : 1150;
+        // 答对保留 720ms 瞄一眼揭晓的释义；答错延长至 1750ms 让孩子看清标绿的正确单词与中文意思
+        const delayMs = isCorrect ? (isCampFinish ? 1150 : 720) : 1750;
         setTimeout(() => {
             if (this.entryMode === 'grand_random') {
                 this._prepareNextGrandQuestion(true);

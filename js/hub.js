@@ -1013,26 +1013,24 @@ class PortalHubApp {
 
     renderEnglishPracticeCard(stage, wordObj, remainingCount) {
         const optsHtml = this.practiceState.enOptions.map(opt => `
-            <button type="button" class="hub-prac-en-btn" data-wid="${opt.id}">
-                ${opt.word}
+            <button type="button" class="hub-prac-en-btn" data-wid="${opt.id}" data-wzh="${opt.icon || ''} ${opt.zh || ''}" data-wword="${opt.word}">
+                <span>${opt.word}</span>
             </button>
         `).join('');
 
         stage.innerHTML = `
             <div class="hub-prac-header">
-                <span>🔤 英语生词消消乐 · 剩余 ${remainingCount} 词（答对升星并移出待强化列表）</span>
+                <span>🔤 英语生词消消乐 · 剩余 ${remainingCount} 词（看图独立想出英文词，答对升星并移出待强化列表）</span>
                 <button type="button" class="hub-opt-pill" id="btnExitPractice" style="padding:2px 10px;font-size:12px;">收起 ✕</button>
             </div>
             <div class="hub-prac-question">
                 <span style="font-size:34px;">${wordObj.icon}</span>
                 <span style="margin-left:10px;">${wordObj.zh}</span>
-                <button type="button" class="hub-opt-pill" id="btnPracSpeak" style="margin-left:12px;font-size:13px;">🔊 听发音</button>
+                <button type="button" class="hub-opt-pill" id="btnPracSpeak" style="margin-left:12px;font-size:13px;">💡 发音提示</button>
             </div>
             <div class="hub-prac-en-opts">${optsHtml}</div>
-            <div class="hub-prac-feedback" id="hubPracFeedback">听发音看图标，选出正确的英语单词吧！</div>
+            <div class="hub-prac-feedback" id="hubPracFeedback">看图标和中文回想英文单词，选对后再听标准发音！</div>
         `;
-
-        sharedSpeech.speakEnglish(wordObj.word, false);
 
         stage.querySelector('#btnExitPractice')?.addEventListener('click', () => {
             this.stopMistakePractice();
@@ -1049,9 +1047,12 @@ class PortalHubApp {
                 if (picked === wordObj.id) {
                     this.practiceState.locked = true;
                     btn.classList.add('correct');
+                    stage.querySelectorAll('.hub-prac-en-btn').forEach(b => {
+                        b.innerHTML = `<div>${b.getAttribute('data-wword')}</div><div style="font-size:11px;opacity:0.8;">${b.getAttribute('data-wzh')}</div>`;
+                    });
                     this.practiceState.clearedCount += 1;
                     sharedSpeech.speakEnglish(wordObj.word, false);
-                    profileManager.updateWordProgress(wordObj, true, 1);
+                    profileManager.updateWordProgress(wordObj, true, 2);
                     const prog = profileManager.awardLearningProgress({
                         title: `🔤 [生词消消乐] 攻克待强化词 ${wordObj.word}`,
                         subjectTag: '生词攻坚',
@@ -1063,15 +1064,17 @@ class PortalHubApp {
                     });
                     const rewardTip = prog.actualBadges > 0 ? `🏅+${prog.actualBadges}枚徽章！` : `⭐攒星 ${prog.starProgress}/3`;
                     fbEl.style.color = '#55efc4';
-                    fbEl.textContent = `🎉 太棒啦！已掌握 ${wordObj.word} (${wordObj.zh}) · ${rewardTip}`;
+                    fbEl.textContent = `🎉 太棒啦！已牢记 ${wordObj.word} (${wordObj.zh}) · ${rewardTip}`;
                     this.renderAll();
                     this.renderReportList();
-                    setTimeout(() => this.nextPracticeQuestion(), 700);
+                    setTimeout(() => this.nextPracticeQuestion(), 850);
                 } else {
                     btn.classList.add('wrong');
+                    const pickedZh = btn.getAttribute('data-wzh') || '';
+                    const pickedWord = btn.getAttribute('data-wword') || '';
                     sharedSpeech.speakEnglish(wordObj.word, true, wordObj.phonics);
                     fbEl.style.color = '#ff7675';
-                    fbEl.textContent = `👂 听一听慢读发音，再试一次吧！`;
+                    fbEl.textContent = `👂 刚才点的是 ${pickedWord}(${pickedZh.trim()}) 哦～听一听慢读发音，再找找【${wordObj.zh}】！`;
                 }
             });
         });

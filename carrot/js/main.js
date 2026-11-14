@@ -473,7 +473,7 @@ const smartBoard = new SmartChalkboard({
             feedbackMsg.className = 'bb-feedback correct';
             const prefix = meta.isInteractiveMath
                 ? `✓ 数学答对！`
-                : (meta.isCampFinish ? '🎉 5词背诵营通关！' : `✓ 英语答对【${meta.wordObj?.word || ''}】！`);
+                : (meta.isCampFinish ? '🎉 5词背诵营通关！' : `✓ 答对【${meta.wordObj?.word || ''} · ${meta.wordObj?.zh || ''}】！`);
             feedbackMsg.textContent = `${prefix}+${battleRes.goldGain}G${meta.badgeSuffix || ''}`;
             triggerMascotReaction('correct', battleRes.combo);
             gameEngine.handleMathAnswerCorrect(battleRes);

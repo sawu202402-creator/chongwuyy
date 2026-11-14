@@ -180,7 +180,7 @@ async function main() {
     assert.ok(hubCheck.chips[0].includes('小豌豆'));
     assert.ok(hubCheck.chips[1].includes('川川'));
     assert.equal(hubCheck.noScroll, true, 'Hub must fit 1180x820 iPad viewport with zero vertical overflow');
-    assert.equal(hubCheck.modePillsCount, 26, 'Hub mode strip must expose 4 random/vocab + 5 course + 9 math + 8 general English = 26 entry pills');
+    assert.equal(hubCheck.modePillsCount, 27, 'Hub mode strip must expose 4 random/vocab + 5 course + 9 math + 9 general English = 27 entry pills');
     assert.equal(hubCheck.emptyHubPills, 0, 'All Hub mode pills must have visible labels');
     assert.ok(hubCheck.courseBtnTxt.includes('S1U1W1'), 'Hub course button should show latest lesson code S1U1W1');
     assert.equal(hubCheck.afterSingle, 'clock_money');
@@ -200,12 +200,12 @@ async function main() {
     console.log('Hub 1-Click Filter Modal check:', hubQuickFilterRes);
     assert.equal(hubQuickFilterRes.isOpen, true, 'Clicking #btnHubQuickTypesCfg must immediately open #sharedRandomFilterModal');
     assert.equal(hubQuickFilterRes.activeDiff, 'easy', 'Default English difficulty must be easy (🌱 轻松启蒙)');
-    assert.equal(hubQuickFilterRes.activeEnCount, 5, 'Default active English random types must be 5 friendly types');
+    assert.equal(hubQuickFilterRes.activeEnCount, 6, 'Default active English random types must be 6 friendly types (incl. word_meaning)');
     assert.equal(hubQuickFilterRes.excludedEnCount, 4, 'Default excluded English random types must be 4 hard types');
     await sleep(200);
     await saveShot('easy_hub_filter_modal.png');
 
-    // Toggle off phonics_chunks -> verify 4 active types saved & reflected in Hub strip -> restore 5 easy types
+    // Toggle off phonics_chunks -> verify 5 active types saved & reflected in Hub strip -> restore 6 easy types
     const hubFilterToggleRes = await evalJs(`(() => {
         document.querySelector('#rfmEnTypesMount .qw-type-check-pill[data-tid="phonics_chunks"]').click();
         document.getElementById('btnRfmSave').click();
@@ -216,8 +216,8 @@ async function main() {
         const afterRestoreTxt = document.querySelector('#hubSmartModeStrip [data-smode="english_random"]')?.textContent.trim() || '';
         return { afterSaveTxt, afterRestoreTxt };
     })()`);
-    assert.ok(hubFilterToggleRes.afterSaveTxt.includes('(4)'), `Expected (4) after excluding phonics_chunks, got ${hubFilterToggleRes.afterSaveTxt}`);
-    assert.ok(hubFilterToggleRes.afterRestoreTxt.includes('(5)'), `Expected (5) after restoring easy preset, got ${hubFilterToggleRes.afterRestoreTxt}`);
+    assert.ok(hubFilterToggleRes.afterSaveTxt.includes('(5)'), `Expected (5) after excluding phonics_chunks, got ${hubFilterToggleRes.afterSaveTxt}`);
+    assert.ok(hubFilterToggleRes.afterRestoreTxt.includes('(6)'), `Expected (6) after restoring easy preset, got ${hubFilterToggleRes.afterRestoreTxt}`);
 
     // Test Hub Off-Campus Course Special Modal (Video Read-Aloud Board + Phonics Blind Dictation)
     const hubCourseReadRes = await evalJs(`(() => {
@@ -285,7 +285,7 @@ async function main() {
     console.log('Hub Settings enabledTypes check:', gateAndTypesRes);
     assert.equal(gateAndTypesRes.isOpen, true, 'Solving Parent Gate arithmetic challenge must unlock Hub Settings');
     assert.equal(gateAndTypesRes.mathTypeChips, 9, 'Hub settings must render 9 math type pills');
-    assert.equal(gateAndTypesRes.enTypeChips, 9, 'Hub settings must render 9 English type pills (incl. course_special)');
+    assert.equal(gateAndTypesRes.enTypeChips, 10, 'Hub settings must render 10 English type pills (incl. word_meaning & course_special)');
     assert.equal(gateAndTypesRes.hasCourseOnlyBtn, true, 'English types selector must provide 🎓 仅校外课 quick filter');
     await evalJs(`document.getElementById('btnSaveHubSettings').click();`);
 
@@ -356,7 +356,7 @@ async function main() {
     })()`);
     console.log('Carrot interactive math setup:', carrotSetupRes);
     assert.equal(carrotSetupRes.mathBoxes, 9);
-    assert.equal(carrotSetupRes.enBoxes, 9);
+    assert.equal(carrotSetupRes.enBoxes, 10);
     assert.equal(carrotSetupRes.qKind, 'clock_money');
 
     // Solve the clock_money widget in Carrot and verify gold reward!
@@ -406,23 +406,52 @@ async function main() {
     assert.equal(carrotDictationGold.usedHintBtn, true, 'Dictation card must provide 💡 提示1字母 helper button');
     assert.ok(carrotDictationGold.goldAfter > carrotCourseBefore.goldBefore, 'Spelling S1U1W1 phonics word in Carrot must award Gold!');
 
-    // Switch Carrot SmartChalkboard to English -> verify 🎛️ 筛题/降难 button + Easy 4-bubble pair & 3-option match_word
+    // Switch Carrot SmartChalkboard to English -> verify 🎛️ 筛题/降难 button + ZERO Chinese leak before answer + post-answer reveal & green .correct highlight!
     const carrotEnRes = await evalJs(`(() => {
         document.querySelector('.smart-mode-tab[data-topcat="english"]').click();
         const hasFilterBtn = Boolean(document.querySelector('#smartSubEntryStrip [data-filter-modal]'));
         document.querySelector('.smart-entry-pill[data-emode="bubble_pair"]').click();
         const packOptCount = document.querySelectorAll('#smartEnPackSelect option').length;
         const bubbleCount = document.querySelectorAll('#smartEnStage .qw-pop-bubble').length;
-        document.querySelector('.smart-entry-pill[data-emode="match_word"]').click();
-        const matchOptionCount = document.querySelectorAll('#smartEnStage .qw-en-opt').length;
-        return { hasFilterBtn, packOptCount, bubbleCount, matchOptionCount };
+        document.querySelector('.smart-entry-pill[data-emode="cloze_sentence"]').click();
+        const opts = Array.from(document.querySelectorAll('#smartEnStage .qw-en-opt'));
+        const revealBefore = opts.map(b => {
+            const rev = b.querySelector('.qw-en-opt-reveal');
+            return rev ? getComputedStyle(rev).display : 'missing';
+        });
+        const visibleTextBefore = opts.map(b => b.innerText.trim());
+        return { hasFilterBtn, packOptCount, bubbleCount, matchOptionCount: opts.length, revealBefore, visibleTextBefore };
     })()`);
+    console.log('Carrot Pure-English Choice Before Click:', carrotEnRes);
     assert.equal(carrotEnRes.hasFilterBtn, true, 'SmartChalkboard must render 🎛️ 筛题/降难 button in sub-entry strip');
     assert.equal(carrotEnRes.packOptCount, 21, 'Pack selector must have 1 All(360) + 20 theme packs = 21 options');
     assert.equal(carrotEnRes.bubbleCount, 4, 'Easy bubble_pair must render 4 bubbles (2 pairs)');
-    assert.equal(carrotEnRes.matchOptionCount, 3, 'Easy match_word must render 3 choices');
-    await sleep(250);
-    await saveShot('easy_carrot_3choice.png');
+    assert.equal(carrotEnRes.matchOptionCount, 3, 'Easy cloze_sentence must render 3 choices');
+    assert.ok(carrotEnRes.revealBefore.every(d => d === 'none'), 'Chinese meaning reveal MUST be display:none BEFORE answering');
+    assert.ok(carrotEnRes.visibleTextBefore.every(t => !/[\u4e00-\u9fa5]/.test(t)), `English word options MUST NOT leak Chinese before click, got: ${JSON.stringify(carrotEnRes.visibleTextBefore)}`);
+    await sleep(200);
+    await saveShot('mem_carrot_pure_en_before.png');
+
+    // Now deliberately click a WRONG option in cloze_sentence -> verify .wrong + .correct green highlight + Chinese meaning revealed!
+    const carrotWrongRevealRes = await evalJs(`(async () => {
+        const { englishEngine } = await import('../shared/englishEngine.js');
+        const ansId = englishEngine.currentQuiz.answerId;
+        const wrongBtn = Array.from(document.querySelectorAll('#smartEnStage .qw-en-opt')).find(b => b.getAttribute('data-id') !== ansId);
+        wrongBtn.click();
+        const rightBtn = Array.from(document.querySelectorAll('#smartEnStage .qw-en-opt')).find(b => b.getAttribute('data-id') === ansId);
+        const revealAfter = getComputedStyle(rightBtn.querySelector('.qw-en-opt-reveal')).display;
+        return {
+            wrongMarked: wrongBtn.classList.contains('wrong'),
+            rightHighlightedGreen: rightBtn.classList.contains('correct'),
+            revealAfter
+        };
+    })()`);
+    console.log('Carrot Post-Wrong Reveal Check:', carrotWrongRevealRes);
+    assert.equal(carrotWrongRevealRes.wrongMarked, true);
+    assert.equal(carrotWrongRevealRes.rightHighlightedGreen, true, 'Wrong click MUST highlight the true .correct option in green');
+    assert.equal(carrotWrongRevealRes.revealAfter, 'block', 'Post-answer MUST reveal the Chinese meaning on options');
+    await sleep(200);
+    await saveShot('mem_carrot_reveal_after_wrong.png');
 
     // Switch back to Grand Random before leaving Carrot
     await evalJs(`document.querySelector('.smart-mode-tab[data-topcat="grand"]').click();`);
@@ -489,7 +518,7 @@ async function main() {
     console.log('Pet Town Course & Modes check:', petModesCheck);
     assert.deepEqual(petModesCheck.topTabs, ['grand_random', 'math', 'english', 'course', 'review']);
     assert.equal(petModesCheck.mathPillsCount, 10, 'Pet math sub-pills must have 1 random + 9 single modes = 10');
-    assert.equal(petModesCheck.engPillsCount, 15, 'Pet English sub-pills must have vocab_camp + random + 5 course + 8 general = 15');
+    assert.equal(petModesCheck.engPillsCount, 16, 'Pet English sub-pills must have vocab_camp + random + 5 course + 9 general = 16');
     assert.deepEqual(petModesCheck.coursePills, ['course_all', 'course_phonics', 'course_sight', 'course_qa', 'course_readcard']);
     assert.equal(petModesCheck.emptyCoursePills, 0, 'All Pet course sub-pills must have visible labels');
     assert.ok(petModesCheck.firstPackText.includes('360'));
@@ -507,24 +536,29 @@ async function main() {
     assert.equal(petReadCardCheck.hasBoard, true, 'Pet course_readcard must render read-aloud coaching board');
     assert.equal(petReadCardCheck.noScroll, true, 'Pet course_readcard must scroll internally with zero viewport overflow');
 
-    // Verify Pet 🎛️ 筛题/降难 button (#btnPetQuickFilter) & 3-choice Easy English in Pet Town
+    // Verify Pet 🎛️ 筛题/降难 button (#btnPetQuickFilter) & new 👀 看词识义 (word_meaning) mode in Pet Town
     const petEasyFilterCheck = await evalJs(`(() => {
         const filterBtn = document.getElementById('btnPetQuickFilter');
         filterBtn?.click();
         const modalOpen = Boolean(document.getElementById('sharedRandomFilterModal') && !document.getElementById('sharedRandomFilterModal').classList.contains('hidden'));
         document.getElementById('btnRfmClose')?.click();
         document.querySelector('.subj-tab[data-subj="english"]').click();
-        document.querySelector('#petEngSubPills [data-engmode="listen_pic"]').click();
+        document.querySelector('#petEngSubPills [data-engmode="word_meaning"]').click();
+        const pureWordTxt = document.querySelector('#petEngQuizStage .qw-en-hero-pureword')?.textContent.trim() || '';
         const optCount = document.querySelectorAll('#petEngQuizStage .qw-en-opt').length;
+        const revealHiddenBefore = Array.from(document.querySelectorAll('#petEngQuizStage .qw-en-opt .qw-en-opt-reveal'))
+            .every(el => getComputedStyle(el).display === 'none');
         const noScroll = document.documentElement.scrollHeight <= window.innerHeight + 2;
-        return { hasBtn: Boolean(filterBtn), modalOpen, optCount, noScroll };
+        return { hasBtn: Boolean(filterBtn), modalOpen, pureWordTxt, optCount, revealHiddenBefore, noScroll };
     })()`);
     assert.equal(petEasyFilterCheck.hasBtn, true, 'Pet Town must render #btnPetQuickFilter in mascots cheer bar');
     assert.equal(petEasyFilterCheck.modalOpen, true, 'Clicking #btnPetQuickFilter must open #sharedRandomFilterModal');
-    assert.equal(petEasyFilterCheck.optCount, 3, 'Pet Town Easy listen_pic must render 3 choices');
+    assert.ok(petEasyFilterCheck.pureWordTxt.length >= 2, 'word_meaning must display pure English word hero');
+    assert.equal(petEasyFilterCheck.optCount, 3, 'Pet Town Easy word_meaning must render 3 choices');
+    assert.equal(petEasyFilterCheck.revealHiddenBefore, true, 'word_meaning options must hide English word reveal before click');
     assert.equal(petEasyFilterCheck.noScroll, true, 'Pet Town must maintain zero vertical overflow');
     await sleep(250);
-    await saveShot('easy_pet_filter_and_quiz.png');
+    await saveShot('mem_pet_word_meaning.png');
 
     console.log('Console errors:', consoleErrors.length);
     console.log('Failed local network requests:', failedLocalUrls.length);

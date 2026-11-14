@@ -1365,6 +1365,11 @@ class PetWonderTownApp {
             if (tm) badgeTitle = tm.name;
         }
 
+        const fb = document.getElementById('engFeedbackBar');
+        if (fb) {
+            fb.className = 'feedback-bar';
+            fb.textContent = q.hint || '认真回忆词义再作答，答后揭晓解析与发音！';
+        }
         const stageEl = document.getElementById('petEngQuizStage');
         renderEnglishQuizWidget(stageEl, q, {
             theme: 'light',
@@ -1395,20 +1400,30 @@ class PetWonderTownApp {
         if (isCorrect) {
             soundEngine.playCorrect();
             if (isCourseQ) {
-                if (q.courseSubType === 'phonics_dictation' || q.courseSubType === 'sight_word_spell') {
+                if (q.courseSubType === 'phonics_dictation' || q.courseSubType === 'sight_word_spell' || q.courseSubType === 'phonics_listen_pick') {
                     soundEngine.speakEnglish(q.wordObj.ttsWord || q.wordObj.word, false, '');
-                } else if (q.courseSubType === 'sight_sentence_order') {
-                    soundEngine.speakEnglish(q.expectedSentence, false, '');
+                } else if (q.courseSubType === 'sight_sentence_order' || q.courseSubType === 'sight_cloze_pick') {
+                    soundEngine.speakEnglish(q.speakText || q.expectedSentence || q.wordObj.word, false, '');
                 } else if (q.courseSubType === 'qa_cloze' || q.courseSubType === 'qa_story_steps') {
                     soundEngine.speakEnglish(q.answerEn, false, '');
                 }
             } else if (q.mode !== 'bubble_pair') {
                 soundEngine.speakEnglish(q.wordObj.word, false, q.wordObj.phonics);
             }
+
+            const sess = englishEngine.studySession;
+            if (this.engSubMode === 'vocab_camp' && sess && sess.phase === 'quiz' && q.wordObj?.id) {
+                sess.correctInSession = (sess.correctInSession || 0) + 1;
+                if (Array.isArray(sess.passedWordIds) && !sess.passedWordIds.includes(q.wordObj.id)) {
+                    sess.passedWordIds.push(q.wordObj.id);
+                }
+            }
+
+            const boostVal = q.isReview ? 2 : 1;
             if (Array.isArray(q.pairWords) && q.pairWords.length > 0) {
                 q.pairWords.forEach(pw => profileManager.updateWordProgress(pw, true, 1));
             } else {
-                profileManager.updateWordProgress(q.wordObj, true, 1);
+                profileManager.updateWordProgress(q.wordObj, true, boostVal);
             }
 
             const award = profileManager.awardLearningProgress({
@@ -1427,7 +1442,7 @@ class PetWonderTownApp {
                 fb.textContent = `🎉 Awesome! ${displayKeyText} +${award.actualBadges}🏅（今日 ${award.dailyEarned}/${award.dailyCap}）！`;
                 this.fx.flyBadges(document.getElementById('panelEnglish'), document.getElementById('heroMainSprite'), award.actualBadges);
             } else {
-                fb.textContent = `⭐ Awesome! 学习星 ${award.starProgress}/3（再集 ${3 - award.starProgress} 星合成 +1🏅）！`;
+                fb.textContent = `⭐ Awesome! ${displayKeyText} · 学习星 ${award.starProgress}/3！`;
             }
 
             this.triggerPetHappyReaction();
@@ -1435,7 +1450,7 @@ class PetWonderTownApp {
 
             if (award.reachedCapNow) this.celebrateDailyCapReached(award.dailyCap);
 
-            setTimeout(() => this.advanceEnglishStep(), 700);
+            setTimeout(() => this.advanceEnglishStep(), 820);
         } else {
             soundEngine.playWrong();
             const wrongSpeak = isCourseQ
@@ -1443,9 +1458,16 @@ class PetWonderTownApp {
                 : q.wordObj.word;
             soundEngine.speakEnglish(wrongSpeak, true, isCourseQ ? '' : q.wordObj.phonics);
             profileManager.updateWordProgress(q.wordObj, false, 0);
+            const sess = englishEngine.studySession;
+            let retryNote = '已收入双倍复习本！';
+            if (this.engSubMode === 'vocab_camp' && sess && sess.phase === 'quiz') {
+                if (englishEngine.enqueueCampRetryIfWrong(q)) {
+                    retryNote = '稍后将在本轮队尾再巩固测一次！';
+                }
+            }
             this.updateReviewCountBadge();
-            fb.textContent = `💡 正确答案：${displayKeyText}，已收入双倍复习本！`;
-            setTimeout(() => this.advanceEnglishStep(), 1450);
+            fb.textContent = `💡 正确答案：${displayKeyText}，${retryNote}`;
+            setTimeout(() => this.advanceEnglishStep(), 1800);
         }
     }
 
@@ -1472,9 +1494,14 @@ class PetWonderTownApp {
             if (sess.quizIdx < sess.quizQueue.length) {
                 this.renderEnglishQuizQuestion(sess.quizQueue[sess.quizIdx], true);
             } else {
-                // 完成整组 5 词背诵通关！颁发稳健打卡奖励（+3枚徽章；每日首轮通关赠送1张盲盒券）
+                // 完成整组 5 词背诵通关！仅对本轮真正答对过的单词额外点亮熟练度
                 sess.phase = 'done';
-                sess.words.forEach(w => profileManager.updateWordProgress(w, true, 2));
+                const passedSet = new Set(sess.passedWordIds || []);
+                sess.words.forEach(w => {
+                    if (passedSet.has(w.id)) {
+                        profileManager.updateWordProgress(w, true, 1);
+                    }
+                });
                 soundEngine.playLevelUp();
                 const dailyBefore = profileManager.getDailyStatus();
                 const isFirstCampToday = dailyBefore.vocabCampCount === 0;

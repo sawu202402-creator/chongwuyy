@@ -325,6 +325,8 @@ export function buildQuestionsForLesson(lesson, subFilter = 'course_all', opts =
             const sightOptions = shuffleArray([sw, ...otherSight]).map(w => ({
                 id: w.id,
                 word: w.word,
+                phonics: w.phonics || '',
+                ipa: w.ipa || '',
                 zh: w.zh,
                 icon: w.icon
             }));
@@ -349,7 +351,7 @@ export function buildQuestionsForLesson(lesson, subFilter = 'course_all', opts =
                 wordOnlySpeak: sw.word,
                 maskedSentence: sw.maskedSentence,
                 sentenceZh: sw.sentenceZh,
-                meaningCue: `${sw.icon} 高频词提示：${sw.zh}`,
+                meaningCue: '',
                 answerId: sw.id,
                 expectedWord: sw.word.toLowerCase(),
                 options: sightOptions

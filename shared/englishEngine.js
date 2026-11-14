@@ -28,24 +28,26 @@ export {
 };
 
 export const ENGLISH_QUESTION_TYPES = [
-    { id: 'course_special', name: '🎓 校外英语课专项', shortName: '🎓 英语课', icon: '🎓', diffTag: '同步课', diffLevel: 'course', desc: '同步校外英语课作业（轻松档自动转为听音认读与问答选择，免盲拼）' },
-    { id: 'listen_pic',     name: '🎧 听音选图',     shortName: '🎧 听音', icon: '🎧', diffTag: '超简单', diffLevel: 'easy',   desc: '听纯正美式发音，选出对应图案' },
-    { id: 'match_word',     name: '🃏 看图识词',     shortName: '🃏 识词', icon: '🃏', diffTag: '简单',   diffLevel: 'easy',   desc: '看萌图与释义，选出正确拼读单词' },
+    { id: 'course_special', name: '🎓 校外英语课专项', shortName: '🎓 英语课', icon: '🎓', diffTag: '同步课', diffLevel: 'course', desc: '同步校外英语课作业（轻松档纯英文认读选词，选后揭晓词义）' },
+    { id: 'listen_pic',     name: '🎧 听音选图',     shortName: '🎧 听音', icon: '🎧', diffTag: '超简单', diffLevel: 'easy',   desc: '听纯正美式发音，选出对应图案（音→义）' },
+    { id: 'match_word',     name: '🃏 看图选词',     shortName: '🃏 选词', icon: '🃏', diffTag: '简单',   diffLevel: 'easy',   desc: '看图案回想纯英文单词，选后再听音核对（义→形）' },
+    { id: 'word_meaning',   name: '👀 看词识义',     shortName: '👀 识义', icon: '👀', diffTag: '超简单', diffLevel: 'easy',   desc: '只看纯英文单词，回想选出正确图案词义（形→义真记忆）' },
     { id: 'bubble_pair',    name: '🫧 单词消消乐',   shortName: '🫧 配对', icon: '🫧', diffTag: '简单',   diffLevel: 'easy',   desc: '中英图文泡泡配对消除（轻松档2组4泡泡）' },
-    { id: 'phonics_chunks', name: '🔤 自然拼读积木', shortName: '🔤 拼读', icon: '🔤', diffTag: '好上手', diffLevel: 'easy',   desc: '看彩色自然拼读提示，按发音点选音节积木' },
-    { id: 'cloze_sentence', name: '💬 情景句填空',   shortName: '💬 填空', icon: '💬', diffTag: '适中',   diffLevel: 'medium', desc: '听读完整例句，选词补全句子空白' },
-    { id: 'riddle_qa',      name: '🕵️ 英语小谜语',   shortName: '🕵️ 谜语', icon: '🕵️', diffTag: '适中',   diffLevel: 'medium', desc: '读懂趣味英文线索，猜出正确事物' },
+    { id: 'phonics_chunks', name: '🔤 自然拼读积木', shortName: '🔤 拼读', icon: '🔤', diffTag: '好上手', diffLevel: 'easy',   desc: '听发音独立点选音节积木，卡壳可点拼读提示' },
+    { id: 'cloze_sentence', name: '💬 情景句填空',   shortName: '💬 填空', icon: '💬', diffTag: '适中',   diffLevel: 'medium', desc: '纯英文选项补全句子空白，作答后揭晓词义与朗读' },
+    { id: 'riddle_qa',      name: '🕵️ 英语小谜语',   shortName: '🕵️ 谜语', icon: '🕵️', diffTag: '适中',   diffLevel: 'medium', desc: '读线索从纯英文词中猜出答案，选后揭晓词义' },
     { id: 'word_order',     name: '🚂 连词成句火车', shortName: '🚂 连句', icon: '🚂', diffTag: '偏难',   diffLevel: 'hard',   desc: '点击打乱的词块，按正确语序连成句子' },
     { id: 'spell_word',     name: '🧩 果冻字母拼写', shortName: '🧩 拼写', icon: '🧩', diffTag: '偏难',   diffLevel: 'hard',   desc: '点击字母果冻块，把空缺字母补齐（轻松档仅空1字母）' }
 ];
 
 export const ALL_ENGLISH_TYPE_IDS = ENGLISH_QUESTION_TYPES.map(t => t.id);
 
-// 默认给低龄小朋友启用的轻松随机题型（默认排除：情景填空、小谜语、连词成句、果冻拼写等偏难题型）
+// 默认给低龄小朋友启用的轻松随机题型（音·形·义三向认读 + 消消乐 + 自然拼读 + 校外课，默认排除偏难题型）
 export const DEFAULT_EASY_ENGLISH_TYPES = [
     'course_special',
     'listen_pic',
     'match_word',
+    'word_meaning',
     'bubble_pair',
     'phonics_chunks'
 ];
@@ -55,7 +57,7 @@ export const ENGLISH_DIFFICULTY_MODES = [
         id: 'easy',
         name: '🌱 轻松启蒙',
         shortName: '🌱轻松',
-        desc: '仅抽短词(L1)·3选1·2组消消乐·拼写仅空1字母·校外课免盲拼',
+        desc: '仅抽短词(L1)·3选1·音形义双向认读·2组消消乐·拼写仅空1字母',
         recommendedTypes: [...DEFAULT_EASY_ENGLISH_TYPES],
         courseAllowHardDictation: false
     },
@@ -64,7 +66,7 @@ export const ENGLISH_DIFFICULTY_MODES = [
         name: '⭐ 标准进阶',
         shortName: '⭐标准',
         desc: '常用词(L1+L2)·4选1·3组消消乐·拼写空1~2字母',
-        recommendedTypes: ['course_special', 'listen_pic', 'match_word', 'bubble_pair', 'cloze_sentence', 'phonics_chunks', 'riddle_qa'],
+        recommendedTypes: ['course_special', 'listen_pic', 'match_word', 'word_meaning', 'bubble_pair', 'cloze_sentence', 'phonics_chunks', 'riddle_qa'],
         courseAllowHardDictation: false
     },
     {
@@ -79,9 +81,9 @@ export const ENGLISH_DIFFICULTY_MODES = [
 
 export const ENGLISH_LEVELS = {
     level1_listen: { id: 'level1_listen', name: '🌱 轻松启蒙包', wordDifficulty: 'easy',   presetTypes: [...DEFAULT_EASY_ENGLISH_TYPES] },
-    level2_match:  { id: 'level2_match',  name: '⚡ 标准认读包', wordDifficulty: 'medium', presetTypes: ['course_special', 'listen_pic', 'match_word', 'bubble_pair', 'cloze_sentence', 'phonics_chunks'] },
-    level3_spell:  { id: 'level3_spell',  name: '🔥 读写挑战包', wordDifficulty: 'all',    presetTypes: ['course_special', 'cloze_sentence', 'phonics_chunks', 'riddle_qa', 'word_order', 'spell_word'] },
-    mixed:         { id: 'mixed',         name: '🌈 全能9题型混合', wordDifficulty: 'all', presetTypes: [...ALL_ENGLISH_TYPE_IDS] }
+    level2_match:  { id: 'level2_match',  name: '⚡ 标准认读包', wordDifficulty: 'medium', presetTypes: ['course_special', 'listen_pic', 'match_word', 'word_meaning', 'bubble_pair', 'cloze_sentence', 'phonics_chunks'] },
+    level3_spell:  { id: 'level3_spell',  name: '🔥 读写挑战包', wordDifficulty: 'all',    presetTypes: ['course_special', 'word_meaning', 'cloze_sentence', 'phonics_chunks', 'riddle_qa', 'word_order', 'spell_word'] },
+    mixed:         { id: 'mixed',         name: '🌈 全能10题型混合', wordDifficulty: 'all', presetTypes: [...ALL_ENGLISH_TYPE_IDS] }
 };
 
 export const WORD_PACKS = [
@@ -729,7 +731,7 @@ export class EnglishEngine {
         }
         let typeSummary = '';
         if (enabled.length >= ALL_ENGLISH_TYPE_IDS.length) {
-            typeSummary = '9题型全开';
+            typeSummary = '10题型全开';
         } else if (enabled.length <= 2) {
             typeSummary = enabled
                 .map(id => ENGLISH_QUESTION_TYPES.find(t => t.id === id)?.shortName || id)
@@ -831,7 +833,7 @@ export class EnglishEngine {
         }
     }
 
-    _pickQuestionType(forcedType = null) {
+    _pickQuestionType(forcedType = null, targetWord = null, wordMastery = {}) {
         if (forcedType && forcedType !== 'random' && ALL_ENGLISH_TYPE_IDS.includes(forcedType)) {
             this._lastType = forcedType;
             return forcedType;
@@ -848,6 +850,24 @@ export class EnglishEngine {
             const filtered = enabled.filter(t => t !== this._lastType);
             if (filtered.length > 0) candidates = filtered;
         }
+
+        // 若已经选定了目标词，按掌握星级智能倾斜题型（0星优先音形义认读 -> 1星配对拼读 -> 2星+语境与拼写，同时保留多样性）
+        if (targetWord && candidates.length > 1 && Math.random() < 0.72) {
+            const stars = Number(wordMastery?.[targetWord.id] || 0);
+            let preferredPool = [];
+            if (stars <= 0) {
+                preferredPool = ['listen_pic', 'match_word', 'word_meaning', 'bubble_pair'];
+            } else if (stars === 1) {
+                preferredPool = ['word_meaning', 'match_word', 'bubble_pair', 'phonics_chunks', 'cloze_sentence'];
+            } else {
+                preferredPool = ['word_meaning', 'phonics_chunks', 'cloze_sentence', 'riddle_qa', 'spell_word', 'word_order'];
+            }
+            const stageMatches = candidates.filter(t => preferredPool.includes(t));
+            if (stageMatches.length > 0) {
+                candidates = stageMatches;
+            }
+        }
+
         const picked = candidates[Math.floor(Math.random() * candidates.length)];
         if (picked === this._lastType) {
             this._sameTypeStreak += 1;
@@ -886,7 +906,7 @@ export class EnglishEngine {
             .filter(id => id !== 'course_special' && ALL_ENGLISH_TYPE_IDS.includes(id));
         const campAllowedTypes = rawEnabledGeneral.length > 0
             ? rawEnabledGeneral
-            : ['listen_pic', 'match_word', 'bubble_pair', 'phonics_chunks'];
+            : ['listen_pic', 'match_word', 'word_meaning', 'bubble_pair', 'phonics_chunks'];
 
         const totalSteps = (this.config?.wordDifficulty || 'easy') === 'easy' ? 6 : 8;
         const quizQueue = [];
@@ -906,12 +926,43 @@ export class EnglishEngine {
             packIcon: isAll ? '🌟' : pack.icon,
             phase: 'study',
             words: targetWords,
+            sourceWords,
+            campAllowedTypes,
             studyIdx: 0,
             quizQueue,
             quizIdx: 0,
-            correctInSession: 0
+            correctInSession: 0,
+            retryCount: 0,
+            passedWordIds: []
         };
         return this.studySession;
+    }
+
+    /**
+     * 5词背诵营「错词当场重考」机制：检验阶段一旦答错某词，自动换个角度追加到队尾重考（上限3次防死循环）
+     */
+    enqueueCampRetryIfWrong(failedQuiz) {
+        const sess = this.studySession;
+        if (!sess || sess.phase !== 'quiz' || !failedQuiz || !failedQuiz.wordObj) return false;
+        if ((sess.retryCount || 0) >= 3) return false;
+
+        const allowed = Array.isArray(sess.campAllowedTypes) && sess.campAllowedTypes.length > 0
+            ? sess.campAllowedTypes
+            : ['word_meaning', 'match_word', 'listen_pic'];
+        const preferredRetryOrder = ['word_meaning', 'match_word', 'listen_pic', 'phonics_chunks'];
+        const retryType = preferredRetryOrder.find(t => allowed.includes(t) && t !== failedQuiz.mode)
+            || preferredRetryOrder.find(t => allowed.includes(t))
+            || allowed[0];
+
+        const retryPool = Array.isArray(sess.sourceWords) && sess.sourceWords.length >= 6 ? sess.sourceWords : ALL_WORDS;
+        const retryQ = retryType === 'bubble_pair'
+            ? this.buildBubblePairQuestion(failedQuiz.wordObj, sess.words)
+            : this.buildQuestionByType(retryType, failedQuiz.wordObj, retryPool);
+        retryQ.isCampRetry = true;
+        retryQ.hint = `🔁 错词巩固重测 · ${retryQ.hint}`;
+        sess.quizQueue.push(retryQ);
+        sess.retryCount = (sess.retryCount || 0) + 1;
+        return true;
     }
 
     nextQuickQuestion(forcedWordIdOrOpts = null, maybeForcedType = null) {
@@ -986,8 +1037,8 @@ export class EnglishEngine {
             } catch (e) {}
         }
 
-        // 先决定题型：如果随机抽中了校外英语课专项 (course_special)，直接走课后专项洗牌袋，不消耗 360 词主洗牌袋
-        let qType = this._pickQuestionType(forcedType);
+        // 先决定是否抽中校外英语课专项 (course_special)，若抽中则走课后专项洗牌袋，不消耗 360 词主洗牌袋
+        let qType = this._pickQuestionType(forcedType, null, wordMastery);
         if (!target && qType === 'course_special') {
             const cq = courseSessionManager.nextQuestion(
                 this.config?.courseLessonId || 'latest',
@@ -1007,14 +1058,23 @@ export class EnglishEngine {
             target = this._drawFromBag(pool, wordMastery);
         }
 
+        // 若是随机题型，结合刚抽出的目标词熟练度（0星认读 -> 1星拼读 -> 2星+运用）精选最契合的已启用题型
+        if (!forcedType || forcedType === 'random') {
+            const nonCourseForced = qType === 'course_special' ? null : null;
+            const refined = this._pickQuestionType(nonCourseForced, target, wordMastery);
+            if (refined !== 'course_special') {
+                qType = refined;
+            }
+        }
+
         this._recordWordAsked(target.id, Boolean(forcedWordId || isAutoReview));
         this._lastWasReview = Boolean(forcedWordId || isAutoReview);
 
-        // 若是定向错题复习且抽中了 course_special，转为已启用题型复习（若未启用拼写则用看图识词）
+        // 若是定向错题复习且抽中了 course_special，转为已启用题型复习（优先看词识义或看图选词）
         if (qType === 'course_special') {
             const enabledGeneral = (this.config?.enabledTypes || []).filter(id => id !== 'course_special');
-            if (enabledGeneral.includes('spell_word')) {
-                qType = 'spell_word';
+            if (enabledGeneral.includes('word_meaning')) {
+                qType = 'word_meaning';
             } else if (enabledGeneral.includes('match_word')) {
                 qType = 'match_word';
             } else {
@@ -1037,6 +1097,8 @@ export class EnglishEngine {
                 return this.buildListenChoiceQuestion(target, pool);
             case 'match_word':
                 return this.buildWordChoiceQuestion(target, pool);
+            case 'word_meaning':
+                return this.buildWordMeaningQuestion(target, pool);
             case 'bubble_pair':
                 return this.buildBubblePairQuestion(target, pool);
             case 'cloze_sentence':
@@ -1089,12 +1151,42 @@ export class EnglishEngine {
                 id: w.id,
                 word: w.word,
                 phonicsHtml: EnglishEngine.renderPhonicsHtml(w.phonics),
+                icon: w.icon,
                 zh: w.zh
             }));
 
         return {
             mode: 'match_word',
-            hint: '🃏 看萌图听发音，挑出对应的英语单词！',
+            hint: '🃏 看图案想一想，选出正确的英语单词！',
+            wordObj: target,
+            speakText: target.word,
+            options,
+            answerId: target.id
+        };
+    }
+
+    /**
+     * 新增核心背词题型：👀 看词识义（只看纯英文单词 -> 独立回想选出对应中文与图案，作答后再发音核对）
+     */
+    buildWordMeaningQuestion(target, pool = ALL_WORDS) {
+        const isEasy = (this.config?.wordDifficulty || 'easy') === 'easy';
+        const distractorCount = isEasy ? 2 : 3;
+        const source = pool.length >= 6 ? pool : ALL_WORDS;
+        let distractors = fisherYatesShuffle(source.filter(w => w.id !== target.id && w.icon !== target.icon)).slice(0, distractorCount);
+        if (distractors.length < distractorCount) {
+            distractors = fisherYatesShuffle(ALL_WORDS.filter(w => w.id !== target.id && w.icon !== target.icon)).slice(0, distractorCount);
+        }
+        const options = fisherYatesShuffle([...distractors, target])
+            .map(w => ({
+                id: w.id,
+                icon: w.icon,
+                zh: w.zh,
+                word: w.word
+            }));
+
+        return {
+            mode: 'word_meaning',
+            hint: '👀 看纯英文单词，回想它是哪个意思！',
             wordObj: target,
             speakText: target.word,
             options,

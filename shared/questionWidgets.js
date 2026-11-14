@@ -106,6 +106,21 @@ export function renderMathInteractiveWidget(containerEl, q, hooks = {}) {
         }
     };
 
+    const markMathChoiceResult = (clickedBtn, ok, expectedVal) => {
+        clickedBtn.classList.add(ok ? 'correct' : 'wrong');
+        if (!ok) {
+            containerEl.querySelectorAll('.qw-choice-btn').forEach(b => {
+                if (String(b.getAttribute('data-val')) === String(expectedVal)) {
+                    b.classList.add('correct');
+                }
+            });
+            const tipBox = containerEl.querySelector('[data-qw-tipbox]');
+            if (tipBox && tipBox.textContent.trim()) {
+                tipBox.style.display = 'block';
+            }
+        }
+    };
+
     // 1. ⚖️ 天平比大小
     if (q.kind === 'compare') {
         containerEl.innerHTML = `
@@ -137,11 +152,11 @@ export function renderMathInteractiveWidget(containerEl, q, hooks = {}) {
                 onTap();
                 const picked = btn.getAttribute('data-val');
                 const ok = picked === q.answer;
-                if (slotEl) slotEl.textContent = picked;
+                if (slotEl) slotEl.textContent = q.answer;
                 if (beamEl) {
                     beamEl.classList.add(q.answer === '<' ? 'tilt-right' : (q.answer === '>' ? 'tilt-left' : 'tilt-even'));
                 }
-                btn.classList.add(ok ? 'correct' : 'wrong');
+                markMathChoiceResult(btn, ok, q.answer);
                 onEvaluate(ok, picked);
             };
         });
@@ -265,8 +280,8 @@ export function renderMathInteractiveWidget(containerEl, q, hooks = {}) {
                 onTap();
                 const picked = btn.getAttribute('data-val');
                 const ok = picked === q.answer;
-                if (holeEl) holeEl.textContent = picked;
-                btn.classList.add(ok ? 'correct' : 'wrong');
+                if (holeEl) holeEl.textContent = q.answer;
+                markMathChoiceResult(btn, ok, q.answer);
                 onEvaluate(ok, picked);
             };
         });
@@ -306,8 +321,8 @@ export function renderMathInteractiveWidget(containerEl, q, hooks = {}) {
                 onTap();
                 const picked = Number(btn.getAttribute('data-val'));
                 const ok = picked === Number(q.answer);
-                if (blankCar) blankCar.textContent = String(picked);
-                btn.classList.add(ok ? 'correct' : 'wrong');
+                if (blankCar) blankCar.textContent = String(q.answer);
+                markMathChoiceResult(btn, ok, q.answer);
                 onEvaluate(ok, String(picked));
             };
         });
@@ -357,7 +372,7 @@ export function renderMathInteractiveWidget(containerEl, q, hooks = {}) {
                 onTap();
                 const picked = btn.getAttribute('data-val');
                 const ok = String(picked) === String(q.answer);
-                btn.classList.add(ok ? 'correct' : 'wrong');
+                markMathChoiceResult(btn, ok, q.answer);
                 onEvaluate(ok, picked);
             };
         });
@@ -420,7 +435,7 @@ export function renderMathInteractiveWidget(containerEl, q, hooks = {}) {
                 onTap();
                 const picked = btn.getAttribute('data-val');
                 const ok = String(picked) === String(q.answer);
-                btn.classList.add(ok ? 'correct' : 'wrong');
+                markMathChoiceResult(btn, ok, q.answer);
                 onEvaluate(ok, picked);
             };
         });
@@ -465,6 +480,22 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
         }
     };
 
+    /**
+     * 统一揭晓作答反馈：
+     * 1) 作答前选项绝不泄露答案（纯英文选项不带中文/图案；纯中文图案选项不带英文）；
+     * 2) 作答后瞬间浮现选项隐藏的对应释义/词形（.qw-grid-answered），且若选错必定将真正正确项高亮标绿（.correct）！
+     */
+    const revealEnglishChoiceFeedback = (clickedBtn, ok, isRightOptionFn) => {
+        clickedBtn.classList.add(ok ? 'correct' : 'wrong');
+        const gridEl = containerEl.querySelector('.qw-en-grid');
+        if (gridEl) gridEl.classList.add('qw-grid-answered');
+        if (!ok && typeof isRightOptionFn === 'function') {
+            containerEl.querySelectorAll('.qw-en-opt').forEach(b => {
+                if (isRightOptionFn(b)) b.classList.add('correct');
+            });
+        }
+    };
+
     // 0. 🎓 校外英语课后专项（听音写词 / 高频词与原句听写 / 课文问答）
     if (q.mode === 'course_special') {
         renderCourseSpecialQuestion(containerEl, q, {
@@ -472,17 +503,19 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
             onEvaluate,
             onTap,
             themeClass,
-            autoSpeak: Boolean(hooks.autoSpeak)
+            autoSpeak: Boolean(hooks.autoSpeak),
+            revealEnglishChoiceFeedback
         });
         return;
     }
 
-    // 1. 🎧 听音选图
+    // 1. 🎧 听音选图（音 -> 义：作答前看图+中文，作答后在卡片下方浮现英文词形）
     if (q.mode === 'listen_pic') {
         const optsHtml = q.options.map(opt => `
             <button type="button" class="qw-en-opt" data-id="${opt.id}" data-word="${opt.word}">
                 <span class="qw-en-opt-emoji">${opt.icon}</span>
                 <span class="qw-en-opt-sub">${opt.zh}</span>
+                <span class="qw-en-opt-reveal">${opt.word}</span>
             </button>
         `).join('');
 
@@ -512,18 +545,19 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
                 const pickedId = btn.getAttribute('data-id');
                 const pickedWord = btn.getAttribute('data-word') || '';
                 const ok = pickedId === q.answerId;
-                btn.classList.add(ok ? 'correct' : 'wrong');
+                revealEnglishChoiceFeedback(btn, ok, b => b.getAttribute('data-id') === q.answerId);
                 onEvaluate(ok, pickedWord);
             };
         });
         return;
     }
 
-    // 2. 🃏 看图识词
+    // 2. 🃏 看图选词（义 -> 形：作答前纯英文选项、不提前自动报答案音；作答后揭晓自然拼读与中文+发音）
     if (q.mode === 'match_word') {
         const optsHtml = q.options.map(opt => `
             <button type="button" class="qw-en-opt" data-id="${opt.id}" data-word="${opt.word}">
-                <span class="qw-en-opt-word">${opt.phonicsHtml || opt.word}</span>
+                <span class="qw-en-opt-word">${opt.word}</span>
+                <span class="qw-en-opt-reveal">${opt.icon || ''} ${opt.zh || ''}</span>
             </button>
         `).join('');
 
@@ -532,12 +566,12 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
                 <div class="qw-en-card compact">
                     <div class="qw-en-top">
                         <span>${badgeTitle}</span>
-                        <span>${q.hint || '🃏 看图识词'}</span>
+                        <span>${q.hint || '🃏 看图选词'}</span>
                     </div>
                     <div class="qw-en-hero-row">
                         <span class="qw-en-big-emoji">${w.icon}</span>
                         <span class="qw-en-hero-zh">${w.zh}</span>
-                        <button type="button" class="qw-voice-btn" data-en-speak="fast">🔊 听音</button>
+                        <button type="button" class="qw-voice-btn" data-en-speak="fast" title="想不起来可点此听发音提示">💡 发音提示</button>
                         <button type="button" class="qw-voice-btn slow" data-en-speak="slow">🐢 慢读</button>
                     </div>
                 </div>
@@ -545,7 +579,6 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
             </div>
         `;
         bindVoiceBtns(w.word, w.phonics);
-        if (hooks.autoSpeak) speak(w.word, false, '');
 
         containerEl.querySelectorAll('.qw-en-opt').forEach(btn => {
             btn.onclick = () => {
@@ -555,7 +588,50 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
                 const pickedId = btn.getAttribute('data-id');
                 const pickedWord = btn.getAttribute('data-word') || '';
                 const ok = pickedId === q.answerId;
-                btn.classList.add(ok ? 'correct' : 'wrong');
+                revealEnglishChoiceFeedback(btn, ok, b => b.getAttribute('data-id') === q.answerId);
+                onEvaluate(ok, pickedWord);
+            };
+        });
+        return;
+    }
+
+    // 2B. 👀 看词识义（形 -> 义：题干只给大号纯英文单词，独立回想中文图案，作答后再朗读核对）
+    if (q.mode === 'word_meaning') {
+        const optsHtml = q.options.map(opt => `
+            <button type="button" class="qw-en-opt" data-id="${opt.id}" data-word="${opt.word}">
+                <span class="qw-en-opt-emoji">${opt.icon}</span>
+                <span class="qw-en-opt-sub">${opt.zh}</span>
+                <span class="qw-en-opt-reveal">${opt.word}</span>
+            </button>
+        `).join('');
+
+        containerEl.innerHTML = `
+            <div class="qw-stage-wrap ${themeClass}">
+                <div class="qw-en-card compact">
+                    <div class="qw-en-top">
+                        <span>${badgeTitle}</span>
+                        <span>${q.hint || '👀 看词识义'}</span>
+                    </div>
+                    <div class="qw-en-hero-row">
+                        <span class="qw-en-hero-pureword">${w.word}</span>
+                        <button type="button" class="qw-voice-btn" data-en-speak="fast" title="不会读可以点此听音">🔊 听读音</button>
+                        <button type="button" class="qw-voice-btn slow" data-en-speak="slow">🐢 拼读</button>
+                    </div>
+                </div>
+                <div class="qw-en-grid">${optsHtml}</div>
+            </div>
+        `;
+        bindVoiceBtns(w.word, w.phonics);
+
+        containerEl.querySelectorAll('.qw-en-opt').forEach(btn => {
+            btn.onclick = () => {
+                if (locked) return;
+                locked = true;
+                onTap();
+                const pickedId = btn.getAttribute('data-id');
+                const pickedWord = btn.getAttribute('data-word') || '';
+                const ok = pickedId === q.answerId;
+                revealEnglishChoiceFeedback(btn, ok, b => b.getAttribute('data-id') === q.answerId);
                 onEvaluate(ok, pickedWord);
             };
         });
@@ -641,12 +717,12 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
         return;
     }
 
-    // 4. 💬 情景句填空
+    // 4. 💬 情景句填空（作答前纯英文选项绝不印中文/图标，作答后才揭晓中文释义与标绿正确项）
     if (q.mode === 'cloze_sentence') {
         const optsHtml = q.options.map(opt => `
             <button type="button" class="qw-en-opt" data-id="${opt.id}" data-word="${opt.word}">
                 <span class="qw-en-opt-word">${opt.word}</span>
-                <span class="qw-en-opt-sub">${opt.icon} ${opt.zh}</span>
+                <span class="qw-en-opt-reveal">${opt.icon || ''} ${opt.zh || ''}</span>
             </button>
         `).join('');
 
@@ -656,7 +732,7 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
                     <div class="qw-en-top">
                         <span>${badgeTitle}</span>
                         <div style="display:flex;gap:4px;">
-                            <button type="button" class="qw-mini-btn" data-en-speak="fast">🔊 读句</button>
+                            <button type="button" class="qw-mini-btn" data-en-speak="fast">💡 听句提示</button>
                             <button type="button" class="qw-mini-btn" data-en-speak="slow">🐢 慢读</button>
                         </div>
                     </div>
@@ -667,7 +743,6 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
             </div>
         `;
         bindVoiceBtns(q.speakText || w.sentence, '');
-        if (hooks.autoSpeak) speak(q.speakText || w.sentence, false, '');
 
         containerEl.querySelectorAll('.qw-en-opt').forEach(btn => {
             btn.onclick = () => {
@@ -677,16 +752,18 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
                 const pickedId = btn.getAttribute('data-id');
                 const pickedWord = btn.getAttribute('data-word') || '';
                 const ok = pickedId === q.answerId;
-                btn.classList.add(ok ? 'correct' : 'wrong');
+                revealEnglishChoiceFeedback(btn, ok, b => b.getAttribute('data-id') === q.answerId);
                 onEvaluate(ok, pickedWord);
             };
         });
         return;
     }
 
-    // 5. 🔤 自然拼读积木
+    // 5. 🔤 自然拼读积木（默认收起拼写答案胶囊防照抄，可点「💡 拼读提示」或拼错自动展开）
     if (q.mode === 'phonics_chunks') {
         const pickedBlocks = [];
+        let showPhonicsHint = false;
+        let wrongBanner = '';
 
         const renderPhonicsUI = () => {
             const slotsHtml = q.expectedChunks.map((_, idx) => {
@@ -705,6 +782,12 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
                 </button>
             `).join('');
 
+            const guideHtml = w.phonics
+                ? (showPhonicsHint
+                    ? `<span class="qw-phonics-guide-pill" title="自然拼读提示">${EnglishEngine.renderPhonicsHtml(w.phonics)}</span>`
+                    : `<button type="button" class="qw-mini-btn tip" data-ph-hint="1">💡 拼读提示</button>`)
+                : '';
+
             containerEl.innerHTML = `
                 <div class="qw-stage-wrap ${themeClass}">
                     <div class="qw-en-card compact">
@@ -712,20 +795,29 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
                             <span>🔤 自然拼读积木</span>
                             <div style="display:flex;gap:4px;">
                                 <button type="button" class="qw-mini-btn" data-en-speak="fast">🔊 听词</button>
-                                <button type="button" class="qw-mini-btn" data-en-speak="slow">🐢 拼读</button>
+                                <button type="button" class="qw-mini-btn" data-en-speak="slow">🐢 慢速拼读</button>
                             </div>
                         </div>
                         <div class="qw-en-hero-row">
                             <span class="qw-en-big-emoji">${w.icon}</span>
                             <span class="qw-en-hero-zh">${w.zh} <small style="opacity:0.75;">${w.ipa || ''}</small></span>
-                            ${w.phonics ? `<span class="qw-phonics-guide-pill" title="自然拼读提示">${EnglishEngine.renderPhonicsHtml(w.phonics)}</span>` : ''}
+                            ${guideHtml}
                         </div>
                         <div class="qw-chunk-slots-row">${slotsHtml}</div>
+                        ${wrongBanner ? `<div class="qw-wrong-answer-banner">${wrongBanner}</div>` : ''}
                     </div>
                     <div class="qw-chunk-pool">${blocksHtml}</div>
                 </div>
             `;
             bindVoiceBtns(w.word, w.phonics);
+
+            containerEl.querySelector('[data-ph-hint]')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onTap();
+                showPhonicsHint = true;
+                speak(w.word, true, w.phonics);
+                renderPhonicsUI();
+            });
 
             containerEl.querySelectorAll('.qw-chunk-slot.filled').forEach(slotBtn => {
                 slotBtn.onclick = () => {
@@ -751,6 +843,11 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
                         locked = true;
                         const userWord = pickedBlocks.map(x => x.chunk).join('').toLowerCase();
                         const ok = userWord === q.expectedWord.toLowerCase();
+                        if (!ok) {
+                            showPhonicsHint = true;
+                            wrongBanner = `✅ 正确拼写：${w.word}（${q.expectedChunks.join('·')}）`;
+                            renderPhonicsUI();
+                        }
                         onEvaluate(ok, userWord);
                     }
                 };
@@ -762,12 +859,12 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
         return;
     }
 
-    // 6. 🕵️ 英语小谜语
+    // 6. 🕵️ 英语小谜语（作答前纯英文选项无中文无Emoji泄露，作答后揭晓词义并标绿正确项）
     if (q.mode === 'riddle_qa') {
         const optsHtml = q.options.map(opt => `
             <button type="button" class="qw-en-opt" data-id="${opt.id}" data-word="${opt.word}">
-                <span class="qw-en-opt-word">${opt.icon} ${opt.word}</span>
-                <span class="qw-en-opt-sub">${opt.zh}</span>
+                <span class="qw-en-opt-word">${opt.word}</span>
+                <span class="qw-en-opt-reveal">${opt.icon || ''} ${opt.zh || ''}</span>
             </button>
         `).join('');
 
@@ -785,7 +882,7 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
             </div>
         `;
         bindVoiceBtns(q.speakText || w.word, '');
-        if (hooks.autoSpeak) speak(q.speakText || w.word, false, '');
+        if (hooks.autoSpeak && w.riddle) speak(w.riddle, false, '');
 
         containerEl.querySelectorAll('.qw-en-opt').forEach(btn => {
             btn.onclick = () => {
@@ -795,7 +892,7 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
                 const pickedId = btn.getAttribute('data-id');
                 const pickedWord = btn.getAttribute('data-word') || '';
                 const ok = pickedId === q.answerId;
-                btn.classList.add(ok ? 'correct' : 'wrong');
+                revealEnglishChoiceFeedback(btn, ok, b => b.getAttribute('data-id') === q.answerId);
                 onEvaluate(ok, pickedWord);
             };
         });
@@ -806,6 +903,7 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
     if (q.mode === 'word_order') {
         const prefillN = Math.max(0, Number(q.prefilledCount) || 0);
         const chosenCarriages = [];
+        let wrongSenBanner = '';
         for (let i = 0; i < prefillN; i++) {
             const matchC = q.carriages.find(c => c.orderIdx === i)
                 || q.carriages.find(c => c.text === q.expectedTokens[i] && !chosenCarriages.includes(c));
@@ -839,6 +937,7 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
                         </div>
                         <div class="qw-cloze-zh">${w.icon} ${q.sentenceZh}</div>
                         <div class="qw-wo-track"><span>🚂</span>${trackHtml}</div>
+                        ${wrongSenBanner ? `<div class="qw-wrong-answer-banner">${wrongSenBanner}</div>` : ''}
                     </div>
                     <div class="qw-chunk-pool">${poolHtml}</div>
                 </div>
@@ -870,6 +969,10 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
                         locked = true;
                         const userSen = chosenCarriages.map(x => x.text).join(' ');
                         const ok = userSen === q.expectedSentence;
+                        if (!ok) {
+                            wrongSenBanner = `✅ 正确原句：${q.expectedSentence}`;
+                            renderWordTrain();
+                        }
                         onEvaluate(ok, userSen);
                     }
                 };
@@ -883,6 +986,7 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
 
     // 8. 🧩 果冻字母拼写 (默认兜底)
     const filledMap = {};
+    let wrongSpellBanner = '';
     const renderSpell = () => {
         const slotsHtml = q.chars.map((ch, idx) => {
             if (!q.missingIndices.includes(idx)) {
@@ -914,6 +1018,7 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
                         <span class="qw-en-hero-zh">${w.zh}</span>
                     </div>
                     <div class="smart-spell-slots">${slotsHtml}</div>
+                    ${wrongSpellBanner ? `<div class="qw-wrong-answer-banner">${wrongSpellBanner}</div>` : ''}
                 </div>
                 <div class="smart-spell-tiles">${tilesHtml}</div>
             </div>
@@ -945,6 +1050,10 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
                     locked = true;
                     const userWord = q.chars.map((c, i) => (filledMap[i] ? filledMap[i].char : c)).join('');
                     const ok = userWord.toLowerCase() === q.expectedWord;
+                    if (!ok) {
+                        wrongSpellBanner = `✅ 正确拼写：${w.word}`;
+                        renderSpell();
+                    }
                     onEvaluate(ok, userWord);
                 }
             };
@@ -1048,71 +1157,98 @@ export function renderEnabledTypesSelector(containerEl, typesMeta, selectedIds, 
  * 校外英语课专项考题渲染器（覆盖：启蒙听音认词 / 高频词选填 / 盲听全词拼写 / 高频词默写 / 必背原句听写 / 课文问答Q&A / 课文填空 / 长句排序）
  */
 function renderCourseSpecialQuestion(containerEl, q, ctx) {
-    const { speak, onEvaluate, onTap, themeClass, autoSpeak } = ctx;
+    const { speak, onEvaluate, onTap, themeClass, autoSpeak, revealEnglishChoiceFeedback } = ctx;
     let locked = false;
 
-    // A0. 👂 自然拼读听音认词 & 🎯 高频词认读选填（随机启蒙免盲拼友好模式）
+    // A0. 👂 自然拼读听音认词 & 🎯 高频词认读选填（作答前纯英文选项零中文泄露，作答后揭晓词义与自然拼读+标绿正确项）
     if (q.courseSubType === 'phonics_listen_pick' || q.courseSubType === 'sight_cloze_pick') {
         const isSightPick = q.courseSubType === 'sight_cloze_pick';
-        const optsHtml = (q.options || []).map(opt => `
-            <button type="button" class="qw-en-opt" data-cid="${opt.id}" data-cword="${opt.word}">
-                <span class="qw-en-opt-word">${opt.word}</span>
-                <span class="qw-en-opt-sub">${opt.phonics ? EnglishEngine.renderPhonicsHtml(opt.phonics) : `${opt.icon || ''} ${opt.zh || ''}`}</span>
-            </button>
-        `).join('');
+        let showCue = false;
 
-        const bodyHtml = isSightPick
-            ? `
-                <div class="qw-cloze-en">${q.maskedSentence}</div>
-                <div class="qw-cloze-zh">${q.sentenceZh || ''} · ${q.meaningCue || ''}</div>
-            `
-            : `
-                <div class="qw-course-meaning-row">
-                    <span style="font-size:1.25rem;font-weight:900;">${q.meaningCue}</span>
-                    ${q.ipa ? `<span class="qw-ipa-pill">${q.ipa}</span>` : ''}
+        const drawCoursePick = () => {
+            const optsHtml = (q.options || []).map(opt => {
+                const postReveal = opt.phonics
+                    ? `${EnglishEngine.renderPhonicsHtml(opt.phonics)} · ${opt.icon || ''}${opt.zh || ''}`
+                    : `${opt.icon || ''} ${opt.zh || ''}`;
+                return `
+                    <button type="button" class="qw-en-opt" data-cid="${opt.id}" data-cword="${opt.word}">
+                        <span class="qw-en-opt-word">${opt.word}</span>
+                        <span class="qw-en-opt-reveal">${postReveal}</span>
+                    </button>
+                `;
+            }).join('');
+
+            const bodyHtml = isSightPick
+                ? `
+                    <div class="qw-cloze-en">${q.maskedSentence}</div>
+                    <div class="qw-cloze-zh">${q.sentenceZh || ''}</div>
+                `
+                : `
+                    <div class="qw-course-meaning-row">
+                        ${showCue
+                            ? `<span style="font-size:1.15rem;font-weight:900;">${q.meaningCue}</span>`
+                            : `<button type="button" class="qw-mini-btn tip" data-cpcue="1">💡 看词义提示</button>`}
+                        ${q.ipa ? `<span class="qw-ipa-pill">${q.ipa}</span>` : ''}
+                    </div>
+                `;
+
+            containerEl.innerHTML = `
+                <div class="qw-stage-wrap ${themeClass}">
+                    <div class="qw-en-card compact qw-course-card">
+                        <div class="qw-en-top">
+                            <span class="qw-course-tag">${q.hint}</span>
+                        </div>
+                        <div class="qw-en-voice-row compact">
+                            <button type="button" class="qw-voice-btn primary" data-cpspeak="fast">${isSightPick ? '💡 听原句提示' : '🔊 听纯正发音'}</button>
+                            <button type="button" class="qw-voice-btn slow" data-cpspeak="slow">🐢 慢速拼读</button>
+                        </div>
+                        ${bodyHtml}
+                    </div>
+                    <div class="qw-en-grid">${optsHtml}</div>
                 </div>
             `;
 
-        containerEl.innerHTML = `
-            <div class="qw-stage-wrap ${themeClass}">
-                <div class="qw-en-card compact qw-course-card">
-                    <div class="qw-en-top">
-                        <span class="qw-course-tag">${q.hint}</span>
-                    </div>
-                    <div class="qw-en-voice-row compact">
-                        <button type="button" class="qw-voice-btn primary" data-cpspeak="fast">${isSightPick ? '🔊 听教材原句' : '🔊 听纯正发音'}</button>
-                        <button type="button" class="qw-voice-btn slow" data-cpspeak="slow">🐢 慢速拼读</button>
-                    </div>
-                    ${bodyHtml}
-                </div>
-                <div class="qw-en-grid">${optsHtml}</div>
-            </div>
-        `;
-
-        containerEl.querySelector('[data-cpspeak="fast"]')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            onTap();
-            speak(q.speakText, false, '');
-        });
-        containerEl.querySelector('[data-cpspeak="slow"]')?.addEventListener('click', (e) => {
-            e.stopPropagation();
-            onTap();
-            speak(q.wordOnlySpeak || q.speakText, true, q.phonicsHint || '');
-        });
-        containerEl.querySelectorAll('.qw-en-opt').forEach(btn => {
-            btn.onclick = () => {
-                if (locked) return;
-                locked = true;
+            containerEl.querySelector('[data-cpspeak="fast"]')?.addEventListener('click', (e) => {
+                e.stopPropagation();
                 onTap();
-                const pickedId = btn.getAttribute('data-cid');
-                const pickedWord = btn.getAttribute('data-cword') || '';
-                const ok = pickedId === q.answerId || pickedWord.toLowerCase() === q.expectedWord;
-                btn.classList.add(ok ? 'correct' : 'wrong');
-                onEvaluate(ok, pickedWord);
-            };
-        });
+                speak(q.speakText, false, '');
+            });
+            containerEl.querySelector('[data-cpspeak="slow"]')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onTap();
+                speak(q.wordOnlySpeak || q.speakText, true, q.phonicsHint || '');
+            });
+            containerEl.querySelector('[data-cpcue="1"]')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onTap();
+                showCue = true;
+                drawCoursePick();
+            });
+            containerEl.querySelectorAll('.qw-en-opt').forEach(btn => {
+                btn.onclick = () => {
+                    if (locked) return;
+                    locked = true;
+                    onTap();
+                    const pickedId = btn.getAttribute('data-cid');
+                    const pickedWord = btn.getAttribute('data-cword') || '';
+                    const ok = pickedId === q.answerId || pickedWord.toLowerCase() === q.expectedWord;
+                    if (typeof revealEnglishChoiceFeedback === 'function') {
+                        revealEnglishChoiceFeedback(
+                            btn,
+                            ok,
+                            b => b.getAttribute('data-cid') === q.answerId || (b.getAttribute('data-cword') || '').toLowerCase() === q.expectedWord
+                        );
+                    } else {
+                        btn.classList.add(ok ? 'correct' : 'wrong');
+                    }
+                    onEvaluate(ok, pickedWord);
+                };
+            });
+        };
 
-        if (autoSpeak) speak(q.speakText, false, '');
+        drawCoursePick();
+        // 听音认词自动播发音；高频词选句填空不自动念出答案原句（作答后自动朗读完整原句）
+        if (autoSpeak && !isSightPick) speak(q.speakText, false, '');
         return;
     }
 
@@ -1243,6 +1379,7 @@ function renderCourseSpecialQuestion(containerEl, q, ctx) {
     // B. 📝 主教材必背原句听写（听读完整英文句 -> 按顺序点选全部单词）
     if (q.courseSubType === 'sight_sentence_order') {
         const chosen = [];
+        let wrongCourseSen = '';
         const drawSenDictation = () => {
             const usedSet = new Set(chosen.map(c => c.carriageId));
             const trackHtml = q.expectedTokens.map((_, idx) => {
@@ -1272,6 +1409,7 @@ function renderCourseSpecialQuestion(containerEl, q, ctx) {
                         </div>
                         <div class="qw-cloze-zh">📌 必背句（含高频词 <strong>${q.targetSightWord}</strong>）：${q.sentenceZh}</div>
                         <div class="qw-wo-track">${trackHtml}</div>
+                        ${wrongCourseSen ? `<div class="qw-wrong-answer-banner">${wrongCourseSen}</div>` : ''}
                     </div>
                     <div class="qw-chunk-pool">${poolHtml}</div>
                 </div>
@@ -1310,6 +1448,10 @@ function renderCourseSpecialQuestion(containerEl, q, ctx) {
                         locked = true;
                         const userSen = chosen.map(x => x.text).join(' ');
                         const ok = userSen === q.expectedSentence;
+                        if (!ok) {
+                            wrongCourseSen = `✅ 正确原句：${q.expectedSentence}`;
+                            drawSenDictation();
+                        }
                         onEvaluate(ok, userSen);
                     }
                 };
@@ -1380,7 +1522,7 @@ function renderCourseSpecialQuestion(containerEl, q, ctx) {
                 <div class="qw-en-card compact qw-course-card">
                     <div class="qw-en-top">
                         <span class="qw-course-tag">${q.hint}</span>
-                        <button type="button" class="qw-mini-btn" data-cspeak="ans">🔊 听答句</button>
+                        <button type="button" class="qw-mini-btn" data-cspeak="ans">💡 听答句提示</button>
                     </div>
                     <div class="qw-cloze-zh" style="font-weight:900;">Q: ${q.questionEn}</div>
                     <div class="qw-cloze-en">A: ${q.clozeSentence}</div>
@@ -1394,7 +1536,7 @@ function renderCourseSpecialQuestion(containerEl, q, ctx) {
             onTap();
             speak(q.answerEn, false, '');
         });
-        if (autoSpeak) speak(q.answerEn, false, '');
+        if (autoSpeak) speak(q.questionEn, false, '');
 
         containerEl.querySelectorAll('.qw-en-opt').forEach(btn => {
             btn.onclick = () => {
@@ -1403,7 +1545,11 @@ function renderCourseSpecialQuestion(containerEl, q, ctx) {
                 onTap();
                 const picked = btn.getAttribute('data-opt') || '';
                 const ok = picked === q.expectedOption;
-                btn.classList.add(ok ? 'correct' : 'wrong');
+                if (typeof revealEnglishChoiceFeedback === 'function') {
+                    revealEnglishChoiceFeedback(btn, ok, b => b.getAttribute('data-opt') === q.expectedOption);
+                } else {
+                    btn.classList.add(ok ? 'correct' : 'wrong');
+                }
                 onEvaluate(ok, picked);
             };
         });
