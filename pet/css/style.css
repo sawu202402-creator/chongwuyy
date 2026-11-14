@@ -2504,3 +2504,27 @@ button:active {
         grid-template-columns: 1fr;
     }
 }
+
+.mascot-right-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.pet-quick-filter-btn {
+    border: 1.8px solid #ffe082;
+    background: linear-gradient(180deg, #fff6d6 0%, #ffd54f 100%);
+    color: #5d3a00;
+    border-radius: 999px;
+    padding: 3px 9px;
+    font-size: 11.5px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 2px 0 rgba(183, 110, 0, 0.35);
+    font-family: inherit;
+    white-space: nowrap;
+}
+.pet-quick-filter-btn:active {
+    transform: translateY(1px);
+}

@@ -29,6 +29,7 @@ import {
     ALL_WORDS,
     ENGLISH_QUESTION_TYPES,
     ALL_ENGLISH_TYPE_IDS,
+    DEFAULT_EASY_ENGLISH_TYPES,
     ENGLISH_LEVELS,
     COURSE_LESSONS,
     COURSE_SUB_MODES,
@@ -46,6 +47,7 @@ import {
     renderEnabledTypesSelector,
     renderCourseReadAloudBoard
 } from '../../shared/questionWidgets.js';
+import { openRandomFilterModal } from '../../shared/randomFilterModal.js';
 import { requireParentGate } from '../../shared/parentGate.js';
 
 // ==================== 全屏高帧率飞行徽章与礼花粒子引擎 ====================
@@ -1658,7 +1660,8 @@ class PetWonderTownApp {
         this.draftMathTypes = sanitizeMathEnabledTypes(mc.enabledTypes);
 
         const ec = u.englishConfig || {};
-        this.draftEngLevel = ec.level || 'mixed';
+        this.draftEngLevel = ec.level || 'level1_listen';
+        this.draftEngWordDiff = ec.wordDifficulty || 'easy';
         this.draftEngPack = ec.packId || 'all';
         this.draftEngTypes = sanitizeEnglishEnabledTypes(ec.enabledTypes);
 
@@ -1791,12 +1794,12 @@ class PetWonderTownApp {
             ['calc', 'compare', 'bond_pop', 'sequence_train', 'clock_money']
         );
 
-        // 4. 英语梯度设置 + 8题型多选
+        // 4. 英语梯度设置 + 9题型多选
         const engLevels = [
-            { id: 'level1_listen', title: '🌱 启蒙级：听音选图 + 消消乐', desc: '听纯正美音选可爱图案与泡泡配对，零识字门槛轻松开口' },
-            { id: 'level2_match', title: '⚡ 初阶级：图词配对 + 自然拼读 + 情景句', desc: '看萌图辨认彩色音节积木与短句填空，适合 1~3 年级' },
-            { id: 'level3_spell', title: '🔥 进阶级：谜语问答 + 连词成句 + 拼写', desc: '英语小侦探猜谜、小火车排句与完整拼写，综合进阶' },
-            { id: 'mixed', title: '🌈 全能混合：8大趣味互动题型自由轮换', desc: '听说、消消乐、拼读积木、猜谜、连词成句全面提升语感' }
+            { id: 'level1_listen', diff: 'easy',   title: '🌱 轻松启蒙（推荐）：仅抽短词 + 3选1 + 免盲拼', desc: '仅抽日常高频短词，3个选项、2组消消乐、校外课转听音认读，零挫败感' },
+            { id: 'level2_match',  diff: 'medium', title: '⭐ 标准进阶：图词配对 + 自然拼读 + 情景句', desc: '常用分级词库(L1+L2)，4选项互动与音节积木，适合进阶认读' },
+            { id: 'level3_spell',  diff: 'all',    title: '🔥 挑战读写：谜语问答 + 连词成句 + 拼写', desc: '英语小侦探猜谜、小火车排句与完整拼写，综合进阶' },
+            { id: 'mixed',         diff: 'all',    title: '🌈 全能混合：9大趣味互动题型全部开启', desc: '听说、消消乐、拼读积木、猜谜、连词成句与校外课全套默写' }
         ];
         const eStack = document.getElementById('engLevelCards');
         eStack.innerHTML = '';
@@ -1806,6 +1809,7 @@ class PetWonderTownApp {
             d.innerHTML = `<strong>${el.title}</strong><small>${el.desc}</small>`;
             d.onclick = () => {
                 this.draftEngLevel = el.id;
+                this.draftEngWordDiff = el.diff;
                 const lvMeta = ENGLISH_LEVELS[el.id];
                 if (lvMeta && Array.isArray(lvMeta.presetTypes)) {
                     this.draftEngTypes = [...lvMeta.presetTypes];
@@ -1820,7 +1824,7 @@ class PetWonderTownApp {
             ENGLISH_QUESTION_TYPES,
             this.draftEngTypes,
             (next) => { this.draftEngTypes = next; },
-            ['listen_pic', 'match_word', 'bubble_pair', 'phonics_chunks']
+            DEFAULT_EASY_ENGLISH_TYPES
         );
 
         const ePackRow = document.getElementById('engDefaultPackPills');
@@ -1866,6 +1870,8 @@ class PetWonderTownApp {
         const englishConfig = {
             ...prevEc,
             level: this.draftEngLevel,
+            wordDifficulty: this.draftEngWordDiff || prevEc.wordDifficulty || 'easy',
+            courseAllowHardDictation: (this.draftEngWordDiff || prevEc.wordDifficulty) === 'all',
             packId: this.draftEngPack,
             enabledTypes: cleanEngTypes
         };
@@ -2391,10 +2397,22 @@ class PetWonderTownApp {
             soundEngine.playTap();
             this.openProfileModal();
         };
-        document.getElementById('btnQuickDiffFooter').onclick = () => {
+        const openPetQuickFilter = () => {
             soundEngine.playTap();
-            this.openProfileModal();
+            openRandomFilterModal({
+                profileManager,
+                onSaved: () => {
+                    this.syncEnginesWithActiveUser();
+                    this.renderAll();
+                    this.switchSubjectTab(this.activeSubject, false, true);
+                }
+            });
         };
+        document.getElementById('btnQuickDiffFooter').onclick = openPetQuickFilter;
+        const btnPetQuickFilter = document.getElementById('btnPetQuickFilter');
+        if (btnPetQuickFilter) {
+            btnPetQuickFilter.onclick = openPetQuickFilter;
+        }
         document.getElementById('btnOpenReport').onclick = () => {
             soundEngine.playTap();
             this.openReportModal();

@@ -1375,9 +1375,14 @@ class GameApp {
         const prevEc = (this.editingKidId && this.editingKidId !== 'NEW')
             ? (profileManager.getUser(this.editingKidId)?.englishConfig || {})
             : {};
+        const nextEnLevel = this.selectedEnLevel || 'level1_listen';
+        const nextWordDiff = (nextEnLevel !== prevEc.level && ENGLISH_LEVELS[nextEnLevel]?.wordDifficulty)
+            ? ENGLISH_LEVELS[nextEnLevel].wordDifficulty
+            : (prevEc.wordDifficulty || 'easy');
         const englishConfig = {
             ...prevEc,
-            level: this.selectedEnLevel || 'level2_match',
+            level: nextEnLevel,
+            wordDifficulty: nextWordDiff,
             packId: (this.dom.pvzEnPackSelect && this.dom.pvzEnPackSelect.value) || this.selectedEnPack || 'all',
             enabledTypes: this.selectedEnTypes
         };

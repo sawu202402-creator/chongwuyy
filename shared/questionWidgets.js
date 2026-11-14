@@ -6,6 +6,7 @@
  * - PortalHubApp (/ 游戏大厅题型配置)
  */
 import { sharedSpeech } from './audioTTS.js';
+import { EnglishEngine } from './englishEngine.js';
 
 /**
  * 绘制清晰的 SVG 指针式圆盘钟表（含 1~12 刻度数字、分针格线、时针与分针）
@@ -717,6 +718,7 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
                         <div class="qw-en-hero-row">
                             <span class="qw-en-big-emoji">${w.icon}</span>
                             <span class="qw-en-hero-zh">${w.zh} <small style="opacity:0.75;">${w.ipa || ''}</small></span>
+                            ${w.phonics ? `<span class="qw-phonics-guide-pill" title="自然拼读提示">${EnglishEngine.renderPhonicsHtml(w.phonics)}</span>` : ''}
                         </div>
                         <div class="qw-chunk-slots-row">${slotsHtml}</div>
                     </div>
@@ -802,14 +804,21 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
 
     // 7. 🚂 连词成句火车
     if (q.mode === 'word_order') {
+        const prefillN = Math.max(0, Number(q.prefilledCount) || 0);
         const chosenCarriages = [];
+        for (let i = 0; i < prefillN; i++) {
+            const matchC = q.carriages.find(c => c.orderIdx === i)
+                || q.carriages.find(c => c.text === q.expectedTokens[i] && !chosenCarriages.includes(c));
+            if (matchC) chosenCarriages.push(matchC);
+        }
 
         const renderWordTrain = () => {
             const usedSet = new Set(chosenCarriages.map(c => c.carriageId));
             const trackHtml = q.expectedTokens.map((_, idx) => {
                 const placed = chosenCarriages[idx];
+                const isPrefilled = idx < prefillN && Boolean(placed);
                 return `
-                    <button type="button" class="qw-wo-slot ${placed ? 'filled' : ''}" data-idx="${idx}">
+                    <button type="button" class="qw-wo-slot ${placed ? 'filled' : ''} ${isPrefilled ? 'prefilled' : ''}" data-idx="${idx}" ${isPrefilled ? 'title="第1节提示词已放好"' : ''}>
                         ${placed ? placed.text : `${idx + 1}`}
                     </button>
                 `;
@@ -839,8 +848,9 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
             containerEl.querySelectorAll('.qw-wo-slot.filled').forEach(btn => {
                 btn.onclick = () => {
                     if (locked) return;
-                    onTap();
                     const idx = Number(btn.getAttribute('data-idx'));
+                    if (idx < prefillN) return;
+                    onTap();
                     chosenCarriages.splice(idx, 1);
                     renderWordTrain();
                 };
@@ -963,12 +973,19 @@ export function renderEnabledTypesSelector(containerEl, typesMeta, selectedIds, 
 
     const draw = () => {
         const set = new Set(current);
+        const blockedCount = allIds.length - current.length;
         const pillsHtml = typesMeta.map(t => {
             const active = set.has(t.id);
+            const diffBadge = t.diffTag
+                ? `<span class="qw-diff-tag diff-${t.diffLevel || 'easy'}">${t.diffTag}</span>`
+                : '';
+            const stateBadge = `<span class="qw-state-flag">${active ? '随机出现' : '不出现'}</span>`;
             return `
-                <button type="button" class="qw-type-check-pill ${active ? 'active' : ''}" data-tid="${t.id}" title="${t.desc || t.name}">
-                    <span class="qw-chk-mark">${active ? '☑️' : '⬜'}</span>
-                    <span>${t.name}</span>
+                <button type="button" class="qw-type-check-pill ${active ? 'active' : 'excluded'}" data-tid="${t.id}" title="${t.desc || t.name}">
+                    <span class="qw-chk-mark">${active ? '✅' : '🚫'}</span>
+                    <span class="qw-pill-main-txt">${t.name}</span>
+                    ${diffBadge}
+                    ${stateBadge}
                 </button>
             `;
         }).join('');
@@ -977,10 +994,12 @@ export function renderEnabledTypesSelector(containerEl, typesMeta, selectedIds, 
         containerEl.innerHTML = `
             <div class="qw-type-selector-wrap">
                 <div class="qw-type-quick-bar">
-                    <span class="qw-type-count">已启用 <strong>${current.length}</strong> / ${allIds.length} 种题型（大随机与单科随机将从已勾选题型中抽取）</span>
+                    <span class="qw-type-count">
+                        已开启 <strong>${current.length}</strong> 项${blockedCount > 0 ? ` · <span class="qw-blocked-tip">🚫 已屏蔽 ${blockedCount} 项不在随机中出现</span>` : '（全部开启）'}
+                    </span>
                     <div class="qw-type-quick-btns">
-                        <button type="button" class="qw-tiny-act" data-qact="all">全选 (${allIds.length})</button>
-                        ${basicPresetIds.length > 0 ? `<button type="button" class="qw-tiny-act" data-qact="basic">启蒙推荐</button>` : ''}
+                        ${basicPresetIds.length > 0 ? `<button type="button" class="qw-tiny-act easy-rec" data-qact="basic">🌱 只留简单题</button>` : ''}
+                        <button type="button" class="qw-tiny-act" data-qact="all">☑️ 全开 (${allIds.length})</button>
                         ${hasCourseSpecial ? `<button type="button" class="qw-tiny-act course-only" data-qact="course_only">🎓 仅校外课</button>` : ''}
                     </div>
                 </div>
@@ -1026,17 +1045,95 @@ export function renderEnabledTypesSelector(containerEl, typesMeta, selectedIds, 
 }
 
 /**
- * 校外英语课专项考题渲染器（覆盖：盲听全词拼写 / 高频词默写 / 必背原句听写 / 课文问答Q&A / 课文填空 / 长句排序）
+ * 校外英语课专项考题渲染器（覆盖：启蒙听音认词 / 高频词选填 / 盲听全词拼写 / 高频词默写 / 必背原句听写 / 课文问答Q&A / 课文填空 / 长句排序）
  */
 function renderCourseSpecialQuestion(containerEl, q, ctx) {
     const { speak, onEvaluate, onTap, themeClass, autoSpeak } = ctx;
     let locked = false;
 
-    // A. 👂 听音写词抽查 & ✍️ 高频词全字母默写
+    // A0. 👂 自然拼读听音认词 & 🎯 高频词认读选填（随机启蒙免盲拼友好模式）
+    if (q.courseSubType === 'phonics_listen_pick' || q.courseSubType === 'sight_cloze_pick') {
+        const isSightPick = q.courseSubType === 'sight_cloze_pick';
+        const optsHtml = (q.options || []).map(opt => `
+            <button type="button" class="qw-en-opt" data-cid="${opt.id}" data-cword="${opt.word}">
+                <span class="qw-en-opt-word">${opt.word}</span>
+                <span class="qw-en-opt-sub">${opt.phonics ? EnglishEngine.renderPhonicsHtml(opt.phonics) : `${opt.icon || ''} ${opt.zh || ''}`}</span>
+            </button>
+        `).join('');
+
+        const bodyHtml = isSightPick
+            ? `
+                <div class="qw-cloze-en">${q.maskedSentence}</div>
+                <div class="qw-cloze-zh">${q.sentenceZh || ''} · ${q.meaningCue || ''}</div>
+            `
+            : `
+                <div class="qw-course-meaning-row">
+                    <span style="font-size:1.25rem;font-weight:900;">${q.meaningCue}</span>
+                    ${q.ipa ? `<span class="qw-ipa-pill">${q.ipa}</span>` : ''}
+                </div>
+            `;
+
+        containerEl.innerHTML = `
+            <div class="qw-stage-wrap ${themeClass}">
+                <div class="qw-en-card compact qw-course-card">
+                    <div class="qw-en-top">
+                        <span class="qw-course-tag">${q.hint}</span>
+                    </div>
+                    <div class="qw-en-voice-row compact">
+                        <button type="button" class="qw-voice-btn primary" data-cpspeak="fast">${isSightPick ? '🔊 听教材原句' : '🔊 听纯正发音'}</button>
+                        <button type="button" class="qw-voice-btn slow" data-cpspeak="slow">🐢 慢速拼读</button>
+                    </div>
+                    ${bodyHtml}
+                </div>
+                <div class="qw-en-grid">${optsHtml}</div>
+            </div>
+        `;
+
+        containerEl.querySelector('[data-cpspeak="fast"]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onTap();
+            speak(q.speakText, false, '');
+        });
+        containerEl.querySelector('[data-cpspeak="slow"]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onTap();
+            speak(q.wordOnlySpeak || q.speakText, true, q.phonicsHint || '');
+        });
+        containerEl.querySelectorAll('.qw-en-opt').forEach(btn => {
+            btn.onclick = () => {
+                if (locked) return;
+                locked = true;
+                onTap();
+                const pickedId = btn.getAttribute('data-cid');
+                const pickedWord = btn.getAttribute('data-cword') || '';
+                const ok = pickedId === q.answerId || pickedWord.toLowerCase() === q.expectedWord;
+                btn.classList.add(ok ? 'correct' : 'wrong');
+                onEvaluate(ok, pickedWord);
+            };
+        });
+
+        if (autoSpeak) speak(q.speakText, false, '');
+        return;
+    }
+
+    // A. 👂 听音写词抽查 & ✍️ 高频词全字母默写（带「💡 提示1字母」辅助防卡壳）
     if (q.courseSubType === 'phonics_dictation' || q.courseSubType === 'sight_word_spell') {
         const isSight = q.courseSubType === 'sight_word_spell';
         const pickedTiles = [];
         let revealAnswer = '';
+
+        const finishIfComplete = () => {
+            if (pickedTiles.length === q.chars.length) {
+                locked = true;
+                const userWord = pickedTiles.map(x => x.char).join('').toLowerCase();
+                const ok = userWord === q.expectedWord;
+                if (!ok) {
+                    revealAnswer = `💡 正确默写：${q.expectedWord}`;
+                    drawDictation();
+                }
+                onEvaluate(ok, userWord);
+            }
+        };
 
         const drawDictation = () => {
             const usedSet = new Set(pickedTiles.map(t => t.tileId));
@@ -1064,7 +1161,10 @@ function renderCourseSpecialQuestion(containerEl, q, ctx) {
                     <div class="qw-en-card compact qw-course-card">
                         <div class="qw-en-top">
                             <span class="qw-course-tag">${q.hint}</span>
-                            <button type="button" class="qw-mini-btn" data-dact="back" ${pickedTiles.length === 0 || locked ? 'disabled' : ''}>⌫ 退格</button>
+                            <div style="display:flex;gap:4px;">
+                                <button type="button" class="qw-mini-btn hint-letter" data-dact="hint" ${locked || pickedTiles.length >= q.chars.length ? 'disabled' : ''}>💡 提示1字母</button>
+                                <button type="button" class="qw-mini-btn" data-dact="back" ${pickedTiles.length === 0 || locked ? 'disabled' : ''}>⌫ 退格</button>
+                            </div>
                         </div>
                         <div class="qw-en-voice-row compact">
                             <button type="button" class="qw-voice-btn primary" data-dspeak="fast">${isSight ? '🔊 听词与原句' : '🔊 听词发音'}</button>
@@ -1087,6 +1187,22 @@ function renderCourseSpecialQuestion(containerEl, q, ctx) {
                 e.stopPropagation();
                 onTap();
                 speak(q.wordOnlySpeak || q.speakText, true, q.phonicsHint || '');
+            });
+            containerEl.querySelector('[data-dact="hint"]')?.addEventListener('click', () => {
+                if (locked || pickedTiles.length >= q.chars.length) return;
+                onTap();
+                // 若前面有填错的字母，先自动修正退回至正确前缀处
+                while (pickedTiles.length > 0 && pickedTiles[pickedTiles.length - 1].char.toLowerCase() !== q.chars[pickedTiles.length - 1]) {
+                    pickedTiles.pop();
+                }
+                const nextChar = q.chars[pickedTiles.length];
+                const curUsed = new Set(pickedTiles.map(t => t.tileId));
+                const nextTile = q.tiles.find(t => !curUsed.has(t.tileId) && t.char.toLowerCase() === nextChar);
+                if (nextTile) {
+                    pickedTiles.push(nextTile);
+                    drawDictation();
+                    finishIfComplete();
+                }
             });
             containerEl.querySelector('[data-dact="back"]')?.addEventListener('click', () => {
                 if (locked || pickedTiles.length === 0) return;
@@ -1114,17 +1230,7 @@ function renderCourseSpecialQuestion(containerEl, q, ctx) {
                     onTap();
                     pickedTiles.push(tile);
                     drawDictation();
-
-                    if (pickedTiles.length === q.chars.length) {
-                        locked = true;
-                        const userWord = pickedTiles.map(x => x.char).join('').toLowerCase();
-                        const ok = userWord === q.expectedWord;
-                        if (!ok) {
-                            revealAnswer = `💡 正确默写：${q.expectedWord}`;
-                            drawDictation();
-                        }
-                        onEvaluate(ok, userWord);
-                    }
+                    finishIfComplete();
                 };
             });
         };

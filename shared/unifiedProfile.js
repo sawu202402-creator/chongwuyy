@@ -22,7 +22,7 @@ import {
     getShopById
 } from '../pet/js/config.js';
 import { ALL_MATH_TYPE_IDS } from './mathEngine.js';
-import { ALL_ENGLISH_TYPE_IDS, ALL_COURSE_SUB_IDS } from './englishEngine.js';
+import { ALL_ENGLISH_TYPE_IDS, ALL_COURSE_SUB_IDS, DEFAULT_EASY_ENGLISH_TYPES } from './englishEngine.js';
 
 export const STORAGE_KEY = 'chongwuyy_pet_town_profiles_v2';
 
@@ -39,7 +39,7 @@ export function sanitizeEnglishEnabledTypes(list) {
         const filtered = list.filter(id => ALL_ENGLISH_TYPE_IDS.includes(id));
         if (filtered.length > 0) return [...new Set(filtered)];
     }
-    return [...ALL_ENGLISH_TYPE_IDS];
+    return [...DEFAULT_EASY_ENGLISH_TYPES];
 }
 
 export function isValidSmartMode(mode) {
@@ -146,12 +146,15 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
         mathConfig,
         difficulty: { ...mathConfig },
         englishConfig: {
-            level: 'level2_match',
+            level: 'level1_listen',
+            wordDifficulty: 'easy',
+            courseAllowHardDictation: false,
             packId: 'all',
             courseLessonId: 'latest',
             courseSubMode: 'course_all',
             courseSpecialMigrated: true,
-            enabledTypes: [...ALL_ENGLISH_TYPE_IDS]
+            enEasyDefaultMigrated_v1: true,
+            enabledTypes: [...DEFAULT_EASY_ENGLISH_TYPES]
         },
         courseReadChecks: {},
         wordMastery: {},
@@ -325,12 +328,15 @@ export class UserProfileManager {
             u.difficulty = { ...u.mathConfig };
             if (!u.englishConfig) {
                 u.englishConfig = {
-                    level: 'level2_match',
+                    level: 'level1_listen',
+                    wordDifficulty: 'easy',
+                    courseAllowHardDictation: false,
                     packId: 'all',
                     courseLessonId: 'latest',
                     courseSubMode: 'course_all',
                     courseSpecialMigrated: true,
-                    enabledTypes: [...ALL_ENGLISH_TYPE_IDS]
+                    enEasyDefaultMigrated_v1: true,
+                    enabledTypes: [...DEFAULT_EASY_ENGLISH_TYPES]
                 };
             }
             if (!u.englishConfig.courseSpecialMigrated) {
@@ -338,6 +344,25 @@ export class UserProfileManager {
                     u.englishConfig.enabledTypes = ['course_special', ...u.englishConfig.enabledTypes];
                 }
                 u.englishConfig.courseSpecialMigrated = true;
+            }
+            // 一次性平滑降难迁移：为尚未手动定制过的档案默认启用「🌱 轻松启蒙」并屏蔽偏难题型
+            if (!u.englishConfig.enEasyDefaultMigrated_v1) {
+                if (!u.englishConfig.wordDifficulty) {
+                    u.englishConfig.wordDifficulty = 'easy';
+                }
+                if (typeof u.englishConfig.courseAllowHardDictation !== 'boolean') {
+                    u.englishConfig.courseAllowHardDictation = false;
+                }
+                if (!Array.isArray(u.englishConfig.enabledTypes) || u.englishConfig.enabledTypes.length >= 8) {
+                    u.englishConfig.enabledTypes = [...DEFAULT_EASY_ENGLISH_TYPES];
+                }
+                u.englishConfig.enEasyDefaultMigrated_v1 = true;
+            }
+            if (!['easy', 'medium', 'all'].includes(u.englishConfig.wordDifficulty)) {
+                u.englishConfig.wordDifficulty = 'easy';
+            }
+            if (typeof u.englishConfig.courseAllowHardDictation !== 'boolean') {
+                u.englishConfig.courseAllowHardDictation = (u.englishConfig.wordDifficulty === 'all');
             }
             u.englishConfig.enabledTypes = sanitizeEnglishEnabledTypes(u.englishConfig.enabledTypes);
             if (!u.englishConfig.packId) u.englishConfig.packId = 'all';
@@ -475,7 +500,13 @@ export class UserProfileManager {
             u.difficulty = { ...u.mathConfig };
         }
         if (englishConfig) {
-            const mergedEn = { ...u.englishConfig, ...englishConfig };
+            const mergedEn = { ...u.englishConfig, ...englishConfig, enEasyDefaultMigrated_v1: true };
+            if (!['easy', 'medium', 'all'].includes(mergedEn.wordDifficulty)) {
+                mergedEn.wordDifficulty = 'easy';
+            }
+            if (typeof mergedEn.courseAllowHardDictation !== 'boolean') {
+                mergedEn.courseAllowHardDictation = (mergedEn.wordDifficulty === 'all');
+            }
             mergedEn.enabledTypes = sanitizeEnglishEnabledTypes(mergedEn.enabledTypes);
             u.englishConfig = mergedEn;
         }

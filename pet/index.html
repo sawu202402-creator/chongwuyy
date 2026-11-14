@@ -14,8 +14,8 @@
     <meta name="apple-mobile-web-app-title" content="萌宠店长">
     <link rel="manifest" href="site.webmanifest">
     <meta name="theme-color" content="#7c5cfc">
-    <link rel="stylesheet" href="css/style.css?v=20261114_course_v1">
-    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261114_course_v1">
+    <link rel="stylesheet" href="css/style.css?v=20261114_easy_v1">
+    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261114_easy_v1">
 </head>
 <body>
     <!-- 全屏飞行徽章与彩虹礼花粒子画布 -->
@@ -285,7 +285,10 @@
                         <span class="m-icon" id="mascotLeftIcon">🐰</span>
                         <span class="m-bubble" id="mascotTalkText">答对赚徽章喂兔兔和青蛙啰！</span>
                     </div>
-                    <span class="m-icon" id="mascotRightIcon">🐸</span>
+                    <div class="mascot-right-actions">
+                        <button type="button" class="pet-quick-filter-btn" id="btnPetQuickFilter" title="一键降低英语难度 / 选择哪些题型在随机题目里不出现">🎛️ 筛题/降难</button>
+                        <span class="m-icon" id="mascotRightIcon">🐸</span>
+                    </div>
                 </div>
 
                 <!-- 五大出题入口切换顶栏：统一大随机 / 数学9项 / 英语8项+背词 / 校外英语课专项 / 错题双倍复习 -->
@@ -419,7 +422,7 @@
                 <!-- 底部当前难度快捷信息条 -->
                 <div class="board-footer-bar" id="btnQuickDiffFooter">
                     <span id="footerDiffSummary">🌱 20内加减乘 · 图词配对</span>
-                    <span class="footer-gear-link">⚙️ 调整难度</span>
+                    <span class="footer-gear-link">🎛️ 随机筛题·降难</span>
                 </div>
             </aside>
         </main>
@@ -551,6 +554,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=20261114_course_v1"></script>
+    <script type="module" src="js/main.js?v=20261114_easy_v1"></script>
 </body>
 </html>

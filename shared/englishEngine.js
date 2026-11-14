@@ -28,24 +28,60 @@ export {
 };
 
 export const ENGLISH_QUESTION_TYPES = [
-    { id: 'course_special', name: '🎓 校外英语课专项', shortName: '🎓 英语课', icon: '🎓', desc: '同步校外英语课作业：听音写词抽查、高频词与句子听写、课文问答' },
-    { id: 'listen_pic',     name: '🎧 听音选图',     shortName: '🎧 听音', icon: '🎧', desc: '听纯正美式发音，选出对应图案' },
-    { id: 'match_word',     name: '🃏 看图识词',     shortName: '🃏 识词', icon: '🃏', desc: '看萌图与释义，选出正确拼读单词' },
-    { id: 'bubble_pair',    name: '🫧 单词消消乐',   shortName: '🫧 配对', icon: '🫧', desc: '3组中英图文泡泡配对消除' },
-    { id: 'cloze_sentence', name: '💬 情景句填空',   shortName: '💬 填空', icon: '💬', desc: '听读完整例句，选词补全句子空白' },
-    { id: 'phonics_chunks', name: '🔤 自然拼读积木', shortName: '🔤 拼读', icon: '🔤', desc: '按发音顺序点击音节积木拼出单词' },
-    { id: 'riddle_qa',      name: '🕵️ 英语小谜语',   shortName: '🕵️ 谜语', icon: '🕵️', desc: '读懂趣味英文线索，猜出正确事物' },
-    { id: 'word_order',     name: '🚂 连词成句火车', shortName: '🚂 连句', icon: '🚂', desc: '点击打乱的词块，按正确语序连成句子' },
-    { id: 'spell_word',     name: '🧩 果冻字母拼写', shortName: '🧩 拼写', icon: '🧩', desc: '点击字母果冻块，把单词拼写完整' }
+    { id: 'course_special', name: '🎓 校外英语课专项', shortName: '🎓 英语课', icon: '🎓', diffTag: '同步课', diffLevel: 'course', desc: '同步校外英语课作业（轻松档自动转为听音认读与问答选择，免盲拼）' },
+    { id: 'listen_pic',     name: '🎧 听音选图',     shortName: '🎧 听音', icon: '🎧', diffTag: '超简单', diffLevel: 'easy',   desc: '听纯正美式发音，选出对应图案' },
+    { id: 'match_word',     name: '🃏 看图识词',     shortName: '🃏 识词', icon: '🃏', diffTag: '简单',   diffLevel: 'easy',   desc: '看萌图与释义，选出正确拼读单词' },
+    { id: 'bubble_pair',    name: '🫧 单词消消乐',   shortName: '🫧 配对', icon: '🫧', diffTag: '简单',   diffLevel: 'easy',   desc: '中英图文泡泡配对消除（轻松档2组4泡泡）' },
+    { id: 'phonics_chunks', name: '🔤 自然拼读积木', shortName: '🔤 拼读', icon: '🔤', diffTag: '好上手', diffLevel: 'easy',   desc: '看彩色自然拼读提示，按发音点选音节积木' },
+    { id: 'cloze_sentence', name: '💬 情景句填空',   shortName: '💬 填空', icon: '💬', diffTag: '适中',   diffLevel: 'medium', desc: '听读完整例句，选词补全句子空白' },
+    { id: 'riddle_qa',      name: '🕵️ 英语小谜语',   shortName: '🕵️ 谜语', icon: '🕵️', diffTag: '适中',   diffLevel: 'medium', desc: '读懂趣味英文线索，猜出正确事物' },
+    { id: 'word_order',     name: '🚂 连词成句火车', shortName: '🚂 连句', icon: '🚂', diffTag: '偏难',   diffLevel: 'hard',   desc: '点击打乱的词块，按正确语序连成句子' },
+    { id: 'spell_word',     name: '🧩 果冻字母拼写', shortName: '🧩 拼写', icon: '🧩', diffTag: '偏难',   diffLevel: 'hard',   desc: '点击字母果冻块，把空缺字母补齐（轻松档仅空1字母）' }
 ];
 
 export const ALL_ENGLISH_TYPE_IDS = ENGLISH_QUESTION_TYPES.map(t => t.id);
 
+// 默认给低龄小朋友启用的轻松随机题型（默认排除：情景填空、小谜语、连词成句、果冻拼写等偏难题型）
+export const DEFAULT_EASY_ENGLISH_TYPES = [
+    'course_special',
+    'listen_pic',
+    'match_word',
+    'bubble_pair',
+    'phonics_chunks'
+];
+
+export const ENGLISH_DIFFICULTY_MODES = [
+    {
+        id: 'easy',
+        name: '🌱 轻松启蒙',
+        shortName: '🌱轻松',
+        desc: '仅抽短词(L1)·3选1·2组消消乐·拼写仅空1字母·校外课免盲拼',
+        recommendedTypes: [...DEFAULT_EASY_ENGLISH_TYPES],
+        courseAllowHardDictation: false
+    },
+    {
+        id: 'medium',
+        name: '⭐ 标准进阶',
+        shortName: '⭐标准',
+        desc: '常用词(L1+L2)·4选1·3组消消乐·拼写空1~2字母',
+        recommendedTypes: ['course_special', 'listen_pic', 'match_word', 'bubble_pair', 'cloze_sentence', 'phonics_chunks', 'riddle_qa'],
+        courseAllowHardDictation: false
+    },
+    {
+        id: 'all',
+        name: '🔥 挑战读写',
+        shortName: '🔥挑战',
+        desc: '全360词·全字母拼写·连词成句·校外课全词默写',
+        recommendedTypes: [...ALL_ENGLISH_TYPE_IDS],
+        courseAllowHardDictation: true
+    }
+];
+
 export const ENGLISH_LEVELS = {
-    level1_listen: { id: 'level1_listen', name: '🌱 启蒙听说包', presetTypes: ['course_special', 'listen_pic', 'match_word', 'bubble_pair', 'riddle_qa'] },
-    level2_match:  { id: 'level2_match',  name: '⚡ 进阶认读包', presetTypes: ['course_special', 'listen_pic', 'match_word', 'bubble_pair', 'cloze_sentence', 'phonics_chunks', 'riddle_qa'] },
-    level3_spell:  { id: 'level3_spell',  name: '🔥 读写挑战包', presetTypes: ['course_special', 'cloze_sentence', 'phonics_chunks', 'riddle_qa', 'word_order', 'spell_word'] },
-    mixed:         { id: 'mixed',         name: '🌈 全能9题型混合', presetTypes: [...ALL_ENGLISH_TYPE_IDS] }
+    level1_listen: { id: 'level1_listen', name: '🌱 轻松启蒙包', wordDifficulty: 'easy',   presetTypes: [...DEFAULT_EASY_ENGLISH_TYPES] },
+    level2_match:  { id: 'level2_match',  name: '⚡ 标准认读包', wordDifficulty: 'medium', presetTypes: ['course_special', 'listen_pic', 'match_word', 'bubble_pair', 'cloze_sentence', 'phonics_chunks'] },
+    level3_spell:  { id: 'level3_spell',  name: '🔥 读写挑战包', wordDifficulty: 'all',    presetTypes: ['course_special', 'cloze_sentence', 'phonics_chunks', 'riddle_qa', 'word_order', 'spell_word'] },
+    mixed:         { id: 'mixed',         name: '🌈 全能9题型混合', wordDifficulty: 'all', presetTypes: [...ALL_ENGLISH_TYPE_IDS] }
 };
 
 export const WORD_PACKS = [
@@ -636,10 +672,21 @@ export class EnglishEngine {
 
     setConfig(cfg = {}) {
         const prev = this.config || {};
-        const nextLevel = cfg.level || prev.level || 'mixed';
+        const nextLevel = cfg.level || prev.level || 'level1_listen';
         const nextPackId = cfg.packId || prev.packId || 'all';
         const nextLessonId = cfg.courseLessonId || prev.courseLessonId || 'latest';
         const nextCourseSubMode = cfg.courseSubMode || prev.courseSubMode || 'course_all';
+
+        const validDiffs = ['easy', 'medium', 'all'];
+        let nextWordDifficulty = validDiffs.includes(cfg.wordDifficulty)
+            ? cfg.wordDifficulty
+            : (validDiffs.includes(prev.wordDifficulty) ? prev.wordDifficulty : (ENGLISH_LEVELS[nextLevel]?.wordDifficulty || 'easy'));
+
+        const nextCourseAllowHard = typeof cfg.courseAllowHardDictation === 'boolean'
+            ? cfg.courseAllowHardDictation
+            : (typeof prev.courseAllowHardDictation === 'boolean'
+                ? prev.courseAllowHardDictation
+                : (nextWordDifficulty === 'all'));
 
         let enabledTypes = Array.isArray(cfg.enabledTypes) ? cfg.enabledTypes.filter(id => ALL_ENGLISH_TYPE_IDS.includes(id)) : null;
         if (!enabledTypes || enabledTypes.length === 0) {
@@ -647,12 +694,18 @@ export class EnglishEngine {
                 enabledTypes = [...prev.enabledTypes];
             } else {
                 const preset = ENGLISH_LEVELS[nextLevel]?.presetTypes;
-                enabledTypes = preset && preset.length > 0 ? [...preset] : [...ALL_ENGLISH_TYPE_IDS];
+                enabledTypes = preset && preset.length > 0 ? [...preset] : [...DEFAULT_EASY_ENGLISH_TYPES];
             }
+        }
+
+        if (prev.wordDifficulty !== nextWordDifficulty || prev.packId !== nextPackId) {
+            this._wordBags.clear();
         }
 
         this.config = {
             level: nextLevel,
+            wordDifficulty: nextWordDifficulty,
+            courseAllowHardDictation: nextCourseAllowHard,
             packId: nextPackId,
             courseLessonId: nextLessonId,
             courseSubMode: nextCourseSubMode,
@@ -660,32 +713,34 @@ export class EnglishEngine {
         };
     }
 
-    static getDefaultEnabledTypes(level = 'mixed') {
-        return [...(ENGLISH_LEVELS[level]?.presetTypes || ALL_ENGLISH_TYPE_IDS)];
+    static getDefaultEnabledTypes(level = 'level1_listen') {
+        return [...(ENGLISH_LEVELS[level]?.presetTypes || DEFAULT_EASY_ENGLISH_TYPES)];
     }
 
     static formatSummary(cfg) {
-        if (!cfg) return '全能9题型 · 含校外课专项';
+        if (!cfg) return '🌱轻松 · 5种友好题型';
+        const diffObj = ENGLISH_DIFFICULTY_MODES.find(d => d.id === (cfg.wordDifficulty || 'easy')) || ENGLISH_DIFFICULTY_MODES[0];
         const enabled = Array.isArray(cfg.enabledTypes) && cfg.enabledTypes.length > 0
             ? cfg.enabledTypes
             : EnglishEngine.getDefaultEnabledTypes(cfg.level);
+        if (enabled.length === 1 && enabled[0] === 'course_special') {
+            const lesson = getPrimaryCourseLesson(cfg.courseLessonId || 'latest');
+            return `${diffObj.shortName}·🎓仅校外课(${lesson?.code || 'S1U1W1'})`;
+        }
         let typeSummary = '';
         if (enabled.length >= ALL_ENGLISH_TYPE_IDS.length) {
-            typeSummary = '🌈 英语9题型全开';
-        } else if (enabled.length === 1 && enabled[0] === 'course_special') {
-            const lesson = getPrimaryCourseLesson(cfg.courseLessonId || 'latest');
-            return `🎓 仅校外课(${lesson?.code || 'S1U1W1'})`;
+            typeSummary = '9题型全开';
         } else if (enabled.length <= 2) {
             typeSummary = enabled
                 .map(id => ENGLISH_QUESTION_TYPES.find(t => t.id === id)?.shortName || id)
                 .join('+');
         } else {
-            typeSummary = `🔤 已选${enabled.length}种题型`;
+            typeSummary = `随机${enabled.length}题型`;
         }
         const packObj = cfg.packId && cfg.packId !== 'all'
             ? WORD_PACKS.find(p => p.id === cfg.packId)
             : null;
-        return packObj ? `${typeSummary}·${packObj.name}` : `${typeSummary}·20主题`;
+        return packObj ? `${diffObj.shortName}·${typeSummary}·${packObj.name}` : `${diffObj.shortName}·${typeSummary}`;
     }
 
     static renderPhonicsHtml(phonicsStr) {
@@ -698,21 +753,44 @@ export class EnglishEngine {
         }).join('<span class="ph-dot">·</span>');
     }
 
+    _filterWordsByDifficulty(wordsList, isSinglePack = false) {
+        const diff = this.config?.wordDifficulty || 'easy';
+        if (diff === 'easy') {
+            const l1 = wordsList.filter(w => (w.level || 1) === 1);
+            if (isSinglePack && l1.length < 8) {
+                const l2Short = wordsList
+                    .filter(w => (w.level || 1) === 2)
+                    .sort((a, b) => a.word.length - b.word.length)
+                    .slice(0, 8 - l1.length);
+                return [...l1, ...l2Short];
+            }
+            return l1.length >= 6 ? l1 : wordsList;
+        }
+        if (diff === 'medium') {
+            const l12 = wordsList.filter(w => (w.level || 1) <= 2);
+            return l12.length >= 6 ? l12 : wordsList;
+        }
+        return wordsList;
+    }
+
     getWordPool() {
         if (this.config.packId && this.config.packId !== 'all') {
             const pack = WORD_PACKS.find(p => p.id === this.config.packId);
             if (pack) {
-                return pack.words.map(w => ({ ...w, packId: pack.id, packName: pack.name, enCategory: pack.enCategory }));
+                const mapped = pack.words.map(w => ({ ...w, packId: pack.id, packName: pack.name, enCategory: pack.enCategory }));
+                return this._filterWordsByDifficulty(mapped, true);
             }
         }
-        return ALL_WORDS;
+        return this._filterWordsByDifficulty(ALL_WORDS, false);
     }
 
     /**
      * 从不放回洗牌袋抽取下一个单词，结合 40 词滑窗防重 + 未掌握词优先排前
      */
     _drawFromBag(pool, wordMastery = {}) {
-        const packKey = (this.config.packId && this.config.packId !== 'all') ? this.config.packId : 'all';
+        const diffKey = this.config?.wordDifficulty || 'easy';
+        const packPart = (this.config.packId && this.config.packId !== 'all') ? this.config.packId : 'all';
+        const packKey = `${packPart}|${diffKey}`;
         const maxRecentWindow = Math.min(40, Math.max(1, pool.length - 3));
         const recentSet = new Set(this._recentWordIds.slice(-maxRecentWindow));
 
@@ -760,7 +838,7 @@ export class EnglishEngine {
         }
         const enabled = (Array.isArray(this.config.enabledTypes) && this.config.enabledTypes.length > 0)
             ? this.config.enabledTypes
-            : ALL_ENGLISH_TYPE_IDS;
+            : DEFAULT_EASY_ENGLISH_TYPES;
         if (enabled.length === 1) {
             this._lastType = enabled[0];
             return enabled[0];
@@ -783,7 +861,8 @@ export class EnglishEngine {
     startVocabStudySession(packId = 'all', wordMasteryMap = {}) {
         const isAll = !packId || packId === 'all';
         const pack = isAll ? null : (WORD_PACKS.find(p => p.id === packId) || WORD_PACKS[0]);
-        const sourceWords = isAll ? ALL_WORDS : pack.words.map(w => ({ ...w, packId: pack.id, packName: pack.name, enCategory: pack.enCategory }));
+        const rawWords = isAll ? ALL_WORDS : pack.words.map(w => ({ ...w, packId: pack.id, packName: pack.name, enCategory: pack.enCategory }));
+        const sourceWords = this._filterWordsByDifficulty(rawWords, !isAll);
 
         const recentCampSet = new Set(this._recentCampWordIds.slice(-30));
         const shuffled = fisherYatesShuffle(sourceWords);
@@ -802,17 +881,24 @@ export class EnglishEngine {
             if (this._recentCampWordIds.length > 60) this._recentCampWordIds.shift();
         });
 
-        const quizQueue = [
-            this.buildListenChoiceQuestion(targetWords[0], sourceWords),
-            this.buildListenChoiceQuestion(targetWords[1], sourceWords),
-            this.buildWordChoiceQuestion(targetWords[2], sourceWords),
-            this.buildClozeSentenceQuestion(targetWords[3], sourceWords),
-            this.buildPhonicsChunksQuestion(targetWords[4]),
-            this.buildBubblePairQuestion(targetWords[0], targetWords),
-            this.buildRiddleQuestion(targetWords[1], sourceWords),
-            this.buildWordOrderQuestion(targetWords[2]),
-            this.buildSpellQuestion(targetWords[4], targetWords[4].word.length <= 5)
-        ];
+        // 严格尊重小朋友/家长排除的随机题型：未勾选的偏难题型在 5 词背诵营中也绝不出现！
+        const rawEnabledGeneral = (this.config?.enabledTypes || DEFAULT_EASY_ENGLISH_TYPES)
+            .filter(id => id !== 'course_special' && ALL_ENGLISH_TYPE_IDS.includes(id));
+        const campAllowedTypes = rawEnabledGeneral.length > 0
+            ? rawEnabledGeneral
+            : ['listen_pic', 'match_word', 'bubble_pair', 'phonics_chunks'];
+
+        const totalSteps = (this.config?.wordDifficulty || 'easy') === 'easy' ? 6 : 8;
+        const quizQueue = [];
+        for (let i = 0; i < totalSteps; i++) {
+            const w = targetWords[i % targetWords.length];
+            const tType = campAllowedTypes[i % campAllowedTypes.length];
+            if (tType === 'bubble_pair') {
+                quizQueue.push(this.buildBubblePairQuestion(w, targetWords));
+            } else {
+                quizQueue.push(this.buildQuestionByType(tType, w, sourceWords));
+            }
+        }
 
         this.studySession = {
             packId: isAll ? 'all' : pack.id,
@@ -847,12 +933,17 @@ export class EnglishEngine {
             }
         }
 
+        const courseOpts = {
+            wordDifficulty: this.config?.wordDifficulty || 'easy',
+            courseAllowHardDictation: Boolean(this.config?.courseAllowHardDictation)
+        };
+
         // 若直接指定了校外英语课子模式（如 course_phonics / course_sight / course_qa / course_all / course_special）
         if (!forcedWordId && (forcedType === 'course_special' || ALL_COURSE_SUB_IDS.includes(forcedType))) {
             const subMode = ALL_COURSE_SUB_IDS.includes(forcedType)
                 ? forcedType
                 : (this.config?.courseSubMode || 'course_all');
-            const cq = courseSessionManager.nextQuestion(this.config?.courseLessonId || 'latest', subMode);
+            const cq = courseSessionManager.nextQuestion(this.config?.courseLessonId || 'latest', subMode, courseOpts);
             if (cq) {
                 this._questionTick++;
                 this._lastWasReview = false;
@@ -900,7 +991,8 @@ export class EnglishEngine {
         if (!target && qType === 'course_special') {
             const cq = courseSessionManager.nextQuestion(
                 this.config?.courseLessonId || 'latest',
-                this.config?.courseSubMode || 'course_all'
+                this.config?.courseSubMode || 'course_all',
+                courseOpts
             );
             if (cq) {
                 this._questionTick++;
@@ -918,9 +1010,16 @@ export class EnglishEngine {
         this._recordWordAsked(target.id, Boolean(forcedWordId || isAutoReview));
         this._lastWasReview = Boolean(forcedWordId || isAutoReview);
 
-        // 若是定向错题复习且抽中了 course_special，转为拼写巩固该错词
+        // 若是定向错题复习且抽中了 course_special，转为已启用题型复习（若未启用拼写则用看图识词）
         if (qType === 'course_special') {
-            qType = 'spell_word';
+            const enabledGeneral = (this.config?.enabledTypes || []).filter(id => id !== 'course_special');
+            if (enabledGeneral.includes('spell_word')) {
+                qType = 'spell_word';
+            } else if (enabledGeneral.includes('match_word')) {
+                qType = 'match_word';
+            } else {
+                qType = enabledGeneral[0] || 'match_word';
+            }
         }
         const q = this.buildQuestionByType(qType, target, pool);
 
@@ -949,16 +1048,20 @@ export class EnglishEngine {
             case 'word_order':
                 return this.buildWordOrderQuestion(target);
             case 'spell_word':
-            default:
-                return this.buildSpellQuestion(target, target.word.length <= 5);
+            default: {
+                const isChallengeFull = this.config?.wordDifficulty === 'all' && target.word.length <= 5;
+                return this.buildSpellQuestion(target, isChallengeFull);
+            }
         }
     }
 
     buildListenChoiceQuestion(target, pool = ALL_WORDS) {
+        const isEasy = (this.config?.wordDifficulty || 'easy') === 'easy';
+        const distractorCount = isEasy ? 2 : 3;
         const source = pool.length >= 6 ? pool : ALL_WORDS;
-        let distractors = fisherYatesShuffle(source.filter(w => w.id !== target.id && w.icon !== target.icon)).slice(0, 3);
-        if (distractors.length < 3) {
-            distractors = fisherYatesShuffle(ALL_WORDS.filter(w => w.id !== target.id && w.icon !== target.icon)).slice(0, 3);
+        let distractors = fisherYatesShuffle(source.filter(w => w.id !== target.id && w.icon !== target.icon)).slice(0, distractorCount);
+        if (distractors.length < distractorCount) {
+            distractors = fisherYatesShuffle(ALL_WORDS.filter(w => w.id !== target.id && w.icon !== target.icon)).slice(0, distractorCount);
         }
         const options = fisherYatesShuffle([...distractors, target])
             .map(w => ({ id: w.id, icon: w.icon, zh: w.zh, word: w.word }));
@@ -974,10 +1077,12 @@ export class EnglishEngine {
     }
 
     buildWordChoiceQuestion(target, pool = ALL_WORDS) {
+        const isEasy = (this.config?.wordDifficulty || 'easy') === 'easy';
+        const distractorCount = isEasy ? 2 : 3;
         const source = pool.length >= 6 ? pool : ALL_WORDS;
-        let distractors = fisherYatesShuffle(source.filter(w => w.id !== target.id)).slice(0, 3);
-        if (distractors.length < 3) {
-            distractors = fisherYatesShuffle(ALL_WORDS.filter(w => w.id !== target.id)).slice(0, 3);
+        let distractors = fisherYatesShuffle(source.filter(w => w.id !== target.id)).slice(0, distractorCount);
+        if (distractors.length < distractorCount) {
+            distractors = fisherYatesShuffle(ALL_WORDS.filter(w => w.id !== target.id)).slice(0, distractorCount);
         }
         const options = fisherYatesShuffle([...distractors, target])
             .map(w => ({
@@ -1000,23 +1105,44 @@ export class EnglishEngine {
     buildSpellQuestion(target, fullWord = false) {
         const cleanWord = target.word.toLowerCase();
         const chars = cleanWord.split('');
+        const diff = this.config?.wordDifficulty || 'easy';
         let missingIndices = [];
+        let extraCount = 3;
 
-        if (fullWord || chars.length <= 4) {
+        if (fullWord) {
             missingIndices = chars.map((_, idx) => idx);
-        } else {
-            const count = Math.min(3, Math.max(2, Math.floor(chars.length / 2)));
+            extraCount = Math.max(2, 6 - missingIndices.length);
+        } else if (diff === 'easy') {
+            // 轻松启蒙档：只空 1 个字母（优先挖中间元音或核心字母），提供 3 个干扰字母（共4块果冻），彻底告别全空畏难！
+            const vowelIndices = chars.map((ch, idx) => ('aeiou'.includes(ch) ? idx : -1)).filter(idx => idx >= 0);
+            const pickPool = vowelIndices.length > 0 ? vowelIndices : chars.map((_, idx) => idx);
+            const chosenIdx = pickPool[Math.floor(Math.random() * pickPool.length)];
+            missingIndices = [chosenIdx];
+            extraCount = 3;
+        } else if (diff === 'medium') {
+            // 标准进阶档：3字母词空1个，4字母及以上空2个，保留单词骨架
+            const count = chars.length <= 3 ? 1 : 2;
             const allIdx = fisherYatesShuffle(chars.map((_, idx) => idx));
             missingIndices = allIdx.slice(0, count).sort((a, b) => a - b);
+            extraCount = 3;
+        } else {
+            // 挑战读写档：<=4字母全空，长词空2~3个
+            if (chars.length <= 4) {
+                missingIndices = chars.map((_, idx) => idx);
+            } else {
+                const count = Math.min(3, Math.max(2, Math.floor(chars.length / 2)));
+                const allIdx = fisherYatesShuffle(chars.map((_, idx) => idx));
+                missingIndices = allIdx.slice(0, count).sort((a, b) => a - b);
+            }
+            extraCount = Math.max(2, 6 - missingIndices.length);
         }
 
         const neededChars = missingIndices.map(i => chars[i]);
         const alphabet = 'abcdefghijklmnopqrstuvwxyz';
-        const extraCount = Math.max(2, 6 - neededChars.length);
         const distractors = [];
         while (distractors.length < extraCount) {
             const c = alphabet[Math.floor(Math.random() * 26)];
-            if (!chars.includes(c)) distractors.push(c);
+            if (!chars.includes(c) && !distractors.includes(c)) distractors.push(c);
         }
 
         const tiles = fisherYatesShuffle(
@@ -1025,7 +1151,9 @@ export class EnglishEngine {
 
         return {
             mode: 'spell_word',
-            hint: '🧩 点击果冻字母块，把英语单词拼完整吧！',
+            hint: diff === 'easy'
+                ? '🧩 果冻补字母：听发音，点1块正确果冻把单词补完整！'
+                : '🧩 点击果冻字母块，把英语单词拼完整吧！',
             wordObj: target,
             speakText: target.word,
             chars,
@@ -1036,15 +1164,17 @@ export class EnglishEngine {
     }
 
     /**
-     * 新题型 1：🫧 单词消消乐配对 (3对 = 6个气泡：英文发音卡 ↔ 萌图中文卡)
+     * 新题型 1：🫧 单词消消乐配对 (轻松档 2对=4气泡；进阶/挑战档 3对=6气泡)
      */
     buildBubblePairQuestion(target, pool = ALL_WORDS) {
+        const isEasy = (this.config?.wordDifficulty || 'easy') === 'easy';
+        const partnerCount = isEasy ? 1 : 2;
         const source = pool.length >= 4 ? pool : ALL_WORDS;
         let partners = fisherYatesShuffle(
             source.filter(w => w.id !== target.id && w.icon !== target.icon && w.word.toLowerCase() !== target.word.toLowerCase())
-        ).slice(0, 2);
-        if (partners.length < 2) {
-            partners = fisherYatesShuffle(ALL_WORDS.filter(w => w.id !== target.id && w.icon !== target.icon)).slice(0, 2);
+        ).slice(0, partnerCount);
+        if (partners.length < partnerCount) {
+            partners = fisherYatesShuffle(ALL_WORDS.filter(w => w.id !== target.id && w.icon !== target.icon)).slice(0, partnerCount);
         }
         const pairWords = [target, ...partners];
         const enCards = pairWords.map(w => ({
@@ -1067,7 +1197,7 @@ export class EnglishEngine {
 
         return {
             mode: 'bubble_pair',
-            hint: '🫧 单词消消乐：点选配对的【英语单词】和【图案释义】全部消除！',
+            hint: `🫧 单词消消乐：把 ${pairWords.length} 组对应的【英语单词】和【图案】配对消除！`,
             wordObj: target,
             speakText: target.word,
             pairCount: pairWords.length,
@@ -1079,10 +1209,12 @@ export class EnglishEngine {
      * 新题型 2：💬 情景句子选词填空
      */
     buildClozeSentenceQuestion(target, pool = ALL_WORDS) {
+        const isEasy = (this.config?.wordDifficulty || 'easy') === 'easy';
+        const distractorCount = isEasy ? 2 : 3;
         const source = pool.length >= 6 ? pool : ALL_WORDS;
-        let distractors = fisherYatesShuffle(source.filter(w => w.id !== target.id)).slice(0, 3);
-        if (distractors.length < 3) {
-            distractors = fisherYatesShuffle(ALL_WORDS.filter(w => w.id !== target.id)).slice(0, 3);
+        let distractors = fisherYatesShuffle(source.filter(w => w.id !== target.id)).slice(0, distractorCount);
+        if (distractors.length < distractorCount) {
+            distractors = fisherYatesShuffle(ALL_WORDS.filter(w => w.id !== target.id)).slice(0, distractorCount);
         }
         const maskedSentence = maskTargetWordInSentence(target.sentence, target.word);
         const options = fisherYatesShuffle([...distractors, target]).map(w => ({
@@ -1108,13 +1240,16 @@ export class EnglishEngine {
      * 新题型 3：🔤 自然拼读音节积木
      */
     buildPhonicsChunksQuestion(target) {
+        const isEasy = (this.config?.wordDifficulty || 'easy') === 'easy';
         let chunks = (target.phonics || '').split('-').filter(Boolean).map(c => c.toLowerCase());
         if (chunks.length < 2) {
             chunks = target.word.toLowerCase().split('');
         }
         const distractorPool = ['sh', 'ch', 'th', 'oo', 'ea', 'ar', 'or', 'er', 'ing', 'ck', 'ay', 'ou', 'tr', 'pl', 'st'];
         const lowerSet = new Set(chunks);
-        const distractors = fisherYatesShuffle(distractorPool.filter(d => !lowerSet.has(d) && !target.word.toLowerCase().includes(d))).slice(0, 2);
+        const distractors = fisherYatesShuffle(
+            distractorPool.filter(d => !lowerSet.has(d) && !target.word.toLowerCase().includes(d))
+        ).slice(0, isEasy ? 1 : 2);
 
         const blocks = fisherYatesShuffle([
             ...chunks.map((chunk, idx) => ({ blockId: `pc_req_${idx}_${chunk}`, chunk, isRequired: true })),
@@ -1123,7 +1258,7 @@ export class EnglishEngine {
 
         return {
             mode: 'phonics_chunks',
-            hint: '🔤 自然拼读积木：听发音，按顺序点击音节块拼出单词！',
+            hint: '🔤 自然拼读积木：看拼读提示听发音，按顺序点积木拼单词！',
             wordObj: target,
             speakText: target.word,
             expectedChunks: chunks,
@@ -1136,22 +1271,21 @@ export class EnglishEngine {
      * 新题型 4：🕵️ 英语小谜语与日常问答
      */
     buildRiddleQuestion(target, pool = ALL_WORDS) {
+        const isEasy = (this.config?.wordDifficulty || 'easy') === 'easy';
+        const distractorCount = isEasy ? 2 : 3;
         const source = pool.length >= 6 ? pool : ALL_WORDS;
-        let distractors = fisherYatesShuffle(source.filter(w => w.id !== target.id && w.icon !== target.icon)).slice(0, 3);
-        if (distractors.length < 3) {
-            distractors = fisherYatesShuffle(ALL_WORDS.filter(w => w.id !== target.id && w.icon !== target.icon)).slice(0, 3);
+        let distractors = fisherYatesShuffle(source.filter(w => w.id !== target.id && w.icon !== target.icon)).slice(0, distractorCount);
+        if (distractors.length < distractorCount) {
+            distractors = fisherYatesShuffle(ALL_WORDS.filter(w => w.id !== target.id && w.icon !== target.icon)).slice(0, distractorCount);
         }
 
         let riddleEn = '';
-        let speakClue = '';
         if (target.riddle) {
             riddleEn = target.riddle;
-            speakClue = target.riddle;
         } else {
             const masked = maskTargetWordInSentence(target.sentence, target.word);
             const cat = target.enCategory || 'Fun Word';
             riddleEn = `[${cat}] "${masked}" — Which word is it?`;
-            speakClue = `Clue in ${cat}. Which word means ${target.word}?`;
         }
         const maskedZh = target.sentenceZh;
 
@@ -1164,11 +1298,11 @@ export class EnglishEngine {
 
         return {
             mode: 'riddle_qa',
-            hint: '🕵️ 英语小侦探：读英文线索猜一猜是哪个词！',
+            hint: '🕵️ 英语小侦探：读线索猜一猜是哪个词！',
             wordObj: target,
             speakText: target.riddle ? target.riddle : target.sentence,
             riddleEn,
-            riddleZh: `提示：属于【${target.packName || '趣味主题'}】· ${maskedZh}`,
+            riddleZh: `中文提示：【${target.packName || '趣味主题'}】· ${maskedZh}`,
             options,
             answerId: target.id
         };
@@ -1178,12 +1312,14 @@ export class EnglishEngine {
      * 新题型 5：🚂 语序小火车连词成句
      */
     buildWordOrderQuestion(target) {
+        const isEasy = (this.config?.wordDifficulty || 'easy') === 'easy';
+        const maxCarriages = isEasy ? 4 : 5;
         const rawTokens = target.sentence.trim().split(/\s+/).filter(Boolean);
-        // 若超过 5 个词，将相邻短词合并为短语车厢，保证 iPad 触控在 3~5 节车厢内清爽好点
+        // 若超过车厢上限，将相邻短词合并为短语车厢，保证 iPad 触控清爽好点
         const carriages = [...rawTokens];
         const shortWords = new Set(['a', 'an', 'the', 'in', 'on', 'at', 'to', 'of', 'by', 'is', 'are', 'my', 'our', 'for', 'up']);
         let guard = 0;
-        while (carriages.length > 5 && guard < 12) {
+        while (carriages.length > maxCarriages && guard < 12) {
             guard++;
             let mergedIdx = carriages.findIndex((tok, idx) =>
                 idx < carriages.length - 1 && shortWords.has(tok.toLowerCase().replace(/[^a-z]/g, ''))
@@ -1194,6 +1330,7 @@ export class EnglishEngine {
 
         let shuffled = fisherYatesShuffle(carriages.map((text, idx) => ({
             carriageId: `wo_${idx}`,
+            orderIdx: idx,
             text
         })));
         // 确保打乱顺序与原句顺序不同
@@ -1201,14 +1338,19 @@ export class EnglishEngine {
             [shuffled[0], shuffled[shuffled.length - 1]] = [shuffled[shuffled.length - 1], shuffled[0]];
         }
 
+        const prefilledCount = (isEasy && carriages.length >= 3) ? 1 : 0;
+
         return {
             mode: 'word_order',
-            hint: '🚂 语序小火车：按正确顺序点击词块，连成完整英语句子！',
+            hint: prefilledCount > 0
+                ? '🚂 语序小火车：第1节已帮你放好啦，继续点选后面的词块吧！'
+                : '🚂 语序小火车：按正确顺序点击词块，连成完整英语句子！',
             wordObj: target,
             speakText: target.sentence,
             sentenceZh: target.sentenceZh,
             expectedTokens: carriages,
             expectedSentence: carriages.join(' '),
+            prefilledCount,
             carriages: shuffled
         };
     }

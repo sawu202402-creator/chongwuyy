@@ -13,15 +13,15 @@
  */
 
 export const MATH_QUESTION_TYPES = [
-    { id: 'calc',               name: '⚡ 心算口算',     shortName: '⚡ 口算',   icon: '⚡', desc: '加减乘除、凑十破十、逆向填空与巧算' },
-    { id: 'word',               name: '📖 乘除应用题',   shortName: '📖 应用题', icon: '📖', desc: '情景故事、倍数等分、进一法与两步买单' },
-    { id: 'data',               name: '📊 数据统计图',   shortName: '📊 统计图', icon: '📊', desc: '条形统计图：比多少、求合计与平均数' },
-    { id: 'compare',            name: '⚖️ 天平比大小',   shortName: '⚖️ 比大小', icon: '⚖️', desc: '天平两端算式PK，判断 < 、 = 还是 >' },
-    { id: 'bond_pop',           name: '🎯 凑数消消乐',   shortName: '🎯 凑数',   icon: '🎯', desc: '点击两数凑10/20/100或凑乘积消除泡泡' },
-    { id: 'operator_detective', name: '🔍 符号小侦探',   shortName: '🔍 填符号', icon: '🔍', desc: '推理等式里唯一正确的 + - × ÷ 符号' },
-    { id: 'sequence_train',     name: '🚂 规律小火车',   shortName: '🚂 找规律', icon: '🚂', desc: '观察5节数字车厢规律，选出缺失数字' },
-    { id: 'clock_money',        name: '🕒 钟表与购物',   shortName: '🕒 钟表钱币', icon: '🕒', desc: '认读指针钟表与经过时间、超市买单找零' },
-    { id: 'pyramid_grid',       name: '🧱 金字塔与方格', shortName: '🧱 数砖周长', icon: '🧱', desc: '三层加法数砖金字塔与方格纸面积周长' }
+    { id: 'calc',               name: '⚡ 心算口算',     shortName: '⚡ 口算',     icon: '⚡', diffTag: '基础', diffLevel: 'easy',   desc: '加减乘除、凑十破十、逆向填空与巧算' },
+    { id: 'word',               name: '📖 乘除应用题',   shortName: '📖 应用题',   icon: '📖', diffTag: '读题', diffLevel: 'medium', desc: '情景故事、倍数等分、进一法与两步买单' },
+    { id: 'data',               name: '📊 数据统计图',   shortName: '📊 统计图',   icon: '📊', diffTag: '图表', diffLevel: 'medium', desc: '条形统计图：比多少、求合计与平均数' },
+    { id: 'compare',            name: '⚖️ 天平比大小',   shortName: '⚖️ 比大小',   icon: '⚖️', diffTag: '简单', diffLevel: 'easy',   desc: '天平两端算式PK，判断 < 、 = 还是 >' },
+    { id: 'bond_pop',           name: '🎯 凑数消消乐',   shortName: '🎯 凑数',     icon: '🎯', diffTag: '简单', diffLevel: 'easy',   desc: '点击两数凑10/20/100或凑乘积消除泡泡' },
+    { id: 'operator_detective', name: '🔍 符号小侦探',   shortName: '🔍 填符号',   icon: '🔍', diffTag: '适中', diffLevel: 'medium', desc: '推理等式里唯一正确的 + - × ÷ 符号' },
+    { id: 'sequence_train',     name: '🚂 规律小火车',   shortName: '🚂 找规律',   icon: '🚂', diffTag: '适中', diffLevel: 'medium', desc: '观察5节数字车厢规律，选出缺失数字' },
+    { id: 'clock_money',        name: '🕒 钟表与购物',   shortName: '🕒 钟表钱币', icon: '🕒', diffTag: '适中', diffLevel: 'medium', desc: '认读指针钟表与经过时间、超市买单找零' },
+    { id: 'pyramid_grid',       name: '🧱 金字塔与方格', shortName: '🧱 数砖周长', icon: '🧱', diffTag: '进阶', diffLevel: 'hard',   desc: '三层加法数砖金字塔与方格纸面积周长' }
 ];
 
 export const ALL_MATH_TYPE_IDS = MATH_QUESTION_TYPES.map(t => t.id);

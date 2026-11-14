@@ -265,14 +265,101 @@ function buildFullDictationTiles(wordStr, customDistractors = []) {
 
 /**
  * 将单个课次拆解为结构化互动考题列表
+ * @param {object} lesson 课次对象
+ * @param {string} subFilter 'course_all' | 'course_phonics' | 'course_sight' | 'course_qa'
+ * @param {object} opts { wordDifficulty: 'easy'|'medium'|'all', courseAllowHardDictation: boolean }
  */
-export function buildQuestionsForLesson(lesson, subFilter = 'course_all') {
+export function buildQuestionsForLesson(lesson, subFilter = 'course_all', opts = {}) {
     const items = [];
     const lessonBadge = `${lesson.code} (${lesson.dateLabel})`;
+    const wordDifficulty = opts.wordDifficulty || 'easy';
+    const isEasy = wordDifficulty === 'easy';
+    const allowHardInAll = Boolean(opts.courseAllowHardDictation);
 
-    // 1. 第4项：听音写词 12 词（全字母盲听默写）
-    if (subFilter === 'course_all' || subFilter === 'course_phonics') {
-        for (const pw of (lesson.phonicsWords || [])) {
+    const phonicsList = lesson.phonicsWords || [];
+    const sightList = lesson.sightWords || [];
+
+    // 1A. 随机启蒙友好模式（course_all 且未开启全词默写）：12 词【听音认读选词】替代盲拼默写
+    if (subFilter === 'course_all' && !allowHardInAll) {
+        const optionLimit = isEasy ? 3 : 4;
+        for (const pw of phonicsList) {
+            const otherPhonics = shuffleArray(phonicsList.filter(w => w.word !== pw.word)).slice(0, optionLimit - 1);
+            const pickOptions = shuffleArray([pw, ...otherPhonics]).map(w => ({
+                id: w.id,
+                word: w.word,
+                phonics: w.phonics,
+                ipa: w.ipa || '',
+                zh: w.zh,
+                icon: w.icon
+            }));
+            items.push({
+                itemKey: `${lesson.id}_ph_pick_${pw.word}`,
+                mode: 'course_special',
+                courseSubType: 'phonics_listen_pick',
+                lessonId: lesson.id,
+                lessonCode: lesson.code,
+                lessonBadge,
+                hint: `👂 自然拼读听音认词 · ${lessonBadge}`,
+                wordObj: {
+                    id: pw.id,
+                    word: pw.word,
+                    zh: pw.zh,
+                    icon: pw.icon,
+                    phonics: pw.phonics,
+                    ipa: pw.ipa,
+                    sentence: pw.sentence
+                },
+                speakText: pw.ttsWord || pw.word,
+                phonicsHint: pw.phonics,
+                ipa: pw.ipa || '',
+                meaningCue: `${pw.icon} ${pw.zh}`,
+                answerId: pw.id,
+                expectedWord: pw.word.toLowerCase(),
+                options: pickOptions
+            });
+        }
+
+        // 1B. 随机启蒙友好模式：4 个高频词【原句听读选词填空】替代全词默写与长句排词
+        for (const sw of sightList) {
+            const otherSight = shuffleArray(sightList.filter(w => w.word !== sw.word)).slice(0, isEasy ? 2 : 3);
+            const sightOptions = shuffleArray([sw, ...otherSight]).map(w => ({
+                id: w.id,
+                word: w.word,
+                zh: w.zh,
+                icon: w.icon
+            }));
+            items.push({
+                itemKey: `${lesson.id}_sw_pick_${sw.word}`,
+                mode: 'course_special',
+                courseSubType: 'sight_cloze_pick',
+                lessonId: lesson.id,
+                lessonCode: lesson.code,
+                lessonBadge,
+                hint: `🎯 高频词认读选词 · ${lessonBadge}`,
+                wordObj: {
+                    id: sw.id,
+                    word: sw.word,
+                    zh: sw.zh,
+                    icon: sw.icon,
+                    phonics: sw.phonics,
+                    ipa: sw.ipa,
+                    sentence: sw.sentence
+                },
+                speakText: sw.sentence,
+                wordOnlySpeak: sw.word,
+                maskedSentence: sw.maskedSentence,
+                sentenceZh: sw.sentenceZh,
+                meaningCue: `${sw.icon} 高频词提示：${sw.zh}`,
+                answerId: sw.id,
+                expectedWord: sw.word.toLowerCase(),
+                options: sightOptions
+            });
+        }
+    }
+
+    // 1. 第4项：听音写词 12 词（专项直达 course_phonics 或开启了随机全词默写时出现）
+    if (subFilter === 'course_phonics' || (subFilter === 'course_all' && allowHardInAll)) {
+        for (const pw of phonicsList) {
             items.push({
                 itemKey: `${lesson.id}_ph_${pw.word}`,
                 mode: 'course_special',
@@ -301,9 +388,9 @@ export function buildQuestionsForLesson(lesson, subFilter = 'course_all') {
         }
     }
 
-    // 2. 第3项：高频词默写 + 原句听写排词
-    if (subFilter === 'course_all' || subFilter === 'course_sight') {
-        for (const sw of (lesson.sightWords || [])) {
+    // 2. 第3项：高频词默写 + 原句听写排词（专项直达 course_sight 或开启了随机全词默写时出现）
+    if (subFilter === 'course_sight' || (subFilter === 'course_all' && allowHardInAll)) {
+        for (const sw of sightList) {
             // 2A. 高频词在原句语境中全词默写
             items.push({
                 itemKey: `${lesson.id}_sw_spell_${sw.word}`,
@@ -370,6 +457,7 @@ export function buildQuestionsForLesson(lesson, subFilter = 'course_all') {
 
     // 3. 第2项：课文阅读问答 (Q&A 听问选答 + 核心词句补全 + 心情变化三段排序)
     if (subFilter === 'course_all' || subFilter === 'course_qa') {
+        const qaDistractorCount = isEasy ? 2 : 3;
         for (const qa of (lesson.qaList || [])) {
             const baseWordObj = {
                 id: `${qa.id}_vocab`,
@@ -383,7 +471,7 @@ export function buildQuestionsForLesson(lesson, subFilter = 'course_all') {
             // 3A. 老师提问 -> 选出标准英文回答
             const qaChoices = shuffleArray([
                 { id: 'ans_correct', text: qa.a, isCorrect: true },
-                ...(qa.qaDistractors || []).slice(0, 3).map((d, i) => ({
+                ...(qa.qaDistractors || []).slice(0, qaDistractorCount).map((d, i) => ({
                     id: `ans_dist_${i}`,
                     text: d,
                     isCorrect: false
@@ -409,6 +497,13 @@ export function buildQuestionsForLesson(lesson, subFilter = 'course_all') {
 
             // 3B. 课文答句关键词补全
             if (qa.clozeSentence && qa.clozeAnswer) {
+                const rawClozeOpts = qa.clozeOptions || [qa.clozeAnswer];
+                const trimmedClozeOpts = isEasy
+                    ? [
+                        qa.clozeAnswer,
+                        ...rawClozeOpts.filter(o => o !== qa.clozeAnswer).slice(0, 2)
+                    ]
+                    : rawClozeOpts;
                 items.push({
                     itemKey: `${qa.id}_cloze`,
                     mode: 'course_special',
@@ -425,12 +520,12 @@ export function buildQuestionsForLesson(lesson, subFilter = 'course_all') {
                     answerZh: qa.aZh,
                     speakText: qa.a,
                     expectedOption: qa.clozeAnswer,
-                    options: shuffleArray(qa.clozeOptions || [qa.clozeAnswer])
+                    options: shuffleArray(trimmedClozeOpts)
                 });
             }
 
-            // 3C. 若答句包含 >=3 个分句（如第4题 First / Then / At last），额外生成段落顺序排排看！
-            if (Array.isArray(qa.sentences) && qa.sentences.length >= 3) {
+            // 3C. 长段落排序：仅在专项直达 course_qa 或开启随机全难度时出现，避免随机模式吓到低龄小朋友
+            if ((subFilter === 'course_qa' || allowHardInAll) && Array.isArray(qa.sentences) && qa.sentences.length >= 3) {
                 const orderedSteps = qa.sentences.map(s => s.en);
                 let stepCards = shuffleArray(qa.sentences.map((s, idx) => ({
                     stepId: `st_${idx}_${Math.random().toString(36).slice(2, 5)}`,
@@ -473,18 +568,20 @@ export class CourseSpecialSessionManager {
         this._lastItemKey = '';
     }
 
-    nextQuestion(lessonId = 'latest', subMode = 'course_all') {
+    nextQuestion(lessonId = 'latest', subMode = 'course_all', opts = {}) {
         const cleanSub = (subMode && subMode !== 'course_readcard' && ALL_COURSE_SUB_IDS.includes(subMode))
             ? subMode
             : 'course_all';
         const lessons = resolveCourseLessons(lessonId);
-        const bagKey = `${lessons.map(l => l.id).join('+')}|${cleanSub}`;
+        const diffKey = opts.wordDifficulty || 'easy';
+        const hardKey = opts.courseAllowHardDictation ? 'hard1' : 'hard0';
+        const bagKey = `${lessons.map(l => l.id).join('+')}|${cleanSub}|${diffKey}|${hardKey}`;
 
         let bag = this._bags.get(bagKey);
         if (!Array.isArray(bag) || bag.length === 0) {
             const fullPool = [];
             for (const lesson of lessons) {
-                fullPool.push(...buildQuestionsForLesson(lesson, cleanSub));
+                fullPool.push(...buildQuestionsForLesson(lesson, cleanSub, opts));
             }
             bag = shuffleArray(fullPool);
             if (bag.length > 1 && bag[bag.length - 1].itemKey === this._lastItemKey) {
@@ -505,6 +602,8 @@ export class CourseSpecialSessionManager {
             const srcList = fresh.courseSubType === 'phonics_dictation' ? lesson.phonicsWords : lesson.sightWords;
             const srcWord = srcList.find(w => w.word.toLowerCase() === fresh.expectedWord);
             fresh.tiles = buildFullDictationTiles(fresh.expectedWord, srcWord?.distractorChars || []);
+        } else if (fresh.courseSubType === 'phonics_listen_pick' || fresh.courseSubType === 'sight_cloze_pick') {
+            fresh.options = shuffleArray(fresh.options);
         } else if (fresh.courseSubType === 'sight_sentence_order') {
             let carriages = shuffleArray(fresh.expectedTokens.map((text, idx) => ({
                 carriageId: `sc_${idx}_${Math.random().toString(36).slice(2, 5)}`,

@@ -1716,4 +1716,94 @@
     color: #dfe6e9;
 }
 
+/* ==================== 英语降难度适配 & 随机筛题增强样式 ==================== */
+.qw-en-grid:has(> :nth-child(3):last-child) {
+    grid-template-columns: repeat(3, 1fr);
+}
+.qw-bubble-grid:has(> :nth-child(4):last-child) {
+    grid-template-columns: repeat(2, 1fr);
+}
+.qw-phonics-guide-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1.5px solid #fdcb6e;
+    color: #2d3436;
+    font-size: 13px;
+    font-weight: 900;
+}
+.qw-wo-slot.prefilled {
+    background: linear-gradient(180deg, #b8ffda 0%, #81ecec 100%) !important;
+    border: 2px solid #00b894 !important;
+    color: #004d40 !important;
+    cursor: default;
+}
+.qw-mini-btn.hint-letter {
+    border-color: #fdcb6e;
+    background: linear-gradient(180deg, #fff6d1 0%, #ffeaa7 100%);
+    color: #b76e00;
+}
+.qw-type-check-pill.excluded {
+    border-color: #fab1a0;
+    background: #fff5f5;
+    color: #8395a7;
+    opacity: 0.85;
+}
+.qw-type-check-pill.excluded .qw-pill-main-txt {
+    text-decoration: line-through;
+}
+.qw-diff-tag {
+    font-size: 10px;
+    font-weight: 900;
+    padding: 1px 5px;
+    border-radius: 6px;
+}
+.qw-diff-tag.diff-easy {
+    background: #d4fc79;
+    color: #1e6f3d;
+}
+.qw-diff-tag.diff-medium {
+    background: #ffeaa7;
+    color: #a05a00;
+}
+.qw-diff-tag.diff-hard {
+    background: #ffd6d6;
+    color: #c0392b;
+}
+.qw-diff-tag.diff-course {
+    background: #dfe6ff;
+    color: #3c40c6;
+}
+.qw-state-flag {
+    font-size: 10px;
+    font-weight: 900;
+    padding: 1px 5px;
+    border-radius: 6px;
+    background: rgba(0, 184, 148, 0.16);
+    color: #00796b;
+}
+.qw-type-check-pill.excluded .qw-state-flag {
+    background: rgba(214, 48, 49, 0.13);
+    color: #c0392b;
+}
+.qw-blocked-tip {
+    color: #d63031;
+    font-weight: 900;
+}
+.qw-tiny-act.easy-rec {
+    border-color: #00b894;
+    background: #e8fff8;
+    color: #00695c;
+}
+.smart-sub-pill.filter-cfg-btn {
+    border-color: #fdcb6e !important;
+    background: linear-gradient(180deg, #fff3c4 0%, #ffe082 100%) !important;
+    color: #6d3b00 !important;
+    font-weight: 900;
+}
+
+
 

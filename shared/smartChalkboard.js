@@ -26,6 +26,7 @@ import {
     renderEnglishQuizWidget,
     renderCourseReadAloudBoard
 } from './questionWidgets.js';
+import { openRandomFilterModal } from './randomFilterModal.js';
 import { sharedSpeech } from './audioTTS.js';
 
 export class SmartChalkboard {
@@ -151,6 +152,17 @@ export class SmartChalkboard {
         });
 
         subStrip.addEventListener('click', (e) => {
+            const filterBtn = e.target.closest('[data-filter-modal]');
+            if (filterBtn) {
+                this.onSoundResume();
+                openRandomFilterModal({
+                    profileManager: this.profileManager,
+                    onSaved: () => {
+                        this.syncFromActiveProfile();
+                    }
+                });
+                return;
+            }
             const pill = e.target.closest('.smart-entry-pill');
             if (!pill) return;
             this.onSoundResume();
@@ -254,16 +266,26 @@ export class SmartChalkboard {
         if (this.mathEngine && user.mathConfig) {
             this.mathEngine.setConfig(user.mathConfig);
         }
-        const enCfg = user.englishConfig || { level: 'level2_match', packId: 'all' };
+        const enCfg = user.englishConfig || { level: 'level1_listen', wordDifficulty: 'easy', packId: 'all' };
         this.selectedPackId = enCfg.packId || 'all';
         const courseLessonId = enCfg.courseLessonId || 'latest';
         englishEngine.setConfig({
-            level: enCfg.level || 'level2_match',
+            level: enCfg.level || 'level1_listen',
+            wordDifficulty: enCfg.wordDifficulty || 'easy',
+            courseAllowHardDictation: Boolean(enCfg.courseAllowHardDictation),
             packId: this.selectedPackId,
             courseLessonId,
             courseSubMode: enCfg.courseSubMode || 'course_all',
             enabledTypes: enCfg.enabledTypes
         });
+        const hudAvatarEl = document.getElementById('hudKidAvatar') || document.getElementById('currentUserAvatar');
+        if (hudAvatarEl) hudAvatarEl.textContent = user.avatar || '🐰';
+        const hudNameEl = document.getElementById('hudKidName') || document.getElementById('currentUserName');
+        if (hudNameEl) hudNameEl.textContent = user.name || '小豌豆';
+        const bbKidAvatarEl = document.getElementById('bbKidAvatar');
+        if (bbKidAvatarEl) bbKidAvatarEl.textContent = user.avatar || '🐰';
+        const bbKidNameEl = document.getElementById('bbKidName');
+        if (bbKidNameEl) bbKidNameEl.textContent = user.name || '小豌豆';
         if (this.enPackSelectEl) {
             this.enPackSelectEl.value = this.selectedPackId;
         }
@@ -316,7 +338,12 @@ export class SmartChalkboard {
         }
 
         const effectiveActive = (this.entryMode === 'course_special') ? 'course_all' : this.entryMode;
-        this.subStripEl.innerHTML = pills.map(p => `
+        const filterBtnHtml = `
+            <button type="button" class="smart-entry-pill smart-sub-pill filter-cfg-btn" data-filter-modal="1" title="一键降低英语难度 / 选择哪些题型在随机题目里不出现">
+                🎛️ 筛题/降难
+            </button>
+        `;
+        this.subStripEl.innerHTML = filterBtnHtml + pills.map(p => `
             <button type="button" class="smart-entry-pill ${effectiveActive === p.id ? 'active' : ''}" data-emode="${p.id}">
                 ${p.label}
             </button>

@@ -1894,9 +1894,14 @@ function saveUserProfileModal() {
     const prevEc = (!isNew && editingUserId)
         ? (profileManager.getUser(editingUserId)?.englishConfig || {})
         : {};
+    const nextEnLevel = modalEditEnLevel || 'level1_listen';
+    const nextWordDiff = (nextEnLevel !== prevEc.level && ENGLISH_LEVELS[nextEnLevel]?.wordDifficulty)
+        ? ENGLISH_LEVELS[nextEnLevel].wordDifficulty
+        : (prevEc.wordDifficulty || 'easy');
     const englishConfig = {
         ...prevEc,
-        level: modalEditEnLevel || 'level2_match',
+        level: nextEnLevel,
+        wordDifficulty: nextWordDiff,
         packId: modalEditEnPack || 'all',
         enabledTypes: modalEditEnTypes
     };

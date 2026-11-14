@@ -8,6 +8,8 @@ import {
     ALL_WORDS,
     ENGLISH_QUESTION_TYPES,
     ALL_ENGLISH_TYPE_IDS,
+    DEFAULT_EASY_ENGLISH_TYPES,
+    ENGLISH_DIFFICULTY_MODES,
     COURSE_LESSONS,
     COURSE_SUB_MODES,
     ALL_COURSE_SUB_IDS
@@ -152,19 +154,19 @@ assert.equal(ENGLISH_QUESTION_TYPES.length, 9, 'Must have 9 English question mod
 assert.equal(ALL_ENGLISH_TYPE_IDS.length, 9);
 
 const generalEnTypes = ALL_ENGLISH_TYPE_IDS.filter(id => id !== 'course_special');
-const ee = new EnglishEngine({ level: 'mixed', packId: 'all' });
+const ee = new EnglishEngine({ level: 'mixed', wordDifficulty: 'all', courseAllowHardDictation: true, packId: 'all' });
 for (const pack of WORD_PACKS) {
     assert.equal(pack.words.length, 18, `Pack ${pack.id} must have 18 words`);
     const sess = ee.startVocabStudySession(pack.id, {});
     assert.equal(sess.words.length, 5);
-    assert.equal(sess.quizQueue.length, 9);
+    assert.equal(sess.quizQueue.length, 8);
 }
 const allSess = ee.startVocabStudySession('all', {});
 assert.equal(allSess.words.length, 5, 'startVocabStudySession("all") must sample 5 words from 360-word pool');
 
-// Verify Fisher-Yates Bag Shuffle anti-repetition: 120 draws on 'all' -> 120 unique words!
+// Verify Fisher-Yates Bag Shuffle anti-repetition: 120 draws on 'all' (challenge difficulty) -> 120 unique words!
 ee.setMistakesProvider(null);
-ee.setConfig({ packId: 'all', level: 'mixed', enabledTypes: generalEnTypes });
+ee.setConfig({ packId: 'all', level: 'mixed', wordDifficulty: 'all', enabledTypes: generalEnTypes });
 const drawn120 = new Set();
 for (let i = 0; i < 120; i++) {
     const q = ee.nextQuickQuestion();
@@ -172,8 +174,8 @@ for (let i = 0; i < 120; i++) {
 }
 assert.equal(drawn120.size, 120, `Bag shuffle across 360 words must yield 120 unique words in 120 draws, got ${drawn120.size}`);
 
-// Single 18-word pack: 18 consecutive draws must cover all 18 words with 0 repeats
-ee.setConfig({ packId: 'pack_animals', enabledTypes: generalEnTypes });
+// Single 18-word pack: 18 consecutive draws must cover all 18 words with 0 repeats in 'all' difficulty
+ee.setConfig({ packId: 'pack_animals', wordDifficulty: 'all', enabledTypes: generalEnTypes });
 const drawn18 = new Set();
 for (let i = 0; i < 18; i++) {
     const q = ee.nextQuickQuestion();
@@ -181,8 +183,8 @@ for (let i = 0; i < 18; i++) {
 }
 assert.equal(drawn18.size, 18, `Single 18-word pack bag shuffle must yield 18 unique words in 18 draws, got ${drawn18.size}`);
 
-// Verify all 8 general forced modes + exact questionWidgets.js field contracts
-ee.setConfig({ packId: 'all', enabledTypes: ALL_ENGLISH_TYPE_IDS });
+// Verify all 8 general forced modes + exact questionWidgets.js field contracts in 'all' difficulty
+ee.setConfig({ packId: 'all', wordDifficulty: 'all', enabledTypes: ALL_ENGLISH_TYPE_IDS });
 for (const modeId of generalEnTypes) {
     for (let i = 0; i < 15; i++) {
         const q = ee.nextQuickQuestion(null, modeId);
@@ -206,7 +208,59 @@ for (const modeId of generalEnTypes) {
     }
 }
 
-console.log('4B. Testing Off-Campus English Course Registry (S1U1W1 · 11/12 Jack Can)...');
+console.log('4A. Testing New Kid-Friendly Easy Difficulty & Excluded Types...');
+assert.equal(ENGLISH_DIFFICULTY_MODES.length, 3);
+assert.deepEqual(DEFAULT_EASY_ENGLISH_TYPES, ['course_special', 'listen_pic', 'match_word', 'bubble_pair', 'phonics_chunks']);
+const easyEngine = new EnglishEngine(); // default must be easy!
+assert.equal(easyEngine.config.wordDifficulty, 'easy');
+assert.equal(easyEngine.config.courseAllowHardDictation, false);
+assert.deepEqual(easyEngine.config.enabledTypes, DEFAULT_EASY_ENGLISH_TYPES);
+const easyPool = easyEngine.getWordPool();
+assert.equal(easyPool.length, 146, 'Easy word pool must contain strictly the 146 L1 short words');
+assert.ok(easyPool.every(w => w.level === 1), 'Every word in easy all-packs pool must be level 1');
+
+// Verify easy mode builders: 3 choices, 2-pair (4 bubbles) pair board, 1 missing letter in spell_word, prefilled 1st word in word_order
+for (let i = 0; i < 15; i++) {
+    const lq = easyEngine.nextQuickQuestion(null, 'listen_pic');
+    assert.equal(lq.options.length, 3, 'Easy listen_pic must have 3 choices');
+    const mq = easyEngine.nextQuickQuestion(null, 'match_word');
+    assert.equal(mq.options.length, 3, 'Easy match_word must have 3 choices');
+    const bq = easyEngine.nextQuickQuestion(null, 'bubble_pair');
+    assert.equal(bq.pairCount, 2, 'Easy bubble_pair must have 2 pairs');
+    assert.equal(bq.bubbles.length, 4, 'Easy bubble_pair must have 4 bubbles');
+    const sq = easyEngine.nextQuickQuestion(null, 'spell_word');
+    assert.equal(sq.missingIndices.length, 1, 'Easy spell_word must blank ONLY 1 letter');
+    assert.equal(sq.tiles.length, 4, 'Easy spell_word must have 4 jelly tiles');
+    const wq = easyEngine.nextQuickQuestion(null, 'word_order');
+    if (wq.expectedTokens.length >= 3) {
+        assert.equal(wq.prefilledCount, 1, 'Easy word_order must prefill the 1st carriage');
+    }
+}
+
+// Verify Vocab Study Camp strictly respects excluded question types!
+easyEngine.setConfig({ wordDifficulty: 'easy', enabledTypes: ['listen_pic', 'match_word'] });
+const easyCamp = easyEngine.startVocabStudySession('all', {});
+assert.equal(easyCamp.quizQueue.length, 6);
+assert.ok(easyCamp.quizQueue.every(q => ['listen_pic', 'match_word'].includes(q.mode)), 'Vocab Camp must never emit excluded question types');
+
+// Verify S1U1W1 easy random course_all (courseAllowHardDictation: false) yields 24 gentle items with ZERO blind dictation/ordering
+easyEngine.setConfig({ wordDifficulty: 'easy', courseAllowHardDictation: false, courseLessonId: 'S1U1W1' });
+const easyCourseSubTypes = new Set();
+const easyCourseKeys = new Set();
+for (let i = 0; i < 24; i++) {
+    const cq = easyEngine.nextQuickQuestion(null, 'course_all');
+    easyCourseSubTypes.add(cq.courseSubType);
+    easyCourseKeys.add(cq.itemKey);
+    assert.ok(
+        !['phonics_dictation', 'sight_word_spell', 'sight_sentence_order', 'qa_story_steps'].includes(cq.courseSubType),
+        `Easy random course_all must exclude hard dictation/ordering, got ${cq.courseSubType}`
+    );
+}
+assert.equal(easyCourseKeys.size, 24, 'Easy S1U1W1 course_all must have 24 unique gentle items');
+assert.deepEqual([...easyCourseSubTypes].sort(), ['phonics_listen_pick', 'qa_cloze', 'qa_match', 'sight_cloze_pick']);
+console.log('   ✅ Kid-Friendly Easy Difficulty & Excluded Types verified!');
+
+console.log('4B. Testing Off-Campus English Course Registry Full Exam Mode (S1U1W1 · 11/12 Jack Can)...');
 assert.ok(COURSE_LESSONS.length >= 1);
 assert.equal(COURSE_SUB_MODES.length, 5);
 const s1u1w1 = COURSE_LESSONS.find(l => l.id === 'S1U1W1');
@@ -218,7 +272,7 @@ assert.deepEqual(
     ['ax', 'can', 'sad', 'fan', 'hat', 'jam', 'pan', 'ran', 'map', 'tack', 'back', 'wag']
 );
 
-ee.setConfig({ courseLessonId: 'S1U1W1', enabledTypes: ALL_ENGLISH_TYPE_IDS });
+ee.setConfig({ courseLessonId: 'S1U1W1', wordDifficulty: 'all', courseAllowHardDictation: true, enabledTypes: ALL_ENGLISH_TYPE_IDS });
 const allCourseKeys = new Set();
 for (let i = 0; i < 29; i++) {
     const cq = ee.nextQuickQuestion(null, 'course_all');
@@ -318,7 +372,9 @@ assert.equal(pm.getLastCarrotStage(), 1);
 assert.equal(pm.getPvzRecords()['1-1'], undefined, '川川 PvZ trophies must be isolated from 小豌豆');
 assert.equal(pm.getLastPvzLevel(), '1-1');
 assert.equal(pm.getActiveUser().mathConfig.enabledTypes.length, 9, '川川 defaults to all 9 math modes');
-assert.equal(pm.getActiveUser().englishConfig.enabledTypes.length, 9, '川川 defaults to all 9 English modes (incl. course_special)');
+assert.deepEqual(pm.getActiveUser().englishConfig.enabledTypes, DEFAULT_EASY_ENGLISH_TYPES, '川川 defaults to friendly 5 easy English modes');
+assert.equal(pm.getActiveUser().englishConfig.wordDifficulty, 'easy');
+assert.equal(pm.getActiveUser().englishConfig.courseAllowHardDictation, false);
 
 const chk1 = pm.toggleCourseReadCheck('S1U1W1_qa1');
 assert.equal(chk1.checked, true);

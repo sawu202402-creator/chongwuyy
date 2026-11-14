@@ -21,6 +21,8 @@ import {
     WORD_PACKS,
     ALL_WORDS,
     ENGLISH_LEVELS,
+    ENGLISH_DIFFICULTY_MODES,
+    DEFAULT_EASY_ENGLISH_TYPES,
     ENGLISH_QUESTION_TYPES,
     ALL_ENGLISH_TYPE_IDS,
     COURSE_LESSONS,
@@ -35,6 +37,7 @@ import {
     renderEnglishQuizWidget,
     renderCourseReadAloudBoard
 } from '../shared/questionWidgets.js';
+import { openRandomFilterModal } from '../shared/randomFilterModal.js';
 import { AVATAR_LIST, DAILY_BADGE_CAP_OPTIONS, getPetById } from '../pet/js/config.js';
 import { sharedSpeech } from '../shared/audioTTS.js';
 import { requireParentGate } from '../shared/parentGate.js';
@@ -115,14 +118,11 @@ class PortalHubApp {
             });
         });
         document.getElementById('btnHubQuickTypesCfg')?.addEventListener('click', () => {
-            requireParentGate(() => {
-                this.openSettingsModal();
-                setTimeout(() => {
-                    document.getElementById('hubMathTypesBox')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }, 80);
-            }, {
+            openRandomFilterModal({
                 profileManager,
-                actionLabel: '勾选启用上场的数学/英语题型'
+                onSaved: () => {
+                    this.renderAll();
+                }
             });
         });
         document.getElementById('btnCloseHubSettings')?.addEventListener('click', () => {
@@ -437,7 +437,9 @@ class PortalHubApp {
             allowCarryBorrow: mc.allowCarryBorrow !== false,
             allowFillBlank: mc.allowFillBlank !== false,
             mathTypes: sanitizeMathEnabledTypes(mc.enabledTypes),
-            enLevel: ec.level || 'mixed',
+            enLevel: ec.level || 'level1_listen',
+            enWordDifficulty: ec.wordDifficulty || 'easy',
+            enCourseAllowHard: Boolean(ec.courseAllowHardDictation),
             enPackId: ec.packId || 'all',
             enTypes: sanitizeEnglishEnabledTypes(ec.enabledTypes),
             parentLockEnabled: profileManager.data.parentLockEnabled !== false,
@@ -640,19 +642,20 @@ class PortalHubApp {
             ['calc', 'compare', 'bond_pop', 'sequence_train', 'clock_money']
         );
 
-        // 4. 英语题型多选与 20 大主题词包（360词）
+        // 4. 英语难度档位、题型多选与 20 大主题词包（360词）
         const enLevelRow = document.getElementById('hubEnLevelRow');
-        enLevelRow.innerHTML = '<span style="font-size:12.5px;font-weight:800;">快捷预设：</span>';
-        Object.values(ENGLISH_LEVELS).forEach(lvl => {
+        enLevelRow.innerHTML = '<span style="font-size:12.5px;font-weight:800;">英语难易度：</span>';
+        ENGLISH_DIFFICULTY_MODES.forEach(dm => {
             const b = document.createElement('button');
             b.type = 'button';
-            b.className = `hub-opt-pill ${this.formState.enLevel === lvl.id ? 'selected' : ''}`;
-            b.textContent = lvl.name;
+            b.className = `hub-opt-pill ${this.formState.enWordDifficulty === dm.id ? 'selected' : ''}`;
+            b.textContent = dm.name;
+            b.title = dm.desc;
             b.addEventListener('click', () => {
-                this.formState.enLevel = lvl.id;
-                if (Array.isArray(lvl.presetTypes)) {
-                    this.formState.enTypes = [...lvl.presetTypes];
-                }
+                this.formState.enWordDifficulty = dm.id;
+                this.formState.enCourseAllowHard = Boolean(dm.courseAllowHardDictation);
+                this.formState.enLevel = dm.id === 'easy' ? 'level1_listen' : (dm.id === 'medium' ? 'level2_match' : 'mixed');
+                this.formState.enTypes = [...dm.recommendedTypes];
                 this.renderSettingsModal();
             });
             enLevelRow.appendChild(b);
@@ -663,7 +666,7 @@ class PortalHubApp {
             ENGLISH_QUESTION_TYPES,
             this.formState.enTypes,
             (next) => { this.formState.enTypes = next; },
-            ['listen_pic', 'match_word', 'bubble_pair', 'phonics_chunks']
+            DEFAULT_EASY_ENGLISH_TYPES
         );
 
         const enPackRow = document.getElementById('hubEnPackRow');
@@ -722,6 +725,8 @@ class PortalHubApp {
         const englishConfig = {
             ...prevEc,
             level: this.formState.enLevel,
+            wordDifficulty: this.formState.enWordDifficulty || 'easy',
+            courseAllowHardDictation: Boolean(this.formState.enCourseAllowHard),
             packId: this.formState.enPackId,
             enabledTypes: cleanEnTypes
         };
