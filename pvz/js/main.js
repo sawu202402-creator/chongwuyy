@@ -1372,7 +1372,11 @@ class GameApp {
             allowFillBlank: this.dom.chkOptFillBlank.checked,
             enabledTypes: this.selectedMathTypes
         };
+        const prevEc = (this.editingKidId && this.editingKidId !== 'NEW')
+            ? (profileManager.getUser(this.editingKidId)?.englishConfig || {})
+            : {};
         const englishConfig = {
+            ...prevEc,
             level: this.selectedEnLevel || 'level2_match',
             packId: (this.dom.pvzEnPackSelect && this.dom.pvzEnPackSelect.value) || this.selectedEnPack || 'all',
             enabledTypes: this.selectedEnTypes

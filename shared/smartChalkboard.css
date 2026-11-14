@@ -1310,3 +1310,410 @@
     font-size: 12px;
 }
 
+.qw-tiny-act.course-only {
+    border-color: #ff9f43;
+    background: #fff8eb;
+    color: #d35400;
+}
+
+/* ==================== 校外英语课后专项 (S1U1W1 等周期课次) 专属样式 ==================== */
+.qw-course-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #f39c12, #e67e22);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.qw-en-voice-row.compact {
+    margin: 4px 0;
+}
+
+.qw-course-meaning-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 15px;
+    font-weight: 900;
+    color: #ffeaa7;
+    margin: 4px 0 6px;
+}
+.qw-theme-light .qw-course-meaning-row {
+    color: #3d247a;
+}
+
+.qw-ipa-pill {
+    font-size: 12px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.16);
+    color: #dfe6e9;
+}
+.qw-theme-light .qw-ipa-pill {
+    background: #ede7ff;
+    color: #5c3dc4;
+}
+
+.qw-course-reveal {
+    margin-top: 6px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: rgba(255, 118, 117, 0.25);
+    color: #ffeaa7;
+    font-size: 13px;
+    font-weight: 900;
+    text-align: center;
+}
+.qw-theme-light .qw-course-reveal {
+    background: #fff0f0;
+    color: #c0392b;
+}
+
+.qw-qa-question {
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1.32;
+    color: #fff;
+    margin: 4px 0 2px;
+}
+.qw-theme-light .qw-qa-question {
+    color: #2d1b69;
+}
+
+.qw-qa-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.qw-qa-ans-btn {
+    width: 100%;
+    text-align: left;
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    border: 2px solid #4e342e;
+    background: linear-gradient(180deg, #ffffff 0%, #f5f6fa 100%);
+    box-shadow: 0 2px 0 #4e342e;
+    color: #2d3436;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.3;
+    cursor: pointer;
+}
+.qw-theme-light .qw-qa-ans-btn {
+    border-color: #d6cbf8;
+    box-shadow: 0 2px 0 #c5b6f2;
+}
+.qw-qa-ans-btn.correct {
+    background: #b8ffda !important;
+    border-color: #00b894 !important;
+    color: #00695c !important;
+}
+.qw-qa-ans-btn.wrong {
+    background: #ffd6d6 !important;
+    border-color: #d63031 !important;
+    color: #b71c1c !important;
+}
+.qw-qa-ans-btn.used {
+    opacity: 0.28;
+    pointer-events: none;
+}
+
+.qw-qa-prefix {
+    font-weight: 900;
+    color: #e67e22;
+    flex-shrink: 0;
+}
+
+.qw-steps-box {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 5px;
+}
+
+.qw-step-slot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border-radius: 9px;
+    border: 1.5px dashed rgba(255, 255, 255, 0.42);
+    background: rgba(0, 0, 0, 0.18);
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.72);
+}
+.qw-theme-light .qw-step-slot {
+    border-color: #cbbcf6;
+    background: #faf8ff;
+    color: #7c6fa6;
+}
+.qw-step-slot.filled {
+    border-style: solid;
+    border-color: #fdcb6e;
+    background: rgba(253, 203, 110, 0.22);
+    color: #fff;
+    font-weight: 800;
+    cursor: pointer;
+}
+.qw-theme-light .qw-step-slot.filled {
+    background: #fff8e1;
+    border-color: #f59f00;
+    color: #3d2800;
+}
+
+.qw-step-num {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: #f39c12;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* ==================== 视频作业朗读跟读 & 听写词句预习板 (.qw-rc-*) ==================== */
+.qw-rc-board {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: left;
+}
+
+.qw-rc-sec-title {
+    font-size: 12.5px;
+    font-weight: 900;
+    color: #5c3dc4;
+    padding: 3px 8px;
+    border-radius: 8px;
+    background: #f1ecff;
+}
+.qw-rc-board.qw-theme-dark .qw-rc-sec-title {
+    background: rgba(255, 234, 167, 0.18);
+    color: #ffeaa7;
+}
+
+.qw-rc-qa-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.qw-rc-item {
+    padding: 9px 11px;
+    border-radius: 13px;
+    border: 2px solid #e4dcff;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.qw-rc-item.done {
+    border-color: #2ecc71;
+    background: #f3fff8;
+}
+.qw-rc-board.qw-theme-dark .qw-rc-item {
+    background: rgba(0, 0, 0, 0.26);
+    border-color: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+.qw-rc-board.qw-theme-dark .qw-rc-item.done {
+    border-color: #2ecc71;
+    background: rgba(46, 204, 113, 0.16);
+}
+
+.qw-rc-qrow {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 6px;
+}
+.qw-rc-qtxt {
+    font-size: 13.5px;
+    font-weight: 900;
+    color: #2d1b69;
+}
+.qw-rc-board.qw-theme-dark .qw-rc-qtxt {
+    color: #ffeaa7;
+}
+.qw-rc-atxt {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #00796b;
+    line-height: 1.35;
+}
+.qw-rc-board.qw-theme-dark .qw-rc-atxt {
+    color: #81ecec;
+}
+.qw-rc-zh {
+    font-size: 11.5px;
+    color: #636e72;
+}
+.qw-rc-board.qw-theme-dark .qw-rc-zh {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.qw-rc-chk {
+    border: 1.5px solid #b2bec3;
+    background: #fff;
+    color: #57606f;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.qw-rc-chk.checked {
+    border-color: #00b894;
+    background: #e3fff4;
+    color: #00796b;
+}
+
+.qw-rc-substeps {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 2px 0;
+}
+.qw-rc-sent-chip {
+    text-align: left;
+    padding: 4px 8px;
+    border-radius: 8px;
+    border: 1px dashed #a29bfe;
+    background: #f8f6ff;
+    color: #3c2a78;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.qw-rc-board.qw-theme-dark .qw-rc-sent-chip {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #fff;
+}
+
+.qw-rc-btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 2px;
+}
+.qw-rc-btn {
+    border: 1.5px solid #d0c4fc;
+    background: #f6f3ff;
+    color: #5236ab;
+    border-radius: 999px;
+    padding: 3px 9px;
+    font-size: 11.5px;
+    font-weight: 900;
+    cursor: pointer;
+}
+.qw-rc-btn.primary {
+    background: linear-gradient(135deg, #7c5cfc, #5f3dc4);
+    border-color: #5f3dc4;
+    color: #fff;
+}
+.qw-rc-btn.slow {
+    background: #fff8e6;
+    border-color: #f59f00;
+    color: #b36b00;
+}
+
+.qw-rc-sight-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 7px;
+}
+.qw-rc-board.compact .qw-rc-sight-grid {
+    grid-template-columns: 1fr;
+}
+.qw-rc-sight-card {
+    padding: 8px 10px;
+    border-radius: 11px;
+    border: 1.5px solid #ffe0b2;
+    background: #fffdf8;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+.qw-rc-board.qw-theme-dark .qw-rc-sight-card {
+    background: rgba(0, 0, 0, 0.25);
+    border-color: rgba(255, 234, 167, 0.3);
+}
+.qw-rc-sight-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+}
+.qw-rc-sw-word {
+    font-size: 15px;
+    font-weight: 900;
+    color: #d35400;
+}
+.qw-rc-board.qw-theme-dark .qw-rc-sw-word {
+    color: #ffeaa7;
+}
+.qw-rc-sight-sen {
+    font-size: 13px;
+    font-weight: 800;
+    color: #2d3436;
+}
+.qw-rc-board.qw-theme-dark .qw-rc-sight-sen {
+    color: #fff;
+}
+
+.qw-rc-ph-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+}
+.qw-rc-board.compact .qw-rc-ph-grid {
+    grid-template-columns: repeat(3, 1fr);
+}
+.qw-rc-ph-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 6px 4px;
+    border-radius: 10px;
+    border: 1.5px solid #cce7ff;
+    background: #f4faff;
+    cursor: pointer;
+}
+.qw-rc-board.qw-theme-dark .qw-rc-ph-chip {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+.qw-rc-ph-en {
+    font-size: 15px;
+    font-weight: 900;
+    color: #0984e3;
+}
+.qw-rc-board.qw-theme-dark .qw-rc-ph-en {
+    color: #74b9ff;
+}
+.qw-rc-ph-zh {
+    font-size: 10.5px;
+    font-weight: 700;
+    color: #57606f;
+}
+.qw-rc-board.qw-theme-dark .qw-rc-ph-zh {
+    color: #dfe6e9;
+}
+
+

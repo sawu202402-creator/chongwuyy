@@ -1891,7 +1891,11 @@ function saveUserProfileModal() {
         };
     }
 
+    const prevEc = (!isNew && editingUserId)
+        ? (profileManager.getUser(editingUserId)?.englishConfig || {})
+        : {};
     const englishConfig = {
+        ...prevEc,
         level: modalEditEnLevel || 'level2_match',
         packId: modalEditEnPack || 'all',
         enabledTypes: modalEditEnTypes

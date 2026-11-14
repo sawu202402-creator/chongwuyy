@@ -464,6 +464,18 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
         }
     };
 
+    // 0. 🎓 校外英语课后专项（听音写词 / 高频词与原句听写 / 课文问答）
+    if (q.mode === 'course_special') {
+        renderCourseSpecialQuestion(containerEl, q, {
+            speak,
+            onEvaluate,
+            onTap,
+            themeClass,
+            autoSpeak: Boolean(hooks.autoSpeak)
+        });
+        return;
+    }
+
     // 1. 🎧 听音选图
     if (q.mode === 'listen_pic') {
         const optsHtml = q.options.map(opt => `
@@ -961,6 +973,7 @@ export function renderEnabledTypesSelector(containerEl, typesMeta, selectedIds, 
             `;
         }).join('');
 
+        const hasCourseSpecial = allIds.includes('course_special');
         containerEl.innerHTML = `
             <div class="qw-type-selector-wrap">
                 <div class="qw-type-quick-bar">
@@ -968,6 +981,7 @@ export function renderEnabledTypesSelector(containerEl, typesMeta, selectedIds, 
                     <div class="qw-type-quick-btns">
                         <button type="button" class="qw-tiny-act" data-qact="all">全选 (${allIds.length})</button>
                         ${basicPresetIds.length > 0 ? `<button type="button" class="qw-tiny-act" data-qact="basic">启蒙推荐</button>` : ''}
+                        ${hasCourseSpecial ? `<button type="button" class="qw-tiny-act course-only" data-qact="course_only">🎓 仅校外课</button>` : ''}
                     </div>
                 </div>
                 <div class="qw-type-pills-grid">${pillsHtml}</div>
@@ -999,6 +1013,470 @@ export function renderEnabledTypesSelector(containerEl, typesMeta, selectedIds, 
             if (current.length === 0) current = [allIds[0]];
             onChange([...current]);
             draw();
+        });
+
+        containerEl.querySelector('[data-qact="course_only"]')?.addEventListener('click', () => {
+            current = ['course_special'];
+            onChange([...current]);
+            draw();
+        });
+    };
+
+    draw();
+}
+
+/**
+ * 校外英语课专项考题渲染器（覆盖：盲听全词拼写 / 高频词默写 / 必背原句听写 / 课文问答Q&A / 课文填空 / 长句排序）
+ */
+function renderCourseSpecialQuestion(containerEl, q, ctx) {
+    const { speak, onEvaluate, onTap, themeClass, autoSpeak } = ctx;
+    let locked = false;
+
+    // A. 👂 听音写词抽查 & ✍️ 高频词全字母默写
+    if (q.courseSubType === 'phonics_dictation' || q.courseSubType === 'sight_word_spell') {
+        const isSight = q.courseSubType === 'sight_word_spell';
+        const pickedTiles = [];
+        let revealAnswer = '';
+
+        const drawDictation = () => {
+            const usedSet = new Set(pickedTiles.map(t => t.tileId));
+            const slotsHtml = q.chars.map((_, idx) => {
+                const filled = pickedTiles[idx];
+                return `
+                    <button type="button" class="smart-spell-slot missing ${filled ? 'filled' : ''}" data-dslot="${idx}">
+                        ${filled ? filled.char : '_'}
+                    </button>
+                `;
+            }).join('');
+
+            const tilesHtml = q.tiles.map(t => `
+                <button type="button" class="smart-letter-tile ${usedSet.has(t.tileId) ? 'used' : ''}" data-dtid="${t.tileId}">
+                    ${t.char}
+                </button>
+            `).join('');
+
+            const contextHtml = isSight
+                ? `<div class="qw-cloze-en">${q.maskedSentence}</div><div class="qw-cloze-zh">${q.sentenceZh || ''} · ${q.meaningCue}</div>`
+                : `<div class="qw-course-meaning-row"><span>${q.meaningCue}</span>${q.ipa ? `<span class="qw-ipa-pill">${q.ipa}</span>` : ''}</div>`;
+
+            containerEl.innerHTML = `
+                <div class="qw-stage-wrap ${themeClass}">
+                    <div class="qw-en-card compact qw-course-card">
+                        <div class="qw-en-top">
+                            <span class="qw-course-tag">${q.hint}</span>
+                            <button type="button" class="qw-mini-btn" data-dact="back" ${pickedTiles.length === 0 || locked ? 'disabled' : ''}>⌫ 退格</button>
+                        </div>
+                        <div class="qw-en-voice-row compact">
+                            <button type="button" class="qw-voice-btn primary" data-dspeak="fast">${isSight ? '🔊 听词与原句' : '🔊 听词发音'}</button>
+                            <button type="button" class="qw-voice-btn slow" data-dspeak="slow">🐢 慢速拼读</button>
+                        </div>
+                        ${contextHtml}
+                        <div class="smart-spell-slots">${slotsHtml}</div>
+                        ${revealAnswer ? `<div class="qw-course-reveal">${revealAnswer}</div>` : ''}
+                    </div>
+                    <div class="smart-spell-tiles">${tilesHtml}</div>
+                </div>
+            `;
+
+            containerEl.querySelector('[data-dspeak="fast"]')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onTap();
+                speak(q.speakText, false, '');
+            });
+            containerEl.querySelector('[data-dspeak="slow"]')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onTap();
+                speak(q.wordOnlySpeak || q.speakText, true, q.phonicsHint || '');
+            });
+            containerEl.querySelector('[data-dact="back"]')?.addEventListener('click', () => {
+                if (locked || pickedTiles.length === 0) return;
+                onTap();
+                pickedTiles.pop();
+                drawDictation();
+            });
+            containerEl.querySelectorAll('[data-dslot]').forEach(slotBtn => {
+                slotBtn.onclick = () => {
+                    if (locked) return;
+                    const idx = Number(slotBtn.getAttribute('data-dslot'));
+                    if (idx < pickedTiles.length) {
+                        onTap();
+                        pickedTiles.splice(idx, 1);
+                        drawDictation();
+                    }
+                };
+            });
+            containerEl.querySelectorAll('[data-dtid]').forEach(tileBtn => {
+                tileBtn.onclick = () => {
+                    if (locked || pickedTiles.length >= q.chars.length) return;
+                    const tid = tileBtn.getAttribute('data-dtid');
+                    const tile = q.tiles.find(x => x.tileId === tid);
+                    if (!tile || usedSet.has(tid)) return;
+                    onTap();
+                    pickedTiles.push(tile);
+                    drawDictation();
+
+                    if (pickedTiles.length === q.chars.length) {
+                        locked = true;
+                        const userWord = pickedTiles.map(x => x.char).join('').toLowerCase();
+                        const ok = userWord === q.expectedWord;
+                        if (!ok) {
+                            revealAnswer = `💡 正确默写：${q.expectedWord}`;
+                            drawDictation();
+                        }
+                        onEvaluate(ok, userWord);
+                    }
+                };
+            });
+        };
+
+        drawDictation();
+        if (autoSpeak) speak(q.speakText, false, '');
+        return;
+    }
+
+    // B. 📝 主教材必背原句听写（听读完整英文句 -> 按顺序点选全部单词）
+    if (q.courseSubType === 'sight_sentence_order') {
+        const chosen = [];
+        const drawSenDictation = () => {
+            const usedSet = new Set(chosen.map(c => c.carriageId));
+            const trackHtml = q.expectedTokens.map((_, idx) => {
+                const placed = chosen[idx];
+                return `
+                    <button type="button" class="qw-wo-slot ${placed ? 'filled' : ''}" data-sidx="${idx}">
+                        ${placed ? placed.text : `${idx + 1}`}
+                    </button>
+                `;
+            }).join('');
+
+            const poolHtml = q.carriages.map(c => `
+                <button type="button" class="qw-wo-chip ${usedSet.has(c.carriageId) ? 'used' : ''}" data-scid="${c.carriageId}">
+                    ${c.text}
+                </button>
+            `).join('');
+
+            containerEl.innerHTML = `
+                <div class="qw-stage-wrap ${themeClass}">
+                    <div class="qw-en-card compact qw-course-card">
+                        <div class="qw-en-top">
+                            <span class="qw-course-tag">${q.hint}</span>
+                            <div style="display:flex;gap:4px;">
+                                <button type="button" class="qw-mini-btn" data-sspeak="fast">🔊 听原句</button>
+                                <button type="button" class="qw-mini-btn" data-sspeak="slow">🐢 慢读</button>
+                            </div>
+                        </div>
+                        <div class="qw-cloze-zh">📌 必背句（含高频词 <strong>${q.targetSightWord}</strong>）：${q.sentenceZh}</div>
+                        <div class="qw-wo-track">${trackHtml}</div>
+                    </div>
+                    <div class="qw-chunk-pool">${poolHtml}</div>
+                </div>
+            `;
+
+            containerEl.querySelector('[data-sspeak="fast"]')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onTap();
+                speak(q.speakText, false, '');
+            });
+            containerEl.querySelector('[data-sspeak="slow"]')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onTap();
+                speak(q.speakText, true, '');
+            });
+            containerEl.querySelectorAll('.qw-wo-slot.filled').forEach(btn => {
+                btn.onclick = () => {
+                    if (locked) return;
+                    onTap();
+                    const idx = Number(btn.getAttribute('data-sidx'));
+                    chosen.splice(idx, 1);
+                    drawSenDictation();
+                };
+            });
+            containerEl.querySelectorAll('.qw-wo-chip').forEach(btn => {
+                btn.onclick = () => {
+                    if (locked || chosen.length >= q.expectedTokens.length) return;
+                    const cid = btn.getAttribute('data-scid');
+                    const obj = q.carriages.find(x => x.carriageId === cid);
+                    if (!obj || usedSet.has(cid)) return;
+                    onTap();
+                    chosen.push(obj);
+                    drawSenDictation();
+
+                    if (chosen.length === q.expectedTokens.length) {
+                        locked = true;
+                        const userSen = chosen.map(x => x.text).join(' ');
+                        const ok = userSen === q.expectedSentence;
+                        onEvaluate(ok, userSen);
+                    }
+                };
+            });
+        };
+
+        drawSenDictation();
+        if (autoSpeak) speak(q.speakText, false, '');
+        return;
+    }
+
+    // C. 📖 课文阅读问答对答 (Q -> 选正确 A)
+    if (q.courseSubType === 'qa_match') {
+        const choicesHtml = q.choices.map(ch => `
+            <button type="button" class="qw-qa-ans-btn" data-cid="${ch.id}" data-ok="${ch.isCorrect ? '1' : '0'}">
+                <span class="qw-qa-prefix">A:</span>
+                <span>${ch.text}</span>
+            </button>
+        `).join('');
+
+        containerEl.innerHTML = `
+            <div class="qw-stage-wrap ${themeClass}">
+                <div class="qw-en-card compact qw-course-card">
+                    <div class="qw-en-top">
+                        <span class="qw-course-tag">${q.hint}</span>
+                        <button type="button" class="qw-mini-btn" data-qspeak="q">🔊 听提问</button>
+                    </div>
+                    <div class="qw-qa-question">Q: ${q.questionEn}</div>
+                    <div class="qw-cloze-zh">${q.questionZh}</div>
+                </div>
+                <div class="qw-qa-list">${choicesHtml}</div>
+            </div>
+        `;
+        containerEl.querySelector('[data-qspeak="q"]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onTap();
+            speak(q.questionSpeak || q.questionEn, false, '');
+        });
+        if (autoSpeak) speak(q.questionSpeak || q.questionEn, false, '');
+
+        containerEl.querySelectorAll('.qw-qa-ans-btn').forEach(btn => {
+            btn.onclick = () => {
+                if (locked) return;
+                locked = true;
+                onTap();
+                const ok = btn.getAttribute('data-ok') === '1';
+                btn.classList.add(ok ? 'correct' : 'wrong');
+                if (!ok) {
+                    containerEl.querySelector('.qw-qa-ans-btn[data-ok="1"]')?.classList.add('correct');
+                }
+                speak(q.answerEn, false, '');
+                onEvaluate(ok, btn.textContent.trim());
+            };
+        });
+        return;
+    }
+
+    // D. 🗣️ 课文答句关键词补全 (qa_cloze)
+    if (q.courseSubType === 'qa_cloze') {
+        const optsHtml = q.options.map(opt => `
+            <button type="button" class="qw-en-opt" data-opt="${opt}">
+                <span class="qw-en-opt-word">${opt}</span>
+            </button>
+        `).join('');
+
+        containerEl.innerHTML = `
+            <div class="qw-stage-wrap ${themeClass}">
+                <div class="qw-en-card compact qw-course-card">
+                    <div class="qw-en-top">
+                        <span class="qw-course-tag">${q.hint}</span>
+                        <button type="button" class="qw-mini-btn" data-cspeak="ans">🔊 听答句</button>
+                    </div>
+                    <div class="qw-cloze-zh" style="font-weight:900;">Q: ${q.questionEn}</div>
+                    <div class="qw-cloze-en">A: ${q.clozeSentence}</div>
+                    <div class="qw-cloze-zh">${q.answerZh}</div>
+                </div>
+                <div class="qw-en-grid">${optsHtml}</div>
+            </div>
+        `;
+        containerEl.querySelector('[data-cspeak="ans"]')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onTap();
+            speak(q.answerEn, false, '');
+        });
+        if (autoSpeak) speak(q.answerEn, false, '');
+
+        containerEl.querySelectorAll('.qw-en-opt').forEach(btn => {
+            btn.onclick = () => {
+                if (locked) return;
+                locked = true;
+                onTap();
+                const picked = btn.getAttribute('data-opt') || '';
+                const ok = picked === q.expectedOption;
+                btn.classList.add(ok ? 'correct' : 'wrong');
+                onEvaluate(ok, picked);
+            };
+        });
+        return;
+    }
+
+    // E. 🎬 视频长答句三段顺序排排看 (First -> Then -> At last)
+    if (q.courseSubType === 'qa_story_steps') {
+        const pickedSteps = [];
+        const drawSteps = () => {
+            const usedIds = new Set(pickedSteps.map(s => s.stepId));
+            const progressHtml = q.orderedSteps.map((_, idx) => {
+                const placed = pickedSteps[idx];
+                return `
+                    <div class="qw-step-slot ${placed ? 'filled' : ''}" data-pidx="${idx}">
+                        <span class="qw-step-num">${idx + 1}</span>
+                        <span class="qw-step-txt">${placed ? placed.en : '点击下方第 ' + (idx + 1) + ' 句英文...'}</span>
+                    </div>
+                `;
+            }).join('');
+
+            const poolHtml = q.stepCards.map(sc => `
+                <button type="button" class="qw-qa-ans-btn ${usedIds.has(sc.stepId) ? 'used' : ''}" data-stid="${sc.stepId}">
+                    <span>${sc.en}</span>
+                </button>
+            `).join('');
+
+            containerEl.innerHTML = `
+                <div class="qw-stage-wrap ${themeClass}">
+                    <div class="qw-en-card compact qw-course-card">
+                        <div class="qw-en-top">
+                            <span class="qw-course-tag">${q.hint}</span>
+                            <button type="button" class="qw-mini-btn" data-stspeak="all">🔊 听完整段落</button>
+                        </div>
+                        <div class="qw-cloze-zh" style="font-weight:900;">Q: ${q.questionEn}</div>
+                        <div class="qw-steps-box">${progressHtml}</div>
+                    </div>
+                    <div class="qw-qa-list">${poolHtml}</div>
+                </div>
+            `;
+
+            containerEl.querySelector('[data-stspeak="all"]')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                onTap();
+                speak(q.answerEn, false, '');
+            });
+            containerEl.querySelectorAll('.qw-step-slot.filled').forEach(slotEl => {
+                slotEl.onclick = () => {
+                    if (locked) return;
+                    onTap();
+                    const idx = Number(slotEl.getAttribute('data-pidx'));
+                    pickedSteps.splice(idx, 1);
+                    drawSteps();
+                };
+            });
+            containerEl.querySelectorAll('[data-stid]').forEach(btn => {
+                btn.onclick = () => {
+                    if (locked || pickedSteps.length >= q.orderedSteps.length) return;
+                    const stid = btn.getAttribute('data-stid');
+                    const obj = q.stepCards.find(x => x.stepId === stid);
+                    if (!obj || usedIds.has(stid)) return;
+                    onTap();
+                    speak(obj.en, false, '');
+                    pickedSteps.push(obj);
+                    drawSteps();
+
+                    if (pickedSteps.length === q.orderedSteps.length) {
+                        locked = true;
+                        const ok = pickedSteps.every((s, idx) => s.orderIdx === idx);
+                        onEvaluate(ok, pickedSteps.map(s => s.en).join(' '));
+                    }
+                };
+            });
+        };
+
+        drawSteps();
+        if (autoSpeak) speak(q.questionEn, false, '');
+    }
+}
+
+/**
+ * 📹 视频作业朗读跟读 & 听写词句全览打卡面板（可嵌入大厅特训舱、萌宠店长或智慧小黑板）
+ */
+export function renderCourseReadAloudBoard(containerEl, lesson, hooks = {}) {
+    if (!containerEl || !lesson) return;
+    const speak = typeof hooks.speakFn === 'function'
+        ? hooks.speakFn
+        : (txt, slow, ph) => sharedSpeech.speakEnglish(txt, slow, ph);
+    const onTap = typeof hooks.onTapSound === 'function' ? hooks.onTapSound : () => {};
+    const getChecked = typeof hooks.isChecked === 'function' ? hooks.isChecked : () => false;
+    const onToggleCheck = typeof hooks.onToggleCheck === 'function' ? hooks.onToggleCheck : () => {};
+    const compact = Boolean(hooks.compact);
+    const themeClass = hooks.theme === 'dark' ? 'qw-theme-dark' : 'qw-theme-light';
+
+    const draw = () => {
+        const qaCardsHtml = (lesson.qaList || []).map(qa => {
+            const checkKey = `${lesson.id}_${qa.id}`;
+            const done = getChecked(checkKey);
+            const subSentencesHtml = (qa.sentences && qa.sentences.length > 1)
+                ? `<div class="qw-rc-substeps">${qa.sentences.map(s => `
+                    <button type="button" class="qw-rc-sent-chip" data-speak-en="${s.en.replace(/"/g, '&quot;')}">
+                        🔊 ${s.en}
+                    </button>
+                `).join('')}</div>`
+                : '';
+
+            return `
+                <div class="qw-rc-item ${done ? 'done' : ''}">
+                    <div class="qw-rc-qrow">
+                        <span class="qw-rc-qtxt"><strong>Q${qa.index}:</strong> ${qa.q}</span>
+                        <button type="button" class="qw-rc-chk ${done ? 'checked' : ''}" data-chk="${checkKey}">
+                            ${done ? '✅ 已熟读' : '⬜ 打卡'}
+                        </button>
+                    </div>
+                    <div class="qw-rc-atxt"><strong>A:</strong> ${qa.a}</div>
+                    <div class="qw-rc-zh">${qa.qZh} → ${qa.aZh}</div>
+                    ${subSentencesHtml}
+                    <div class="qw-rc-btns">
+                        <button type="button" class="qw-rc-btn" data-speak-en="${(qa.qSpeak || qa.q).replace(/"/g, '&quot;')}">🔊 读问句</button>
+                        <button type="button" class="qw-rc-btn primary" data-speak-en="${qa.a.replace(/"/g, '&quot;')}">🔊 读答句</button>
+                        <button type="button" class="qw-rc-btn slow" data-speak-slow="${qa.a.replace(/"/g, '&quot;')}">🐢 慢速跟读</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        const sightHtml = (lesson.sightWords || []).map(sw => `
+            <div class="qw-rc-sight-card">
+                <div class="qw-rc-sight-top">
+                    <span class="qw-rc-sw-word">${sw.icon} ${sw.word} <small>${sw.ipa || ''}</small></span>
+                    <button type="button" class="qw-rc-btn primary" data-speak-en="${`${sw.word}. ${sw.sentence}`.replace(/"/g, '&quot;')}">🔊 读词+句</button>
+                </div>
+                <div class="qw-rc-sight-sen">${sw.sentence}</div>
+                <div class="qw-rc-zh">${sw.zh} · ${sw.sentenceZh}</div>
+            </div>
+        `).join('');
+
+        const phonicsHtml = (lesson.phonicsWords || []).map(pw => `
+            <button type="button" class="qw-rc-ph-chip" data-ph-word="${pw.ttsWord || pw.word}" data-ph-chunks="${pw.phonics}">
+                <span class="qw-rc-ph-en">${pw.word}</span>
+                <span class="qw-rc-ph-zh">${pw.icon}${pw.zh}</span>
+            </button>
+        `).join('');
+
+        containerEl.innerHTML = `
+            <div class="qw-rc-board ${themeClass} ${compact ? 'compact' : ''}">
+                <div class="qw-rc-sec-title">📹 2. 视频作业：课文问答朗读跟读（点按钮跟读，熟读后打勾）</div>
+                <div class="qw-rc-qa-list">${qaCardsHtml}</div>
+                <div class="qw-rc-sec-title">✍️ 3. 主教材高频词与必背听写句 (Words to Know)</div>
+                <div class="qw-rc-sight-grid">${sightHtml}</div>
+                <div class="qw-rc-sec-title">👂 4. ${lesson.phonicsRuleTitle || '自然拼读听音写词抽查'}（点击听慢速拼读）</div>
+                <div class="qw-rc-ph-grid">${phonicsHtml}</div>
+            </div>
+        `;
+
+        containerEl.querySelectorAll('[data-speak-en]').forEach(btn => {
+            btn.onclick = () => {
+                onTap();
+                speak(btn.getAttribute('data-speak-en'), false, '');
+            };
+        });
+        containerEl.querySelectorAll('[data-speak-slow]').forEach(btn => {
+            btn.onclick = () => {
+                onTap();
+                speak(btn.getAttribute('data-speak-slow'), true, '');
+            };
+        });
+        containerEl.querySelectorAll('[data-ph-word]').forEach(btn => {
+            btn.onclick = () => {
+                onTap();
+                speak(btn.getAttribute('data-ph-word'), true, btn.getAttribute('data-ph-chunks') || '');
+            };
+        });
+        containerEl.querySelectorAll('[data-chk]').forEach(btn => {
+            btn.onclick = () => {
+                onTap();
+                onToggleCheck(btn.getAttribute('data-chk'));
+                draw();
+            };
         });
     };
 

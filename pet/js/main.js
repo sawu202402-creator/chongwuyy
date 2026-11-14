@@ -29,7 +29,11 @@ import {
     ALL_WORDS,
     ENGLISH_QUESTION_TYPES,
     ALL_ENGLISH_TYPE_IDS,
-    ENGLISH_LEVELS
+    ENGLISH_LEVELS,
+    COURSE_LESSONS,
+    COURSE_SUB_MODES,
+    ALL_COURSE_SUB_IDS,
+    getPrimaryCourseLesson
 } from './englishEngine.js';
 import {
     profileManager,
@@ -39,7 +43,8 @@ import {
 import {
     renderMathInteractiveWidget,
     renderEnglishQuizWidget,
-    renderEnabledTypesSelector
+    renderEnabledTypesSelector,
+    renderCourseReadAloudBoard
 } from '../../shared/questionWidgets.js';
 import { requireParentGate } from '../../shared/parentGate.js';
 
@@ -178,15 +183,17 @@ class PetWonderTownApp {
         this.townPendingPlacement = null;  // 若不为null，点击小镇地块直接落点
 
         // 右侧学习面板状态
-        this.activeSubject = 'grand_random'; // 'grand_random' | 'math' | 'english' | 'review'
+        this.activeSubject = 'grand_random'; // 'grand_random' | 'math' | 'english' | 'course' | 'review'
         this._grandActivePanel = 'math';     // 在 grand_random 下当前这道题属于 'math' 还是 'english'
         this._grandStreakSubject = '';
         this._grandStreakCount = 0;
         this.mathSubMode = 'random';         // 'random' | 9大数学题型ID之一
         this.mathInputStr = '';
         this._numericKeypadActive = true;
-        this.engSubMode = 'english_random';  // 'vocab_camp' | 'english_random' | 8大英语题型ID之一
+        this.engSubMode = 'english_random';  // 'vocab_camp' | 'english_random' | 英语题型ID
+        this.courseSubMode = 'course_all';   // 'course_all' | 'course_phonics' | 'course_sight' | 'course_qa' | 'course_readcard'
         this.activeWordPackId = 'all';       // 默认开启全部20主题·360词洗牌防重
+        this.activeCourseLessonId = 'latest';
         this.quizLocked = false;
 
         // 个人档案弹窗临时编辑状态
@@ -230,7 +237,9 @@ class PetWonderTownApp {
         mathEngine.setConfig(u.mathConfig);
         englishEngine.setConfig(u.englishConfig);
         this.activeWordPackId = u.englishConfig?.packId || 'all';
+        this.activeCourseLessonId = u.englishConfig?.courseLessonId || 'latest';
         englishEngine.config.packId = this.activeWordPackId;
+        englishEngine.config.courseLessonId = this.activeCourseLessonId;
 
         const pm = u.preferredSmartMode || 'grand_random';
         if (pm === 'grand_random') {
@@ -243,6 +252,10 @@ class PetWonderTownApp {
         } else if (ALL_MATH_TYPE_IDS.includes(pm)) {
             this.activeSubject = 'math';
             this.mathSubMode = pm;
+        } else if (pm === 'course_special' || ALL_COURSE_SUB_IDS.includes(pm)) {
+            this.activeSubject = 'course';
+            this.courseSubMode = pm === 'course_special' ? 'course_all' : pm;
+            this.engSubMode = this.courseSubMode;
         } else if (pm === 'english_random' || pm === 'english') {
             this.activeSubject = 'english';
             this.engSubMode = 'english_random';
@@ -299,27 +312,42 @@ class PetWonderTownApp {
         if (engWrap) {
             const u = profileManager.getActiveUser();
             const enabledCount = sanitizeEnglishEnabledTypes(u?.englishConfig?.enabledTypes).length;
-            const items = [
-                { id: 'vocab_camp', label: '📖 5词背诵' },
-                { id: 'english_random', label: `🎲 英语随机(${enabledCount})` },
-                ...ENGLISH_QUESTION_TYPES.map(t => ({ id: t.id, label: t.shortName }))
-            ];
+            const items = this.activeSubject === 'course'
+                ? COURSE_SUB_MODES.map(m => ({ id: m.id, label: m.shortName, isCourse: true }))
+                : [
+                    { id: 'vocab_camp', label: '📖 5词背诵' },
+                    { id: 'english_random', label: `🎲 英语随机(${enabledCount})` },
+                    ...COURSE_SUB_MODES.map(m => ({ id: m.id, label: m.shortName, isCourse: true })),
+                    ...ENGLISH_QUESTION_TYPES
+                        .filter(t => t.id !== 'course_special')
+                        .map(t => ({ id: t.id, label: t.shortName }))
+                ];
             engWrap.innerHTML = '';
             items.forEach(item => {
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                const isActive = this.activeSubject === 'english'
-                    ? this.engSubMode === item.id
-                    : (this.activeSubject === 'grand_random' && item.id === 'english_random');
-                btn.className = `sub-pill ${isActive ? 'active' : ''}`;
+                const isActive = this.activeSubject === 'course'
+                    ? this.courseSubMode === item.id
+                    : (this.activeSubject === 'english'
+                        ? this.engSubMode === item.id
+                        : (this.activeSubject === 'grand_random' && item.id === 'english_random'));
+                btn.className = `sub-pill ${item.isCourse ? 'course-pill' : ''} ${isActive ? 'active' : ''}`;
                 btn.dataset.engmode = item.id;
                 btn.textContent = item.label;
                 btn.onclick = () => {
                     soundEngine.playTap();
-                    this.activeSubject = 'english';
-                    this.engSubMode = item.id;
-                    profileManager.setPreferredSmartMode(item.id);
-                    this.switchSubjectTab('english', true, true);
+                    if (item.isCourse) {
+                        this.activeSubject = 'course';
+                        this.courseSubMode = item.id;
+                        this.engSubMode = item.id;
+                        profileManager.setPreferredSmartMode(item.id);
+                        this.switchSubjectTab('course', true, true);
+                    } else {
+                        this.activeSubject = 'english';
+                        this.engSubMode = item.id;
+                        profileManager.setPreferredSmartMode(item.id);
+                        this.switchSubjectTab('english', true, true);
+                    }
                 };
                 engWrap.appendChild(btn);
             });
@@ -1170,11 +1198,47 @@ class PetWonderTownApp {
         }
     }
 
-    // ==================== 右侧面板 2：英语【20主题360词 · 5词背诵 + 8大互动题型】 ====================
+    // ==================== 右侧面板 2：英语【20主题360词 + 🎓校外英语课专项】 ====================
     renderWordPackStrip() {
         const strip = document.getElementById('engPackStrip');
         if (!strip) return;
         strip.innerHTML = '';
+
+        if (this.activeSubject === 'course') {
+            const lessonItems = [
+                { id: 'latest', label: `🌟 最新(${COURSE_LESSONS[0].code}·${COURSE_LESSONS[0].dateLabel})` },
+                ...(COURSE_LESSONS.length > 1
+                    ? [{ id: 'all_courses', label: `📚 全部已学(${COURSE_LESSONS.length}节)` }]
+                    : []),
+                ...COURSE_LESSONS.map(l => ({ id: l.id, label: `🎓 ${l.code}《${l.storyTitle}》` }))
+            ];
+            lessonItems.forEach(ls => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `pack-chip ${this.activeCourseLessonId === ls.id ? 'active' : ''}`;
+                btn.textContent = ls.label;
+                btn.onclick = () => {
+                    soundEngine.playTap();
+                    this.activeCourseLessonId = ls.id;
+                    englishEngine.config.courseLessonId = ls.id;
+                    const active = profileManager.getActiveUser();
+                    if (active) {
+                        profileManager.updateUserSettings(active.id, {
+                            englishConfig: { ...(active.englishConfig || {}), courseLessonId: ls.id }
+                        });
+                    }
+                    this.renderWordPackStrip();
+                    if (this.courseSubMode === 'course_readcard') {
+                        this.renderCourseReadCardInPet();
+                    } else {
+                        this.renderEnglishQuizQuestion(englishEngine.nextQuickQuestion(null, this.courseSubMode), true);
+                    }
+                };
+                strip.appendChild(btn);
+            });
+            return;
+        }
+
         const packsWithAll = [
             { id: 'all', icon: '🌟', name: `全部20主题(${ALL_WORDS.length})` },
             ...WORD_PACKS
@@ -1206,6 +1270,35 @@ class PetWonderTownApp {
             };
             strip.appendChild(btn);
         });
+    }
+
+    renderCourseReadCardInPet() {
+        this.quizLocked = false;
+        this._numericKeypadActive = false;
+        document.getElementById('engStudyWrap').style.display = 'none';
+        document.getElementById('engQuizWrap').style.display = 'flex';
+        const stageEl = document.getElementById('petEngQuizStage');
+        const lesson = getPrimaryCourseLesson(this.activeCourseLessonId);
+        renderCourseReadAloudBoard(stageEl, lesson, {
+            theme: 'light',
+            compact: true,
+            speakFn: (txt, slow, ph) => soundEngine.speakEnglish(txt, slow, ph),
+            onTapSound: () => soundEngine.playTap(),
+            isChecked: (k) => Boolean(profileManager.getActiveUser()?.courseReadChecks?.[k]?.checked),
+            onToggleCheck: (k) => {
+                const res = profileManager.toggleCourseReadCheck
+                    ? profileManager.toggleCourseReadCheck(k)
+                    : { checked: false, awarded: false };
+                if (res.awarded) {
+                    soundEngine.playCorrect();
+                    this.renderTopHud();
+                }
+            }
+        });
+        const fb = document.getElementById('engFeedbackBar');
+        if (fb) {
+            fb.textContent = '📹 点击【读问句/读答句/慢速跟读】练熟视频作业，打勾 ✅ 还能领学习星！';
+        }
     }
 
     initVocabCampForPack(packId, speakFirst = false) {
@@ -1259,7 +1352,10 @@ class PetWonderTownApp {
         const sess = englishEngine.studySession;
         let badgeTitle = '⚡ 英语闪电闯关';
         if (this.activeSubject === 'grand_random') {
-            badgeTitle = '🎲 大随机 · 英语';
+            badgeTitle = q.mode === 'course_special' ? `🎓 校外课 · ${q.lessonCode || 'S1U1W1'}` : '🎲 大随机 · 英语';
+        } else if (this.activeSubject === 'course' || ALL_COURSE_SUB_IDS.includes(this.engSubMode)) {
+            const cm = COURSE_SUB_MODES.find(m => m.id === this.courseSubMode);
+            badgeTitle = cm ? cm.title : `🎓 ${q.lessonCode || '英语课专项'}`;
         } else if (this.engSubMode === 'vocab_camp' && sess && sess.phase === 'quiz') {
             badgeTitle = `📖 背词通关 ${sess.quizIdx + 1}/${sess.quizQueue.length}`;
         } else if (ALL_ENGLISH_TYPE_IDS.includes(this.engSubMode)) {
@@ -1289,9 +1385,22 @@ class PetWonderTownApp {
         const enTypeMeta = ENGLISH_QUESTION_TYPES.find(t => t.id === q.mode);
         const modeTag = enTypeMeta ? enTypeMeta.shortName : '少儿英语';
 
+        const isCourseQ = q.mode === 'course_special';
+        const displayKeyText = isCourseQ
+            ? (q.expectedWord || q.expectedSentence || q.answerEn || q.wordObj.word)
+            : `${q.wordObj.word} (${q.wordObj.zh})`;
+
         if (isCorrect) {
             soundEngine.playCorrect();
-            if (q.mode !== 'bubble_pair') {
+            if (isCourseQ) {
+                if (q.courseSubType === 'phonics_dictation' || q.courseSubType === 'sight_word_spell') {
+                    soundEngine.speakEnglish(q.wordObj.ttsWord || q.wordObj.word, false, '');
+                } else if (q.courseSubType === 'sight_sentence_order') {
+                    soundEngine.speakEnglish(q.expectedSentence, false, '');
+                } else if (q.courseSubType === 'qa_cloze' || q.courseSubType === 'qa_story_steps') {
+                    soundEngine.speakEnglish(q.answerEn, false, '');
+                }
+            } else if (q.mode !== 'bubble_pair') {
                 soundEngine.speakEnglish(q.wordObj.word, false, q.wordObj.phonics);
             }
             if (Array.isArray(q.pairWords) && q.pairWords.length > 0) {
@@ -1311,9 +1420,9 @@ class PetWonderTownApp {
             });
 
             if (award.alreadyAtCap) {
-                fb.textContent = `🎉 Awesome! ${q.wordObj.word} (${q.wordObj.zh}) · 今日徽章已满 (${award.dailyEarned}/${award.dailyCap})！`;
+                fb.textContent = `🎉 Awesome! ${displayKeyText} · 今日徽章已满 (${award.dailyEarned}/${award.dailyCap})！`;
             } else if (award.actualBadges > 0) {
-                fb.textContent = `🎉 Awesome! ${q.wordObj.word} (${q.wordObj.zh}) +${award.actualBadges}🏅（今日 ${award.dailyEarned}/${award.dailyCap}）！`;
+                fb.textContent = `🎉 Awesome! ${displayKeyText} +${award.actualBadges}🏅（今日 ${award.dailyEarned}/${award.dailyCap}）！`;
                 this.fx.flyBadges(document.getElementById('panelEnglish'), document.getElementById('heroMainSprite'), award.actualBadges);
             } else {
                 fb.textContent = `⭐ Awesome! 学习星 ${award.starProgress}/3（再集 ${3 - award.starProgress} 星合成 +1🏅）！`;
@@ -1327,11 +1436,14 @@ class PetWonderTownApp {
             setTimeout(() => this.advanceEnglishStep(), 700);
         } else {
             soundEngine.playWrong();
-            soundEngine.speakEnglish(q.wordObj.word, true, q.wordObj.phonics);
+            const wrongSpeak = isCourseQ
+                ? (q.expectedSentence || q.answerEn || q.wordObj.ttsWord || q.wordObj.word)
+                : q.wordObj.word;
+            soundEngine.speakEnglish(wrongSpeak, true, isCourseQ ? '' : q.wordObj.phonics);
             profileManager.updateWordProgress(q.wordObj, false, 0);
             this.updateReviewCountBadge();
-            fb.textContent = `💡 正确拼读是 ${q.wordObj.word} (${q.wordObj.zh})，已收入双倍复习本！`;
-            setTimeout(() => this.advanceEnglishStep(), 1300);
+            fb.textContent = `💡 正确答案：${displayKeyText}，已收入双倍复习本！`;
+            setTimeout(() => this.advanceEnglishStep(), 1450);
         }
     }
 
@@ -1342,6 +1454,14 @@ class PetWonderTownApp {
         }
         if (this.activeSubject === 'review') {
             this.renderReviewPanel();
+            return;
+        }
+        if (this.activeSubject === 'course') {
+            if (this.courseSubMode === 'course_readcard') {
+                this.renderCourseReadCardInPet();
+            } else {
+                this.renderEnglishQuizQuestion(englishEngine.nextQuickQuestion(null, this.courseSubMode), true);
+            }
             return;
         }
         const sess = englishEngine.studySession;
@@ -1742,7 +1862,9 @@ class PetWonderTownApp {
             enabledTypes: cleanMathTypes
         };
 
+        const prevEc = profileManager.getUser(this.editingUserId)?.englishConfig || {};
         const englishConfig = {
+            ...prevEc,
             level: this.draftEngLevel,
             packId: this.draftEngPack,
             enabledTypes: cleanEngTypes
@@ -1852,7 +1974,7 @@ class PetWonderTownApp {
         }
 
         document.getElementById('panelMath').style.display = subj === 'math' ? 'flex' : 'none';
-        document.getElementById('panelEnglish').style.display = subj === 'english' ? 'flex' : 'none';
+        document.getElementById('panelEnglish').style.display = (subj === 'english' || subj === 'course') ? 'flex' : 'none';
         document.getElementById('panelReview').style.display = subj === 'review' ? 'flex' : 'none';
         this.renderSubModePills();
 
@@ -1862,6 +1984,14 @@ class PetWonderTownApp {
                 mathEngine.nextQuestion();
             }
             this.renderCurrentMathQuestion();
+        } else if (subj === 'course') {
+            englishEngine.config.courseLessonId = this.activeCourseLessonId;
+            this.renderWordPackStrip();
+            if (this.courseSubMode === 'course_readcard') {
+                this.renderCourseReadCardInPet();
+            } else {
+                this.renderEnglishQuizQuestion(englishEngine.nextQuickQuestion(null, this.courseSubMode), autoSpeak);
+            }
         } else if (subj === 'english') {
             englishEngine.config.packId = this.activeWordPackId;
             this.renderWordPackStrip();
@@ -2153,7 +2283,7 @@ class PetWonderTownApp {
             }, 520);
         };
 
-        // 右侧四大主入口切换 (🎲 大随机 | 🔢 数学 | 🔤 英语 | 🌟 复习)
+        // 右侧五大主入口切换 (🎲 随机 | 🔢 数学 | 🔤 英语 | 🎓 英语课 | 🌟 复习)
         document.querySelectorAll('.subj-tab').forEach(btn => {
             btn.onclick = () => {
                 soundEngine.playTap();
@@ -2163,9 +2293,14 @@ class PetWonderTownApp {
                 } else if (subj === 'math') {
                     profileManager.setPreferredSmartMode(this.mathSubMode === 'random' ? 'math_random' : this.mathSubMode);
                 } else if (subj === 'english') {
+                    if (ALL_COURSE_SUB_IDS.includes(this.engSubMode) || this.engSubMode === 'course_special') {
+                        this.engSubMode = 'english_random';
+                    }
                     profileManager.setPreferredSmartMode(this.engSubMode);
+                } else if (subj === 'course') {
+                    profileManager.setPreferredSmartMode(this.courseSubMode || 'course_all');
                 }
-                this.switchSubjectTab(subj, true, false);
+                this.switchSubjectTab(subj, true, subj === 'course');
             };
         });
 

@@ -23,11 +23,17 @@ import {
     ENGLISH_LEVELS,
     ENGLISH_QUESTION_TYPES,
     ALL_ENGLISH_TYPE_IDS,
+    COURSE_LESSONS,
+    COURSE_SUB_MODES,
+    ALL_COURSE_SUB_IDS,
+    getPrimaryCourseLesson,
     EnglishEngine
 } from '../shared/englishEngine.js';
 import {
     renderEnabledTypesSelector,
-    renderMathInteractiveWidget
+    renderMathInteractiveWidget,
+    renderEnglishQuizWidget,
+    renderCourseReadAloudBoard
 } from '../shared/questionWidgets.js';
 import { AVATAR_LIST, DAILY_BADGE_CAP_OPTIONS, getPetById } from '../pet/js/config.js';
 import { sharedSpeech } from '../shared/audioTTS.js';
@@ -64,6 +70,14 @@ class PortalHubApp {
             currentItem: null,
             enOptions: [],
             clearedCount: 0,
+            locked: false
+        };
+
+        // 🎓 校外英语课后专项特训舱状态
+        this.courseEngine = new EnglishEngine();
+        this.courseState = {
+            lessonId: 'latest',
+            mode: 'course_readcard',
             locked: false
         };
 
@@ -203,8 +217,40 @@ class PortalHubApp {
             }
         });
 
+        // 🎓 校外英语课后专项特训舱弹窗
+        document.getElementById('btnHubCourseCenter')?.addEventListener('click', () => this.openCourseModal());
+        document.getElementById('btnCloseHubCourse')?.addEventListener('click', () => {
+            document.getElementById('hubCourseModal')?.classList.remove('show');
+        });
+        document.getElementById('hubCourseLessonSelect')?.addEventListener('change', (e) => {
+            this.courseState.lessonId = e.target.value;
+            const active = profileManager.getActiveUser();
+            if (active) {
+                profileManager.updateUserSettings(active.id, {
+                    englishConfig: { ...(active.englishConfig || {}), courseLessonId: e.target.value }
+                });
+            }
+            this.renderCourseModal(true);
+        });
+        document.getElementById('hubCourseModeTabs')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('.hub-course-tab');
+            if (!btn) return;
+            const cmode = btn.getAttribute('data-cmode') || 'course_readcard';
+            this.courseState.mode = cmode;
+            profileManager.setPreferredSmartMode(cmode);
+            this.renderSmartModeStrip(profileManager.getActiveUser());
+            this.renderCourseModal(true);
+        });
+        document.querySelectorAll('[data-jumpgame]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetMode = this.courseState.mode === 'course_readcard' ? 'course_all' : this.courseState.mode;
+                profileManager.setPreferredSmartMode(targetMode);
+                window.location.href = btn.getAttribute('data-jumpgame');
+            });
+        });
+
         // 模态遮罩空白处关闭
-        ['hubSettingsModal', 'hubReportModal', 'hubBackupModal'].forEach(id => {
+        ['hubSettingsModal', 'hubReportModal', 'hubBackupModal', 'hubCourseModal'].forEach(id => {
             const modal = document.getElementById(id);
             modal?.addEventListener('click', (e) => {
                 if (e.target === modal) {
@@ -319,10 +365,24 @@ class PortalHubApp {
             { id: 'english_random', label: `🎲 英语随机(${eCnt})`, title: '仅从已勾选的英语题型中随机出题' },
             { id: 'vocab_camp', label: '📖 5词背诵', title: '进入游戏直接开启 5 词闪卡认读 + 闯关检验' },
             { divider: true },
+            ...COURSE_SUB_MODES.map(cm => ({
+                id: cm.id,
+                label: cm.shortName,
+                course: true,
+                title: `校外英语课专项：${cm.name}（${cm.desc}）`
+            })),
+            { divider: true },
             ...MATH_QUESTION_TYPES.map(t => ({ id: t.id, label: t.shortName, title: `单项目直达：${t.name}（${t.desc}）` })),
             { divider: true },
-            ...ENGLISH_QUESTION_TYPES.map(t => ({ id: t.id, label: t.shortName, title: `单项目直达：${t.name}（${t.desc}）` }))
+            ...ENGLISH_QUESTION_TYPES
+                .filter(t => t.id !== 'course_special')
+                .map(t => ({ id: t.id, label: t.shortName, title: `单项目直达：${t.name}（${t.desc}）` }))
         ];
+
+        const courseBtnLbl = document.getElementById('hubCourseBtnLabel');
+        if (courseBtnLbl && COURSE_LESSONS[0]) {
+            courseBtnLbl.textContent = `英语课(${COURSE_LESSONS[0].code})`;
+        }
 
         strip.innerHTML = '';
         let activeLabel = '🎲 数英大随机';
@@ -333,11 +393,11 @@ class PortalHubApp {
                 strip.appendChild(div);
                 return;
             }
-            const isSel = curMode === item.id;
+            const isSel = curMode === item.id || (curMode === 'course_special' && item.id === 'course_all');
             if (isSel) activeLabel = item.label;
             const btn = document.createElement('button');
             btn.type = 'button';
-            btn.className = `hub-mode-pill ${item.grand ? 'grand' : ''} ${isSel ? 'active' : ''}`;
+            btn.className = `hub-mode-pill ${item.grand ? 'grand' : ''} ${item.course ? 'course' : ''} ${isSel ? 'active' : ''}`;
             btn.dataset.smode = item.id;
             btn.title = item.title || item.label;
             btn.textContent = item.label;
@@ -656,7 +716,11 @@ class PortalHubApp {
             includeDataCharts: cleanMathTypes.includes('data'),
             enabledTypes: cleanMathTypes
         };
+        const prevEc = (this.editingKidId && this.editingKidId !== '__NEW__')
+            ? (profileManager.getUser(this.editingKidId)?.englishConfig || {})
+            : {};
         const englishConfig = {
+            ...prevEc,
             level: this.formState.enLevel,
             packId: this.formState.enPackId,
             enabledTypes: cleanEnTypes
@@ -1130,6 +1194,141 @@ class PortalHubApp {
             `;
             box.appendChild(row);
         });
+    }
+
+    // ==================== 🎓 校外英语课后专项特训舱（每周定期更新） ====================
+    openCourseModal(initialMode = null) {
+        const active = profileManager.getActiveUser();
+        this.courseState.lessonId = active?.englishConfig?.courseLessonId || 'latest';
+        if (initialMode && ALL_COURSE_SUB_IDS.includes(initialMode)) {
+            this.courseState.mode = initialMode;
+        } else if (ALL_COURSE_SUB_IDS.includes(active?.preferredSmartMode)) {
+            this.courseState.mode = active.preferredSmartMode;
+        } else {
+            this.courseState.mode = 'course_readcard';
+        }
+        this.renderCourseModal(true);
+        document.getElementById('hubCourseModal')?.classList.add('show');
+    }
+
+    renderCourseModal(autoSpeak = false) {
+        const active = profileManager.getActiveUser();
+        this.courseEngine.setConfig({
+            ...(active?.englishConfig || {}),
+            courseLessonId: this.courseState.lessonId,
+            courseSubMode: this.courseState.mode
+        });
+
+        // 1. 课节期次选择器
+        const sel = document.getElementById('hubCourseLessonSelect');
+        if (sel) {
+            const latest = COURSE_LESSONS[0];
+            let optsHtml = latest
+                ? `<option value="latest">🌟 最新课节：${latest.code} (${latest.dateLabel} · ${latest.storyTitle})</option>`
+                : '';
+            if (COURSE_LESSONS.length > 1) {
+                optsHtml += `<option value="all_courses">📚 全部已学课节联考 (${COURSE_LESSONS.length}节)</option>`;
+            }
+            COURSE_LESSONS.forEach(ls => {
+                optsHtml += `<option value="${ls.id}">📖 ${ls.title} · 《${ls.storyTitle}》</option>`;
+            });
+            sel.innerHTML = optsHtml;
+            sel.value = this.courseState.lessonId;
+            if (!sel.value) sel.value = 'latest';
+        }
+
+        // 2. 五大特训页签状态
+        document.querySelectorAll('#hubCourseModeTabs .hub-course-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.getAttribute('data-cmode') === this.courseState.mode);
+        });
+
+        // 3. 舞台渲染
+        const stage = document.getElementById('hubCourseStage');
+        const fb = document.getElementById('hubCourseFeedbackBar');
+        if (!stage) return;
+
+        if (this.courseState.mode === 'course_readcard') {
+            const lesson = getPrimaryCourseLesson(this.courseState.lessonId);
+            renderCourseReadAloudBoard(stage, lesson, {
+                theme: 'light',
+                compact: false,
+                speakFn: (txt, slow, ph) => sharedSpeech.speakEnglish(txt, slow, ph),
+                isChecked: (k) => Boolean(profileManager.getActiveUser()?.courseReadChecks?.[k]?.checked),
+                onToggleCheck: (k) => {
+                    const res = profileManager.toggleCourseReadCheck
+                        ? profileManager.toggleCourseReadCheck(k)
+                        : { checked: false, awarded: false };
+                    if (res.awarded) {
+                        this.renderAll();
+                        if (fb) fb.textContent = '🎉 太棒啦！熟读打卡 +1⭐ 学习星！准备就绪即可拍视频发班级群，或切右侧页签练听写！';
+                    }
+                }
+            });
+            if (fb) {
+                fb.textContent = '📹 视频作业教练板：点击【读问句 / 读答句 / 慢速跟读】逐句模仿，熟读后点 ✅ 打卡领星！';
+            }
+            return;
+        }
+
+        this.courseState.locked = false;
+        const q = this.courseEngine.nextQuickQuestion(null, this.courseState.mode);
+        const cm = COURSE_SUB_MODES.find(m => m.id === this.courseState.mode);
+        renderEnglishQuizWidget(stage, q, {
+            theme: 'light',
+            badgeTitle: cm ? `${cm.title} · ${q.lessonCode || ''}` : '🎓 校外课专项',
+            autoSpeak,
+            speakFn: (txt, slow, ph) => sharedSpeech.speakEnglish(txt, slow, ph),
+            onEvaluate: (ok, userAns) => {
+                if (this.courseState.locked) return;
+                this.handleCourseEvaluated(ok, q, userAns);
+            }
+        });
+        if (fb) {
+            fb.textContent = '👂 贴心提示：点击喇叭可反复听纯正美音与慢速拼读，答对同样累积今日萌宠徽章🏅！';
+        }
+    }
+
+    handleCourseEvaluated(isCorrect, q) {
+        this.courseState.locked = true;
+        const res = this.courseEngine.evaluateResult(isCorrect, q.wordObj, false);
+        const fb = document.getElementById('hubCourseFeedbackBar');
+        const keyText = q.expectedWord || q.expectedSentence || q.answerEn || q.wordObj.word;
+
+        if (isCorrect) {
+            if (q.courseSubType === 'phonics_dictation' || q.courseSubType === 'sight_word_spell') {
+                sharedSpeech.speakEnglish(q.wordObj.ttsWord || q.wordObj.word, false, '');
+            } else if (q.courseSubType === 'sight_sentence_order') {
+                sharedSpeech.speakEnglish(q.expectedSentence, false, '');
+            } else if (q.courseSubType === 'qa_cloze' || q.courseSubType === 'qa_story_steps') {
+                sharedSpeech.speakEnglish(q.answerEn, false, '');
+            }
+            profileManager.updateWordProgress(q.wordObj, true, 1);
+            const award = profileManager.awardLearningProgress({
+                title: `🎓 校外英语课(${q.lessonCode})答对【${q.wordObj.word}】`,
+                subjectTag: '英语课专项',
+                badges: res.badgeEarned,
+                stars: res.starEarned,
+                gotTicket: res.gotGachaTicket,
+                combo: res.combo,
+                isMath: false
+            });
+            this.renderAll();
+            if (fb) {
+                fb.textContent = award.actualBadges > 0
+                    ? `🎉 Super! ${keyText} 默写全对！荣获 +${award.actualBadges}🏅 徽章（今日 ${award.dailyEarned}/${award.dailyCap}）！`
+                    : `⭐ Super! ${keyText} 答对啦！学习星 ${award.starProgress}/3（满3星合成 +1🏅）！`;
+            }
+            setTimeout(() => this.renderCourseModal(true), 780);
+        } else {
+            const wrongSpeak = q.expectedSentence || q.answerEn || q.wordObj.ttsWord || q.wordObj.word;
+            sharedSpeech.speakEnglish(wrongSpeak, true, '');
+            profileManager.updateWordProgress(q.wordObj, false, 0);
+            this.renderAll();
+            if (fb) {
+                fb.textContent = `💡 正确答案是：${keyText}（已自动加入复习本，下次还会巩固抽查哦！）`;
+            }
+            setTimeout(() => this.renderCourseModal(true), 1500);
+        }
     }
 }
 

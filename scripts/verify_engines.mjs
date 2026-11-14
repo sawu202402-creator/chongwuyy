@@ -2,7 +2,16 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { MathEngine, MATH_QUESTION_TYPES, ALL_MATH_TYPE_IDS } from '../shared/mathEngine.js';
-import { EnglishEngine, WORD_PACKS, ALL_WORDS, ENGLISH_QUESTION_TYPES, ALL_ENGLISH_TYPE_IDS } from '../shared/englishEngine.js';
+import {
+    EnglishEngine,
+    WORD_PACKS,
+    ALL_WORDS,
+    ENGLISH_QUESTION_TYPES,
+    ALL_ENGLISH_TYPE_IDS,
+    COURSE_LESSONS,
+    COURSE_SUB_MODES,
+    ALL_COURSE_SUB_IDS
+} from '../shared/englishEngine.js';
 import { PETS_CATALOG, SHOPS_CATALOG, TOWN_PLOTS } from '../pet/js/config.js';
 import { UserProfileManager, isValidSmartMode } from '../shared/unifiedProfile.js';
 import { LEVEL_CONFIGS, STAGE_SUMMARIES, ensureStageConfigLoaded } from '../carrot/js/map.js';
@@ -134,14 +143,15 @@ assert.equal(pvzRes.isCorrect, true);
 assert.ok(pvzRes.bonusSun >= 75);
 console.log('   ✅ Unified MathEngine (9 modes + enabledTypes + Spaced Repetition) passed!');
 
-console.log('4. Testing Expanded Shared EnglishEngine (20 packs, 360 words, 8 Modes & Bag Shuffle)...');
+console.log('4. Testing Expanded Shared EnglishEngine (20 packs, 360 words, 9 Modes incl. Course Special & Bag Shuffle)...');
 assert.equal(WORD_PACKS.length, 20, 'Must have 20 graded English word packs');
 assert.equal(ALL_WORDS.length, 360, 'Must have 360 graded English words');
 assert.equal(new Set(ALL_WORDS.map(w => w.id)).size, 360, 'All 360 word IDs must be unique');
 assert.equal(new Set(ALL_WORDS.map(w => w.word.toLowerCase())).size, 360, 'All 360 English words must be unique');
-assert.equal(ENGLISH_QUESTION_TYPES.length, 8, 'Must have 8 English question modes');
-assert.equal(ALL_ENGLISH_TYPE_IDS.length, 8);
+assert.equal(ENGLISH_QUESTION_TYPES.length, 9, 'Must have 9 English question modes (course_special + 8 general modes)');
+assert.equal(ALL_ENGLISH_TYPE_IDS.length, 9);
 
+const generalEnTypes = ALL_ENGLISH_TYPE_IDS.filter(id => id !== 'course_special');
 const ee = new EnglishEngine({ level: 'mixed', packId: 'all' });
 for (const pack of WORD_PACKS) {
     assert.equal(pack.words.length, 18, `Pack ${pack.id} must have 18 words`);
@@ -154,7 +164,7 @@ assert.equal(allSess.words.length, 5, 'startVocabStudySession("all") must sample
 
 // Verify Fisher-Yates Bag Shuffle anti-repetition: 120 draws on 'all' -> 120 unique words!
 ee.setMistakesProvider(null);
-ee.setConfig({ packId: 'all', level: 'mixed', enabledTypes: ALL_ENGLISH_TYPE_IDS });
+ee.setConfig({ packId: 'all', level: 'mixed', enabledTypes: generalEnTypes });
 const drawn120 = new Set();
 for (let i = 0; i < 120; i++) {
     const q = ee.nextQuickQuestion();
@@ -163,7 +173,7 @@ for (let i = 0; i < 120; i++) {
 assert.equal(drawn120.size, 120, `Bag shuffle across 360 words must yield 120 unique words in 120 draws, got ${drawn120.size}`);
 
 // Single 18-word pack: 18 consecutive draws must cover all 18 words with 0 repeats
-ee.setConfig({ packId: 'pack_animals' });
+ee.setConfig({ packId: 'pack_animals', enabledTypes: generalEnTypes });
 const drawn18 = new Set();
 for (let i = 0; i < 18; i++) {
     const q = ee.nextQuickQuestion();
@@ -171,9 +181,9 @@ for (let i = 0; i < 18; i++) {
 }
 assert.equal(drawn18.size, 18, `Single 18-word pack bag shuffle must yield 18 unique words in 18 draws, got ${drawn18.size}`);
 
-// Verify all 8 forced modes + exact questionWidgets.js field contracts
+// Verify all 8 general forced modes + exact questionWidgets.js field contracts
 ee.setConfig({ packId: 'all', enabledTypes: ALL_ENGLISH_TYPE_IDS });
-for (const modeId of ALL_ENGLISH_TYPE_IDS) {
+for (const modeId of generalEnTypes) {
     for (let i = 0; i < 15; i++) {
         const q = ee.nextQuickQuestion(null, modeId);
         assert.equal(q.mode, modeId, `Forced English mode must be ${modeId}, got ${q.mode}`);
@@ -195,6 +205,50 @@ for (const modeId of ALL_ENGLISH_TYPE_IDS) {
         }
     }
 }
+
+console.log('4B. Testing Off-Campus English Course Registry (S1U1W1 · 11/12 Jack Can)...');
+assert.ok(COURSE_LESSONS.length >= 1);
+assert.equal(COURSE_SUB_MODES.length, 5);
+const s1u1w1 = COURSE_LESSONS.find(l => l.id === 'S1U1W1');
+assert.ok(s1u1w1, 'Must contain lesson S1U1W1');
+assert.equal(s1u1w1.qaList.length, 4, 'S1U1W1 must have 4 Q&A items');
+assert.deepEqual(s1u1w1.sightWords.map(w => w.word), ['does', 'school', 'not', 'what']);
+assert.deepEqual(
+    s1u1w1.phonicsWords.map(w => w.word),
+    ['ax', 'can', 'sad', 'fan', 'hat', 'jam', 'pan', 'ran', 'map', 'tack', 'back', 'wag']
+);
+
+ee.setConfig({ courseLessonId: 'S1U1W1', enabledTypes: ALL_ENGLISH_TYPE_IDS });
+const allCourseKeys = new Set();
+for (let i = 0; i < 29; i++) {
+    const cq = ee.nextQuickQuestion(null, 'course_all');
+    assert.equal(cq.mode, 'course_special');
+    allCourseKeys.add(cq.itemKey);
+}
+assert.equal(allCourseKeys.size, 29, `29 consecutive draws of S1U1W1 course_all must have 0 repeats, got ${allCourseKeys.size}`);
+
+const phonicsWordsDrawn = new Set();
+for (let i = 0; i < 12; i++) {
+    const pq = ee.nextQuickQuestion(null, 'course_phonics');
+    assert.equal(pq.courseSubType, 'phonics_dictation');
+    phonicsWordsDrawn.add(pq.expectedWord);
+}
+assert.equal(phonicsWordsDrawn.size, 12, '12 consecutive draws of course_phonics must cover all 12 short-a words');
+
+const sightTypes = new Set();
+for (let i = 0; i < 8; i++) {
+    const sq = ee.nextQuickQuestion(null, 'course_sight');
+    sightTypes.add(sq.courseSubType);
+}
+assert.deepEqual([...sightTypes].sort(), ['sight_sentence_order', 'sight_word_spell']);
+
+const qaTypes = new Set();
+for (let i = 0; i < 9; i++) {
+    const qq = ee.nextQuickQuestion(null, 'course_qa');
+    qaTypes.add(qq.courseSubType);
+}
+assert.deepEqual([...qaTypes].sort(), ['qa_cloze', 'qa_match', 'qa_story_steps']);
+console.log('   ✅ S1U1W1 Off-Campus Course Special (29 non-repeating items across Phonics, Sight Words/Sentences & Story Q&A) verified!');
 
 ee.setConfig({ packId: 'all', enabledTypes: ['riddle_qa', 'word_order'] });
 const seenEnModes = new Set();
@@ -232,6 +286,9 @@ assert.equal(isValidSmartMode('math_random'), true);
 assert.equal(isValidSmartMode('english_random'), true);
 assert.equal(isValidSmartMode('clock_money'), true);
 assert.equal(isValidSmartMode('phonics_chunks'), true);
+for (const cid of ALL_COURSE_SUB_IDS) {
+    assert.equal(isValidSmartMode(cid), true, `Must accept course sub-mode ${cid}`);
+}
 assert.equal(isValidSmartMode('nonexistent_mode'), false);
 
 pm.setActiveUser(kid1.id);
@@ -261,7 +318,16 @@ assert.equal(pm.getLastCarrotStage(), 1);
 assert.equal(pm.getPvzRecords()['1-1'], undefined, '川川 PvZ trophies must be isolated from 小豌豆');
 assert.equal(pm.getLastPvzLevel(), '1-1');
 assert.equal(pm.getActiveUser().mathConfig.enabledTypes.length, 9, '川川 defaults to all 9 math modes');
-assert.equal(pm.getActiveUser().englishConfig.enabledTypes.length, 8, '川川 defaults to all 8 English modes');
+assert.equal(pm.getActiveUser().englishConfig.enabledTypes.length, 9, '川川 defaults to all 9 English modes (incl. course_special)');
+
+const chk1 = pm.toggleCourseReadCheck('S1U1W1_qa1');
+assert.equal(chk1.checked, true);
+assert.equal(chk1.awarded, true);
+const chk2 = pm.toggleCourseReadCheck('S1U1W1_qa1');
+assert.equal(chk2.checked, false);
+const chk3 = pm.toggleCourseReadCheck('S1U1W1_qa1');
+assert.equal(chk3.checked, true);
+assert.equal(chk3.awarded, false, 'Re-checking same read-aloud item on same day should not double-award');
 
 // Sibling visitor gift (once per day)
 const visitor = pm.getSiblingVisitor();

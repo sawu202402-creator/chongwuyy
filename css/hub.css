@@ -100,6 +100,19 @@ html, body {
     box-shadow: 0 3px 9px rgba(235, 59, 90, 0.34);
 }
 
+.hub-mode-pill.course {
+    border-color: #a7f3d0;
+    background: #ecfdf5;
+    color: #065f46;
+}
+
+.hub-mode-pill.course.active {
+    background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+    color: #ffffff;
+    border-color: #065f46;
+    box-shadow: 0 3px 9px rgba(16, 185, 129, 0.34);
+}
+
 .hub-mode-divider {
     width: 1.5px;
     height: 16px;
@@ -215,17 +228,22 @@ html, body {
 .hub-action-pill {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: 4px;
     border: 2.5px solid #4e342e;
     border-radius: 999px;
-    padding: 6px 13px;
+    padding: 5px 11px;
     font-family: inherit;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 900;
     cursor: pointer;
     box-shadow: 0 3px 0 #4e342e;
     transition: transform 0.12s ease;
     white-space: nowrap;
+}
+
+.hub-btn-course {
+    background: linear-gradient(180deg, #34d399 0%, #059669 100%);
+    color: #fff;
 }
 
 .hub-action-pill:active {
@@ -972,4 +990,119 @@ html, body {
     font-weight: 800;
     color: #00b894;
     min-height: 18px;
+}
+
+/* ==================== 模态窗 4：🎓 校外英语课后专项特训舱 ==================== */
+.hub-course-modal-card {
+    max-width: 960px;
+    width: 94vw;
+    max-height: 90dvh;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.hub-course-header {
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.hub-course-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.hub-course-lesson-sel {
+    border: 2px solid #10b981;
+    background: #ecfdf5;
+    color: #065f46;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    outline: none;
+}
+
+.hub-course-jump-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.hub-course-jump-btn {
+    border: 2px solid #d1fae5;
+    background: #f0fdf4;
+    color: #047857;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: all 0.14s ease;
+}
+
+.hub-course-jump-btn:hover {
+    background: #10b981;
+    color: #fff;
+    border-color: #059669;
+}
+
+.hub-course-tabs {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    background: #f1f5f9;
+    padding: 5px;
+    border-radius: 16px;
+    flex-shrink: 0;
+}
+
+.hub-course-tab {
+    border: 2px solid transparent;
+    background: transparent;
+    color: #475569;
+    border-radius: 12px;
+    padding: 8px 6px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.hub-course-tab.active {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 10px rgba(16, 185, 129, 0.28);
+}
+
+.hub-course-stage {
+    flex: 1;
+    min-height: 300px;
+    max-height: 62dvh;
+    overflow-y: auto;
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 18px;
+    padding: 12px 14px;
+}
+
+.hub-course-feedback {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 900;
+    color: #047857;
+    background: #ecfdf5;
+    border: 1.5px solid #a7f3d0;
+    border-radius: 12px;
+    padding: 6px 12px;
+    flex-shrink: 0;
 }

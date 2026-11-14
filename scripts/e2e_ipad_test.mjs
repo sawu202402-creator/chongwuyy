@@ -161,28 +161,65 @@ async function main() {
         console.log('📸 Captured:', outPath);
     };
 
-    // ==================== 1. Test Root Portal Hub (Mode Strip, EnabledTypes Checkboxes, Backup, Parent Gate, Mistake Re-Practice) ====================
+    // ==================== 1. Test Root Portal Hub (Mode Strip, Off-Campus Course Modal, Settings, Mistake Re-Practice) ====================
     await cdp.send('Page.navigate', { url: `${origin}/index.html` }, sessionId);
     await sleep(900);
     const hubCheck = await evalJs(`(() => {
         const chips = Array.from(document.querySelectorAll('.hub-kid-chip')).map(el => el.textContent.trim());
         const noScroll = document.documentElement.scrollHeight <= window.innerHeight + 2;
         const modePills = Array.from(document.querySelectorAll('#hubSmartModeStrip .hub-mode-pill')).map(el => el.getAttribute('data-smode'));
-        // Click single-project pill 'clock_money', then back to 'grand_random'
+        const emptyHubPills = Array.from(document.querySelectorAll('#hubSmartModeStrip .hub-mode-pill')).filter(el => el.textContent.trim().length < 2).length;
+        const courseBtnTxt = document.getElementById('hubCourseBtnLabel')?.textContent.trim() || '';
         document.querySelector('#hubSmartModeStrip [data-smode="clock_money"]').click();
         const afterSingle = document.querySelector('#hubSmartModeStrip .hub-mode-pill.active')?.getAttribute('data-smode');
         document.querySelector('#hubSmartModeStrip [data-smode="grand_random"]').click();
         const afterGrand = document.querySelector('#hubSmartModeStrip .hub-mode-pill.active')?.getAttribute('data-smode');
-        return { chips, noScroll, modePillsCount: modePills.length, afterSingle, afterGrand };
+        return { chips, noScroll, modePillsCount: modePills.length, emptyHubPills, courseBtnTxt, afterSingle, afterGrand };
     })()`);
     console.log('Hub check:', hubCheck);
     assert.ok(hubCheck.chips[0].includes('小豌豆'));
     assert.ok(hubCheck.chips[1].includes('川川'));
     assert.equal(hubCheck.noScroll, true, 'Hub must fit 1180x820 iPad viewport with zero vertical overflow');
-    assert.equal(hubCheck.modePillsCount, 21, 'Hub mode strip must expose 4 random/vocab + 9 math + 8 English = 21 entry pills');
+    assert.equal(hubCheck.modePillsCount, 26, 'Hub mode strip must expose 4 random/vocab + 5 course + 9 math + 8 general English = 26 entry pills');
+    assert.equal(hubCheck.emptyHubPills, 0, 'All Hub mode pills must have visible labels');
+    assert.ok(hubCheck.courseBtnTxt.includes('S1U1W1'), 'Hub course button should show latest lesson code S1U1W1');
     assert.equal(hubCheck.afterSingle, 'clock_money');
     assert.equal(hubCheck.afterGrand, 'grand_random');
-    await saveShot('modes_hub_portal_and_types.png');
+    await saveShot('course_hub_portal_strip.png');
+
+    // Test Hub Off-Campus Course Special Modal (Video Read-Aloud Board + Phonics Blind Dictation)
+    const hubCourseReadRes = await evalJs(`(() => {
+        document.getElementById('btnHubCourseCenter').click();
+        const isOpen = document.getElementById('hubCourseModal').classList.contains('show');
+        const stageTxt = document.getElementById('hubCourseStage').textContent;
+        const phCount = document.querySelectorAll('#hubCourseStage .qw-rc-ph-chip').length;
+        const chkBtn = document.querySelector('#hubCourseStage .qw-rc-chk');
+        const chkKey = chkBtn?.getAttribute('data-chk');
+        if (chkBtn) chkBtn.click();
+        const isCheckedAfter = document.querySelector('#hubCourseStage [data-chk="' + chkKey + '"]')?.classList.contains('checked');
+        return { isOpen, hasJackQ1: stageTxt.includes('What can Jack do'), phCount, isCheckedAfter };
+    })()`);
+    console.log('Hub Course Read-Aloud check:', hubCourseReadRes);
+    assert.equal(hubCourseReadRes.isOpen, true);
+    assert.equal(hubCourseReadRes.hasJackQ1, true);
+    assert.equal(hubCourseReadRes.phCount, 12);
+    assert.equal(hubCourseReadRes.isCheckedAfter, true);
+    await sleep(200);
+    await saveShot('course_hub_readaloud_modal.png');
+
+    const hubCoursePhonicsRes = await evalJs(`(() => {
+        document.querySelector('#hubCourseModeTabs [data-cmode="course_phonics"]').click();
+        const slotCount = document.querySelectorAll('#hubCourseStage [data-dslot]').length;
+        const tileCount = document.querySelectorAll('#hubCourseStage [data-dtid]').length;
+        return { slotCount, tileCount };
+    })()`);
+    assert.ok(hubCoursePhonicsRes.slotCount >= 2 && hubCoursePhonicsRes.tileCount >= 4);
+    await sleep(200);
+    await saveShot('course_hub_phonics_modal.png');
+    await evalJs(`
+        document.getElementById('btnCloseHubCourse').click();
+        document.querySelector('#hubSmartModeStrip [data-smode="grand_random"]').click();
+    `);
 
     // Test Backup Modal Export Code
     const backupCodeRes = await evalJs(`(() => {
@@ -194,7 +231,7 @@ async function main() {
     })()`);
     assert.ok(backupCodeRes.startsWith('CWYY1:'), 'Backup modal must generate CWYY1: backup code');
 
-    // Test Parent Gate on Hub Settings + EnabledTypes Checkboxes (9 Math + 8 English)
+    // Test Parent Gate on Hub Settings + EnabledTypes Checkboxes (9 Math + 9 English incl. course_special)
     await evalJs(`document.getElementById('btnHubSettings').click();`);
     await sleep(300);
     const gateAndTypesRes = await evalJs(`(() => {
@@ -208,16 +245,16 @@ async function main() {
         const isOpen = document.getElementById('hubSettingsModal').classList.contains('show');
         const mathTypeChips = document.querySelectorAll('#hubMathTypesBox .qw-type-check-pill').length;
         const enTypeChips = document.querySelectorAll('#hubEnTypesBox .qw-type-check-pill').length;
+        const hasCourseOnlyBtn = Boolean(document.querySelector('#hubEnTypesBox [data-qact="course_only"]'));
         // Toggle off 'data'
         document.querySelector('#hubMathTypesBox .qw-type-check-pill[data-tid="data"]').click();
-        return { isOpen, mathTypeChips, enTypeChips };
+        return { isOpen, mathTypeChips, enTypeChips, hasCourseOnlyBtn };
     })()`);
     console.log('Hub Settings enabledTypes check:', gateAndTypesRes);
     assert.equal(gateAndTypesRes.isOpen, true, 'Solving Parent Gate arithmetic challenge must unlock Hub Settings');
     assert.equal(gateAndTypesRes.mathTypeChips, 9, 'Hub settings must render 9 math type pills');
-    assert.equal(gateAndTypesRes.enTypeChips, 8, 'Hub settings must render 8 English type pills');
-    await sleep(200);
-    await saveShot('modes_hub_settings_types.png');
+    assert.equal(gateAndTypesRes.enTypeChips, 9, 'Hub settings must render 9 English type pills (incl. course_special)');
+    assert.equal(gateAndTypesRes.hasCourseOnlyBtn, true, 'English types selector must provide 🎓 仅校外课 quick filter');
     await evalJs(`document.getElementById('btnSaveHubSettings').click();`);
 
     // Verify 'data' was unchecked in profile, then restore all 9 types
@@ -287,10 +324,8 @@ async function main() {
     })()`);
     console.log('Carrot interactive math setup:', carrotSetupRes);
     assert.equal(carrotSetupRes.mathBoxes, 9);
-    assert.equal(carrotSetupRes.enBoxes, 8);
+    assert.equal(carrotSetupRes.enBoxes, 9);
     assert.equal(carrotSetupRes.qKind, 'clock_money');
-    await sleep(250);
-    await saveShot('modes_carrot_interactive_math.png');
 
     // Solve the clock_money widget in Carrot and verify gold reward!
     const carrotSolvedMath = await evalJs(`(() => {
@@ -301,6 +336,39 @@ async function main() {
     })()`);
     assert.ok(carrotSolvedMath.goldAfter > carrotSetupRes.goldBefore, 'Solving interactive clock_money in Carrot must award gold!');
 
+    // Switch Carrot SmartChalkboard to 🎓 英语课 -> 'course_phonics' (S1U1W1 12 short-a words blind dictation) & solve!
+    const carrotCourseBefore = await evalJs(`(async () => {
+        const { englishEngine } = await import('../shared/englishEngine.js');
+        document.querySelector('.smart-mode-tab[data-topcat="course"]').click();
+        document.querySelector('.smart-entry-pill[data-emode="course_phonics"]').click();
+        return {
+            goldBefore: window.gameEngine.gold,
+            expectedWord: englishEngine.currentQuiz.expectedWord,
+            lessonCode: englishEngine.currentQuiz.lessonCode
+        };
+    })()`);
+    console.log('Carrot Course Phonics setup:', carrotCourseBefore);
+    assert.equal(carrotCourseBefore.lessonCode, 'S1U1W1');
+    await sleep(250);
+    await saveShot('course_carrot_phonics_dictation.png');
+
+    const carrotCourseAfter = await evalJs(`(() => {
+        const word = ${JSON.stringify('')};
+        return true;
+    })()`);
+    const carrotDictationGold = await evalJs(`(async () => {
+        const { englishEngine } = await import('../shared/englishEngine.js');
+        const target = englishEngine.currentQuiz.expectedWord;
+        for (const ch of target) {
+            const tile = Array.from(document.querySelectorAll('#smartEnStage [data-dtid]:not(.used)'))
+                .find(b => b.textContent.trim().toLowerCase() === ch);
+            tile.click();
+        }
+        return { target, goldAfter: window.gameEngine.gold };
+    })()`);
+    console.log('Carrot Course Phonics solved:', carrotDictationGold);
+    assert.ok(carrotDictationGold.goldAfter > carrotCourseBefore.goldBefore, 'Spelling S1U1W1 phonics word in Carrot must award Gold!');
+
     // Switch Carrot SmartChalkboard to English -> 'bubble_pair' (new 360-word pool)
     const carrotEnRes = await evalJs(`(() => {
         document.querySelector('.smart-mode-tab[data-topcat="english"]').click();
@@ -309,16 +377,13 @@ async function main() {
         const bubbleCount = document.querySelectorAll('#smartEnStage .qw-pop-bubble').length;
         return { packOptCount, bubbleCount };
     })()`);
-    console.log('Carrot new English bubble_pair check:', carrotEnRes);
     assert.equal(carrotEnRes.packOptCount, 21, 'Pack selector must have 1 All(360) + 20 theme packs = 21 options');
     assert.equal(carrotEnRes.bubbleCount, 6, 'bubble_pair must render 6 bubbles (3 English + 3 Emoji/Chinese)');
-    await sleep(250);
-    await saveShot('modes_carrot_new_english.png');
 
     // Switch back to Grand Random before leaving Carrot
     await evalJs(`document.querySelector('.smart-mode-tab[data-topcat="grand"]').click();`);
 
-    // ==================== 3. Test Plants vs Zombies (Grand Random + Single-Project Pyramid/Grid & Riddle QA + 0 Overflow) ====================
+    // ==================== 3. Test Plants vs Zombies (Off-Campus Course Q&A + Pyramid/Grid + 0 Overflow) ====================
     await cdp.send('Page.navigate', { url: `${origin}/pvz/index.html` }, sessionId);
     await sleep(1700);
     const pvzCheck = await evalJs(`(() => {
@@ -331,21 +396,23 @@ async function main() {
         const choiceBtn = Array.from(document.querySelectorAll('#smartMathWidgetPanel .qw-choice-btn')).find(b => b.getAttribute('data-val') === qAns);
         choiceBtn.click();
         const sunAfterMath = window.gameApp.pvzEngine.sun;
-        // Switch to single-project English 'riddle_qa' for visual check
-        document.querySelector('.smart-mode-tab[data-topcat="english"]').click();
-        document.querySelector('.smart-entry-pill[data-emode="riddle_qa"]').click();
-        const riddleText = document.querySelector('#smartEnStage .qw-riddle-en')?.textContent || '';
-        return { noScroll, sunBefore, sunAfterMath, riddleText };
+        // Switch to 🎓 英语课 -> 'course_qa' (Jack Can Story Q&A)
+        document.querySelector('.smart-mode-tab[data-topcat="course"]').click();
+        document.querySelector('.smart-entry-pill[data-emode="course_qa"]').click();
+        const qaStageText = document.getElementById('smartEnStage')?.textContent || '';
+        const noScrollAfterCourse = document.documentElement.scrollHeight <= window.innerHeight + 2;
+        return { noScroll, noScrollAfterCourse, sunBefore, sunAfterMath, qaStageText };
     })()`);
-    console.log('PvZ single-project & sun reward check:', pvzCheck);
+    console.log('PvZ course Q&A & sun reward check:', pvzCheck);
     assert.equal(pvzCheck.noScroll, true, 'PvZ must fit 1180x820 viewport with zero vertical overflow');
+    assert.equal(pvzCheck.noScrollAfterCourse, true, 'PvZ with course Q&A must maintain zero vertical overflow');
     assert.ok(pvzCheck.sunAfterMath > pvzCheck.sunBefore, 'Solving pyramid_grid in PvZ must award Sun!');
-    assert.ok(pvzCheck.riddleText.length > 5, 'PvZ English riddle_qa must render riddle clue');
+    assert.ok(pvzCheck.qaStageText.includes('Jack') || pvzCheck.qaStageText.includes('Nan'), 'PvZ course_qa must render Jack Can story Q&A');
     await sleep(300);
-    await saveShot('modes_pvz_single_and_grand.png');
+    await saveShot('course_pvz_qa_and_sight.png');
     await evalJs(`document.querySelector('.smart-mode-tab[data-topcat="grand"]').click();`);
 
-    // ==================== 4. Test Pet Wonder Town (4 Top Tabs incl. Grand Random + 9 Math SubPills + 8 Eng SubPills + 360 Words) ====================
+    // ==================== 4. Test Pet Wonder Town (5 Top Tabs incl. 🎓 英语课 + Sight Words/Sentences + Read-Aloud Card) ====================
     await cdp.send('Page.navigate', { url: `${origin}/pet/index.html` }, sessionId);
     await sleep(1100);
     const petModesCheck = await evalJs(`(() => {
@@ -354,35 +421,36 @@ async function main() {
         const engPills = Array.from(document.querySelectorAll('#petEngSubPills .sub-pill')).map(b => b.getAttribute('data-engmode'));
         const firstPackText = document.querySelector('#engPackStrip button')?.textContent.trim() || '';
 
-        // Test Grand Random tab
-        document.querySelector('.subj-tab[data-subj="grand_random"]').click();
-        const grandActive = document.querySelector('.subj-tab[data-subj="grand_random"]').classList.contains('active');
+        // Switch to 🎓 英语课 top tab -> 'course_sight' (Words to Know + Sentences)
+        document.querySelector('.subj-tab[data-subj="course"]').click();
+        const coursePills = Array.from(document.querySelectorAll('#petEngSubPills .sub-pill')).map(b => b.getAttribute('data-engmode'));
+        const emptyCoursePills = Array.from(document.querySelectorAll('#petEngSubPills .sub-pill')).filter(b => b.textContent.trim().length < 2).length;
+        document.querySelector('#petEngSubPills [data-engmode="course_sight"]').click();
+        const sightStageText = document.getElementById('petEngQuizStage')?.textContent || '';
+        const noScrollPet = document.documentElement.scrollHeight <= window.innerHeight + 2;
 
-        // Test single-project Math 'operator_detective'
-        document.querySelector('.subj-tab[data-subj="math"]').click();
-        document.querySelector('#petMathSubPills [data-mathmode="operator_detective"]').click();
-        const detectiveVisible = document.getElementById('petMathInteractiveStage').style.display !== 'none'
-            && Boolean(document.querySelector('#petMathInteractiveStage .qw-detective-eq'));
-
-        return { topTabs, mathPillsCount: mathPills.length, engPillsCount: engPills.length, firstPackText, grandActive, detectiveVisible };
+        return { topTabs, mathPillsCount: mathPills.length, engPillsCount: engPills.length, coursePills, emptyCoursePills, firstPackText, sightStageText, noScrollPet };
     })()`);
-    console.log('Pet Town 17-modes & Grand Random check:', petModesCheck);
-    assert.deepEqual(petModesCheck.topTabs, ['grand_random', 'math', 'english', 'review']);
+    console.log('Pet Town Course & Modes check:', petModesCheck);
+    assert.deepEqual(petModesCheck.topTabs, ['grand_random', 'math', 'english', 'course', 'review']);
     assert.equal(petModesCheck.mathPillsCount, 10, 'Pet math sub-pills must have 1 random + 9 single modes = 10');
-    assert.equal(petModesCheck.engPillsCount, 10, 'Pet English sub-pills must have vocab_camp + 1 random + 8 single modes = 10');
-    assert.ok(petModesCheck.firstPackText.includes('360'), 'Pet first pack chip must be All 20 themes (360 words)');
-    assert.equal(petModesCheck.grandActive, true);
-    assert.equal(petModesCheck.detectiveVisible, true);
+    assert.equal(petModesCheck.engPillsCount, 15, 'Pet English sub-pills must have vocab_camp + random + 5 course + 8 general = 15');
+    assert.deepEqual(petModesCheck.coursePills, ['course_all', 'course_phonics', 'course_sight', 'course_qa', 'course_readcard']);
+    assert.equal(petModesCheck.emptyCoursePills, 0, 'All Pet course sub-pills must have visible labels');
+    assert.ok(petModesCheck.firstPackText.includes('360'));
+    assert.equal(petModesCheck.noScrollPet, true, 'Pet Town must fit 1180x820 viewport with zero vertical overflow');
     await sleep(300);
-    await saveShot('modes_pet_interactive_modes.png');
+    await saveShot('course_pet_town_homework.png');
 
-    // Also verify Pet English single-project 'phonics_chunks' renders cleanly
-    const petPhonicsCheck = await evalJs(`(() => {
-        document.querySelector('.subj-tab[data-subj="english"]').click();
-        document.querySelector('#petEngSubPills [data-engmode="phonics_chunks"]').click();
-        return Boolean(document.querySelector('#petEngQuizStage .qw-chunk-slots-row'));
+    // Also verify Pet course_readcard renders cleanly with 0 overflow
+    const petReadCardCheck = await evalJs(`(() => {
+        document.querySelector('#petEngSubPills [data-engmode="course_readcard"]').click();
+        const hasBoard = Boolean(document.querySelector('#petEngQuizStage .qw-rc-board'));
+        const noScroll = document.documentElement.scrollHeight <= window.innerHeight + 2;
+        return { hasBoard, noScroll };
     })()`);
-    assert.equal(petPhonicsCheck, true, 'Pet English phonics_chunks mode must render chunk slots');
+    assert.equal(petReadCardCheck.hasBoard, true, 'Pet course_readcard must render read-aloud coaching board');
+    assert.equal(petReadCardCheck.noScroll, true, 'Pet course_readcard must scroll internally with zero viewport overflow');
 
     console.log('Console errors:', consoleErrors.length);
     console.log('Failed local network requests:', failedLocalUrls.length);

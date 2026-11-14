@@ -16,8 +16,8 @@
     <meta name="theme-color" content="#7c5cfc">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/hub.css?v=20261114_modes_v1">
-    <link rel="stylesheet" href="shared/smartChalkboard.css?v=20261114_modes_v1">
+    <link rel="stylesheet" href="css/hub.css?v=20261114_course_v1">
+    <link rel="stylesheet" href="shared/smartChalkboard.css?v=20261114_course_v1">
 </head>
 <body>
     <div class="hub-app" id="hubApp">
@@ -27,7 +27,7 @@
                 <img src="apple-touch-icon.png" alt="Logo" class="hub-brand-logo" />
                 <div>
                     <div class="hub-brand-title">🎠 奇趣数英游乐园 · 三合一学习大厅</div>
-                    <div class="hub-brand-sub">数英大随机 & 单项直达 · 数学9题型 + 英语8题型 · 360词洗牌防重！</div>
+                    <div class="hub-brand-sub">大随机 & 单项直达 · 数学9项 + 英语9项(含校外课作业) · 360词洗牌防重</div>
                 </div>
             </div>
 
@@ -37,14 +37,18 @@
             </div>
 
             <div class="hub-header-actions">
+                <button type="button" class="hub-action-pill hub-btn-course" id="btnHubCourseCenter" title="校外英语课后作业特训舱：视频作业跟读打卡、高频词句听写与12词自然拼读抽查">
+                    <span>🎓</span>
+                    <span id="hubCourseBtnLabel">英语课作业</span>
+                </button>
                 <button type="button" class="hub-action-pill hub-btn-report" id="btnHubReport" title="查看错题本、单词掌握度并一键重练消灭错题">
                     <span>📒</span>
-                    <span>错题重练·单词本</span>
+                    <span>错题·单词本</span>
                     <span class="hub-mistake-dot" id="hubMistakeBadge" style="display:none;">0</span>
                 </button>
                 <button type="button" class="hub-action-pill hub-btn-backup" id="btnHubBackup" title="导出/导入存档备份码，多iPad同步防丢失">
                     <span>📦</span>
-                    <span>存档备份</span>
+                    <span>备份</span>
                 </button>
                 <button type="button" class="hub-action-pill hub-btn-settings" id="btnHubSettings" title="家长守护验证后设置数英难度与每日上限">
                     <span>🔒</span>
@@ -254,7 +258,7 @@
             </div>
 
             <div class="hub-form-section">
-                <div class="hub-sec-label">4. 少儿英语上场题型多选与默认词库（共 8 种互动题型 · 20大主题360词洗牌防重）：</div>
+                <div class="hub-sec-label">4. 少儿英语上场题型多选与默认词库（共 9 种互动题型 · 含校外英语课专项 + 20大主题360词洗牌防重）：</div>
                 <div class="hub-pill-row" id="hubEnLevelRow" style="margin-bottom:8px;"></div>
                 <div id="hubEnTypesBox" style="margin-bottom:8px;"></div>
                 <div class="hub-pill-row" id="hubEnPackRow"></div>
@@ -329,7 +333,36 @@
         </div>
     </div>
 
-    <script type="module" src="js/hub.js?v=20261114_modes_v1"></script>
+    <!-- ==================== 模态窗 4：🎓 校外英语课后专项特训舱（每周定期课表更新：视频朗读 + 高频词句 + 听音写词抽查） ==================== -->
+    <div class="hub-modal-overlay" id="hubCourseModal">
+        <div class="hub-modal-card hub-course-modal-card">
+            <div class="hub-modal-header hub-course-header">
+                <div class="hub-course-title-wrap">
+                    <div class="hub-modal-title">🎓 校外英语课后专项特训舱</div>
+                    <select id="hubCourseLessonSelect" class="hub-course-lesson-sel" aria-label="选择校外英语课期次"></select>
+                </div>
+                <div class="hub-course-jump-group">
+                    <button type="button" class="hub-course-jump-btn" data-jumpgame="./carrot/index.html">🏹 去兔蛙塔防边玩边练</button>
+                    <button type="button" class="hub-course-jump-btn" data-jumpgame="./pvz/index.html">🌻 去打僵尸边玩边练</button>
+                    <button type="button" class="hub-course-jump-btn" data-jumpgame="./pet/index.html">🐾 去喂萌宠练</button>
+                    <button type="button" class="hub-close-btn" id="btnCloseHubCourse">✕</button>
+                </div>
+            </div>
+
+            <div class="hub-course-tabs" id="hubCourseModeTabs">
+                <button type="button" class="hub-course-tab active" data-cmode="course_readcard">📹 视频作业朗读跟读</button>
+                <button type="button" class="hub-course-tab" data-cmode="course_all">🎓 全课混合抽查</button>
+                <button type="button" class="hub-course-tab" data-cmode="course_phonics">👂 听音写词抽查</button>
+                <button type="button" class="hub-course-tab" data-cmode="course_sight">✍️ 高频词句听写</button>
+                <button type="button" class="hub-course-tab" data-cmode="course_qa">📖 课文问答闯关</button>
+            </div>
+
+            <div class="hub-course-stage" id="hubCourseStage"></div>
+            <div class="hub-course-feedback" id="hubCourseFeedbackBar">📹 点击喇叭听纯正美音跟读，或切换上方页签进行盲听默写抽查（答对照样赢萌宠徽章🏅）！</div>
+        </div>
+    </div>
+
+    <script type="module" src="js/hub.js?v=20261114_course_v1"></script>
     <script>
         if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
             window.addEventListener('load', () => {

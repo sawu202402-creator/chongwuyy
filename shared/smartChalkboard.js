@@ -10,6 +10,10 @@ import {
     WORD_PACKS,
     ENGLISH_QUESTION_TYPES,
     ALL_ENGLISH_TYPE_IDS,
+    COURSE_LESSONS,
+    COURSE_SUB_MODES,
+    ALL_COURSE_SUB_IDS,
+    getPrimaryCourseLesson,
     EnglishEngine,
     englishEngine
 } from './englishEngine.js';
@@ -19,7 +23,8 @@ import {
 } from './mathEngine.js';
 import {
     renderMathInteractiveWidget,
-    renderEnglishQuizWidget
+    renderEnglishQuizWidget,
+    renderCourseReadAloudBoard
 } from './questionWidgets.js';
 import { sharedSpeech } from './audioTTS.js';
 
@@ -114,7 +119,7 @@ export class SmartChalkboard {
 
         if (!this.cardEl || !this.bbInnerEl) return;
 
-        // 2. 注入一级大入口切换栏 [🎲 大随机 | 🔢 数学(9) | 🔤 英语(8)]
+        // 2. 注入一级大入口切换栏 [🎲 大随机 | 🔢 数学(9) | 🔤 英语(9) | 🎓 英语课]
         const tabsWrap = document.createElement('div');
         tabsWrap.className = 'smart-mode-tabs';
         tabsWrap.id = 'smartModeTabs';
@@ -122,6 +127,7 @@ export class SmartChalkboard {
             <button type="button" class="smart-mode-tab active" data-topcat="grand">🎲 大随机</button>
             <button type="button" class="smart-mode-tab" data-topcat="math">🔢 数学</button>
             <button type="button" class="smart-mode-tab" data-topcat="english">🔤 英语</button>
+            <button type="button" class="smart-mode-tab" data-topcat="course">🎓 英语课</button>
         `;
         this.cardEl.insertBefore(tabsWrap, this.bbInnerEl);
         this.tabsWrap = tabsWrap;
@@ -141,6 +147,7 @@ export class SmartChalkboard {
             if (cat === 'grand') this.switchMode('grand_random');
             else if (cat === 'math') this.switchMode('math_random');
             else if (cat === 'english') this.switchMode('english_random');
+            else if (cat === 'course') this.switchMode('course_all');
         });
 
         subStrip.addEventListener('click', (e) => {
@@ -168,7 +175,7 @@ export class SmartChalkboard {
         this.bbInnerEl.insertAdjacentElement('afterend', mathWidgetPanel);
         this.mathWidgetPanelEl = mathWidgetPanel;
 
-        // 5. 注入少儿英语（8题型闪电闯关 + 5词背诵营 + 20主题词包切换）面板
+        // 5. 注入少儿英语（9题型闪电闯关 + 5词背诵营 + 校外英语课次切换）面板
         const enPanel = document.createElement('div');
         enPanel.className = 'smart-english-panel';
         enPanel.id = 'smartEnglishPanel';
@@ -179,11 +186,21 @@ export class SmartChalkboard {
             ...WORD_PACKS.map(p => `<option value="${p.id}">${p.icon} ${p.name}</option>`)
         ].join('');
 
+        const latestLesson = COURSE_LESSONS[0];
+        const courseLessonOptionsHtml = [
+            `<option value="latest">📚 最新: ${latestLesson ? `${latestLesson.code} (${latestLesson.dateLabel})` : 'S1U1W1'}</option>`,
+            ...(COURSE_LESSONS.length > 1 ? [`<option value="all_courses">🌟 全部已学课次 (${COURSE_LESSONS.length}课)</option>`] : []),
+            ...COURSE_LESSONS.map(l => `<option value="${l.id}">📖 ${l.code} · ${l.dateLabel}</option>`)
+        ].join('');
+
         enPanel.innerHTML = `
             <div class="smart-en-top-row">
                 <span class="qw-mode-tag" id="smartEnModeLabel">🔤 英语闯关</span>
                 <select class="smart-en-pack-select" id="smartEnPackSelect" title="选择英语主题词包">
                     ${packOptionsHtml}
+                </select>
+                <select class="smart-en-pack-select" id="smartCourseLessonSelect" title="选择校外英语课作业期数" style="display:none;">
+                    ${courseLessonOptionsHtml}
                 </select>
             </div>
             <div id="smartEnStage"></div>
@@ -194,6 +211,7 @@ export class SmartChalkboard {
         this.enStageEl = enPanel.querySelector('#smartEnStage');
         this.enModeLabelEl = enPanel.querySelector('#smartEnModeLabel');
         this.enPackSelectEl = enPanel.querySelector('#smartEnPackSelect');
+        this.courseLessonSelectEl = enPanel.querySelector('#smartCourseLessonSelect');
 
         this.enPackSelectEl.addEventListener('change', () => {
             this.selectedPackId = this.enPackSelectEl.value;
@@ -212,6 +230,22 @@ export class SmartChalkboard {
             }
             this.renderEnglishStage(true);
         });
+
+        this.courseLessonSelectEl.addEventListener('change', () => {
+            const lessonId = this.courseLessonSelectEl.value || 'latest';
+            englishEngine.setConfig({ courseLessonId: lessonId });
+            const active = this.profileManager.getActiveUser();
+            if (active) {
+                this.profileManager.updateUserSettings(active.id, {
+                    englishConfig: { ...(active.englishConfig || {}), courseLessonId: lessonId }
+                });
+            }
+            if (this.entryMode !== 'course_readcard') {
+                const sub = ALL_COURSE_SUB_IDS.includes(this.entryMode) ? this.entryMode : 'course_all';
+                englishEngine.nextQuickQuestion(null, sub);
+            }
+            this.renderEnglishStage(true);
+        });
     }
 
     syncFromActiveProfile() {
@@ -222,13 +256,19 @@ export class SmartChalkboard {
         }
         const enCfg = user.englishConfig || { level: 'level2_match', packId: 'all' };
         this.selectedPackId = enCfg.packId || 'all';
+        const courseLessonId = enCfg.courseLessonId || 'latest';
         englishEngine.setConfig({
             level: enCfg.level || 'level2_match',
             packId: this.selectedPackId,
+            courseLessonId,
+            courseSubMode: enCfg.courseSubMode || 'course_all',
             enabledTypes: enCfg.enabledTypes
         });
         if (this.enPackSelectEl) {
             this.enPackSelectEl.value = this.selectedPackId;
+        }
+        if (this.courseLessonSelectEl) {
+            this.courseLessonSelectEl.value = courseLessonId;
         }
         this.updateTopBadgePill();
         const pref = user.preferredSmartMode || 'grand_random';
@@ -237,6 +277,7 @@ export class SmartChalkboard {
 
     _getTopCategory(mode = this.entryMode) {
         if (mode === 'grand_random') return 'grand';
+        if (mode === 'course_special' || ALL_COURSE_SUB_IDS.includes(mode)) return 'course';
         if (mode === 'english' || mode === 'english_random' || mode === 'vocab_camp' || ALL_ENGLISH_TYPE_IDS.includes(mode)) {
             return 'english';
         }
@@ -254,10 +295,13 @@ export class SmartChalkboard {
         if (topCat === 'grand') {
             pills = [
                 { id: 'grand_random', label: `🎲 数英大随机(数${mathCount}+英${enCount})` },
+                { id: 'course_all', label: '🎓 校外英语课' },
                 { id: 'math_random', label: '🔢 切数学随机' },
                 { id: 'english_random', label: '🔤 切英语随机' },
                 { id: 'vocab_camp', label: '📖 5词背诵' }
             ];
+        } else if (topCat === 'course') {
+            pills = COURSE_SUB_MODES.map(m => ({ id: m.id, label: m.shortName }));
         } else if (topCat === 'math') {
             pills = [
                 { id: 'math_random', label: `🎲 数学随机(${mathCount}项)` },
@@ -267,12 +311,13 @@ export class SmartChalkboard {
             pills = [
                 { id: 'english_random', label: `🎲 英语随机(${enCount}项)` },
                 { id: 'vocab_camp', label: '📖 5词背诵' },
-                ...ENGLISH_QUESTION_TYPES.map(t => ({ id: t.id, label: t.shortName }))
+                ...ENGLISH_QUESTION_TYPES.filter(t => t.id !== 'course_special').map(t => ({ id: t.id, label: t.shortName }))
             ];
         }
 
+        const effectiveActive = (this.entryMode === 'course_special') ? 'course_all' : this.entryMode;
         this.subStripEl.innerHTML = pills.map(p => `
-            <button type="button" class="smart-entry-pill ${this.entryMode === p.id ? 'active' : ''}" data-emode="${p.id}">
+            <button type="button" class="smart-entry-pill ${effectiveActive === p.id ? 'active' : ''}" data-emode="${p.id}">
                 ${p.label}
             </button>
         `).join('');
@@ -285,7 +330,10 @@ export class SmartChalkboard {
         if (!u) return;
         const topCat = this._getTopCategory();
         if (topCat === 'grand') {
-            diffEl.textContent = `🎲 大随机(数${u.mathConfig?.enabledTypes?.length || 9}+英${u.englishConfig?.enabledTypes?.length || 8})`;
+            diffEl.textContent = `🎲 大随机(数${u.mathConfig?.enabledTypes?.length || 9}+英${u.englishConfig?.enabledTypes?.length || 9})`;
+        } else if (topCat === 'course') {
+            const lesson = getPrimaryCourseLesson(u.englishConfig?.courseLessonId || 'latest');
+            diffEl.textContent = `🎓 校外课 · ${lesson?.code || 'S1U1W1'} (${lesson?.dateLabel || ''})`;
         } else if (topCat === 'english') {
             diffEl.textContent = EnglishEngine.formatSummary(u.englishConfig);
         } else if (this.mathEngine && typeof this.mathEngine.getDifficultySummary === 'function') {
@@ -351,7 +399,8 @@ export class SmartChalkboard {
 
         const isValid = ['grand_random', 'math_random', 'english_random', 'vocab_camp'].includes(newMode) ||
             ALL_MATH_TYPE_IDS.includes(newMode) ||
-            ALL_ENGLISH_TYPE_IDS.includes(newMode);
+            ALL_ENGLISH_TYPE_IDS.includes(newMode) ||
+            ALL_COURSE_SUB_IDS.includes(newMode);
         if (!isValid) newMode = 'grand_random';
 
         this.entryMode = newMode;
@@ -376,14 +425,16 @@ export class SmartChalkboard {
             return;
         }
 
-        if (topCat === 'english') {
+        if (topCat === 'english' || topCat === 'course') {
             const u = this.profileManager.getActiveUser();
             if (newMode === 'vocab_camp') {
                 if (!englishEngine.studySession) {
                     englishEngine.startVocabStudySession(this.selectedPackId, u?.wordMastery || {});
                 }
-            } else {
-                const forced = ALL_ENGLISH_TYPE_IDS.includes(newMode) ? newMode : 'random';
+            } else if (newMode !== 'course_readcard') {
+                const forced = (ALL_ENGLISH_TYPE_IDS.includes(newMode) || ALL_COURSE_SUB_IDS.includes(newMode))
+                    ? newMode
+                    : 'random';
                 englishEngine.nextQuickQuestion(null, forced);
             }
             this.renderEnglishStage(true);
@@ -432,8 +483,9 @@ export class SmartChalkboard {
             return;
         }
 
-        // 3. 若玩家处于英语分支，保持英语视图
-        if (this._getTopCategory() === 'english') {
+        // 3. 若玩家处于英语或英语课专项分支，保持英语视图
+        const curTopCat = this._getTopCategory();
+        if (curTopCat === 'english' || curTopCat === 'course') {
             this.renderEnglishStage(false);
             return;
         }
@@ -653,6 +705,32 @@ export class SmartChalkboard {
         this._setPanelVisibility({ showEnglish: true });
         this._enLock = false;
 
+        const isCourseCategory = this._getTopCategory() === 'course';
+        if (this.enPackSelectEl) this.enPackSelectEl.style.display = isCourseCategory ? 'none' : '';
+        if (this.courseLessonSelectEl) this.courseLessonSelectEl.style.display = isCourseCategory ? '' : 'none';
+
+        if (this.entryMode === 'course_readcard') {
+            const u = this.profileManager.getActiveUser();
+            const lesson = getPrimaryCourseLesson(u?.englishConfig?.courseLessonId || 'latest');
+            if (this.enModeLabelEl) this.enModeLabelEl.textContent = `📹 视频朗读跟读 · ${lesson.code}`;
+            this.enStageEl.style.maxHeight = '290px';
+            this.enStageEl.style.overflowY = 'auto';
+            renderCourseReadAloudBoard(this.enStageEl, lesson, {
+                theme: 'dark',
+                compact: true,
+                onTapSound: () => this.onSoundResume(),
+                speakFn: (txt, slow, ph) => sharedSpeech.speakEnglish(txt, slow, ph),
+                isChecked: (key) => Boolean(this.profileManager.getActiveUser()?.courseReadChecks?.[key]?.checked),
+                onToggleCheck: (key) => {
+                    this.profileManager.toggleCourseReadCheck(key);
+                    this.updateTopBadgePill();
+                }
+            });
+            return;
+        }
+        this.enStageEl.style.maxHeight = '';
+        this.enStageEl.style.overflowY = '';
+
         if (this.entryMode === 'vocab_camp') {
             if (this.enModeLabelEl) this.enModeLabelEl.textContent = '📖 5词背诵营';
             const sess = englishEngine.studySession;
@@ -670,18 +748,26 @@ export class SmartChalkboard {
             return;
         }
 
-        const forced = ALL_ENGLISH_TYPE_IDS.includes(this.entryMode) ? this.entryMode : 'random';
-        if (!englishEngine.currentQuiz || (forced !== 'random' && englishEngine.currentQuiz.mode !== forced)) {
+        const forced = (ALL_ENGLISH_TYPE_IDS.includes(this.entryMode) || ALL_COURSE_SUB_IDS.includes(this.entryMode))
+            ? this.entryMode
+            : 'random';
+        const expectedMode = ALL_COURSE_SUB_IDS.includes(forced) ? 'course_special' : forced;
+        if (!englishEngine.currentQuiz || (expectedMode !== 'random' && englishEngine.currentQuiz.mode !== expectedMode)) {
             englishEngine.nextQuickQuestion(null, forced);
         }
         const curQuiz = englishEngine.currentQuiz;
+        const subMeta = COURSE_SUB_MODES.find(m => m.id === this.entryMode);
         const tMeta = ENGLISH_QUESTION_TYPES.find(t => t.id === curQuiz?.mode);
         if (this.enModeLabelEl) {
-            this.enModeLabelEl.textContent = this.entryMode === 'grand_random'
-                ? `🎲 大随机 · ${tMeta ? tMeta.shortName : '英语'}`
-                : (tMeta ? tMeta.name : '⚡ 英语闪电闯关');
+            if (this.entryMode === 'grand_random') {
+                this.enModeLabelEl.textContent = `🎲 大随机 · ${tMeta ? tMeta.shortName : '英语'}`;
+            } else if (subMeta) {
+                this.enModeLabelEl.textContent = subMeta.name;
+            } else {
+                this.enModeLabelEl.textContent = tMeta ? tMeta.name : '⚡ 英语闪电闯关';
+            }
         }
-        this._renderEnglishQuizCard(curQuiz, autoSpeak, tMeta ? tMeta.name : '⚡ 英语闯关');
+        this._renderEnglishQuizCard(curQuiz, autoSpeak, subMeta ? subMeta.name : (tMeta ? tMeta.name : '⚡ 英语闯关'));
     }
 
     _renderVocabStudyCard(sess, autoSpeak) {
@@ -761,7 +847,11 @@ export class SmartChalkboard {
 
     _handleEnglishAnswer(isCorrect, wordObj, userAns) {
         this._enLock = true;
-        sharedSpeech.speakEnglish(wordObj.word, false);
+        const curQ = englishEngine.currentQuiz;
+        const confirmSpeech = curQ?.answerEn || curQ?.expectedSentence || wordObj?.word || '';
+        if (confirmSpeech && curQ?.courseSubType !== 'qa_match') {
+            sharedSpeech.speakEnglish(confirmSpeech, false);
+        }
 
         const isVocabMode = this.entryMode === 'vocab_camp' && Boolean(englishEngine.studySession);
         let isCampFinish = false;
@@ -839,7 +929,9 @@ export class SmartChalkboard {
                     this.renderEnglishStage(true);
                 }
             } else {
-                const forced = ALL_ENGLISH_TYPE_IDS.includes(this.entryMode) ? this.entryMode : 'random';
+                const forced = (ALL_ENGLISH_TYPE_IDS.includes(this.entryMode) || ALL_COURSE_SUB_IDS.includes(this.entryMode))
+                    ? this.entryMode
+                    : 'random';
                 englishEngine.nextQuickQuestion(null, forced);
                 this.renderEnglishStage(true);
             }

@@ -7,7 +7,28 @@
  * 3. 8 大趣味英语互动题型，支持家长自定义勾选启用题型、统一大随机或单项目直达练习！
  */
 
+import {
+    COURSE_LESSONS,
+    COURSE_SUB_MODES,
+    ALL_COURSE_SUB_IDS,
+    ALL_COURSE_WORDS,
+    courseSessionManager,
+    resolveCourseLessons,
+    getPrimaryCourseLesson
+} from './courseLessons.js';
+
+export {
+    COURSE_LESSONS,
+    COURSE_SUB_MODES,
+    ALL_COURSE_SUB_IDS,
+    ALL_COURSE_WORDS,
+    courseSessionManager,
+    resolveCourseLessons,
+    getPrimaryCourseLesson
+};
+
 export const ENGLISH_QUESTION_TYPES = [
+    { id: 'course_special', name: '🎓 校外英语课专项', shortName: '🎓 英语课', icon: '🎓', desc: '同步校外英语课作业：听音写词抽查、高频词与句子听写、课文问答' },
     { id: 'listen_pic',     name: '🎧 听音选图',     shortName: '🎧 听音', icon: '🎧', desc: '听纯正美式发音，选出对应图案' },
     { id: 'match_word',     name: '🃏 看图识词',     shortName: '🃏 识词', icon: '🃏', desc: '看萌图与释义，选出正确拼读单词' },
     { id: 'bubble_pair',    name: '🫧 单词消消乐',   shortName: '🫧 配对', icon: '🫧', desc: '3组中英图文泡泡配对消除' },
@@ -21,10 +42,10 @@ export const ENGLISH_QUESTION_TYPES = [
 export const ALL_ENGLISH_TYPE_IDS = ENGLISH_QUESTION_TYPES.map(t => t.id);
 
 export const ENGLISH_LEVELS = {
-    level1_listen: { id: 'level1_listen', name: '🌱 启蒙听说包', presetTypes: ['listen_pic', 'match_word', 'bubble_pair', 'riddle_qa'] },
-    level2_match:  { id: 'level2_match',  name: '⚡ 进阶认读包', presetTypes: ['listen_pic', 'match_word', 'bubble_pair', 'cloze_sentence', 'phonics_chunks', 'riddle_qa'] },
-    level3_spell:  { id: 'level3_spell',  name: '🔥 读写挑战包', presetTypes: ['cloze_sentence', 'phonics_chunks', 'riddle_qa', 'word_order', 'spell_word'] },
-    mixed:         { id: 'mixed',         name: '🌈 全能8题型混合', presetTypes: [...ALL_ENGLISH_TYPE_IDS] }
+    level1_listen: { id: 'level1_listen', name: '🌱 启蒙听说包', presetTypes: ['course_special', 'listen_pic', 'match_word', 'bubble_pair', 'riddle_qa'] },
+    level2_match:  { id: 'level2_match',  name: '⚡ 进阶认读包', presetTypes: ['course_special', 'listen_pic', 'match_word', 'bubble_pair', 'cloze_sentence', 'phonics_chunks', 'riddle_qa'] },
+    level3_spell:  { id: 'level3_spell',  name: '🔥 读写挑战包', presetTypes: ['course_special', 'cloze_sentence', 'phonics_chunks', 'riddle_qa', 'word_order', 'spell_word'] },
+    mixed:         { id: 'mixed',         name: '🌈 全能9题型混合', presetTypes: [...ALL_ENGLISH_TYPE_IDS] }
 };
 
 export const WORD_PACKS = [
@@ -617,6 +638,8 @@ export class EnglishEngine {
         const prev = this.config || {};
         const nextLevel = cfg.level || prev.level || 'mixed';
         const nextPackId = cfg.packId || prev.packId || 'all';
+        const nextLessonId = cfg.courseLessonId || prev.courseLessonId || 'latest';
+        const nextCourseSubMode = cfg.courseSubMode || prev.courseSubMode || 'course_all';
 
         let enabledTypes = Array.isArray(cfg.enabledTypes) ? cfg.enabledTypes.filter(id => ALL_ENGLISH_TYPE_IDS.includes(id)) : null;
         if (!enabledTypes || enabledTypes.length === 0) {
@@ -631,6 +654,8 @@ export class EnglishEngine {
         this.config = {
             level: nextLevel,
             packId: nextPackId,
+            courseLessonId: nextLessonId,
+            courseSubMode: nextCourseSubMode,
             enabledTypes
         };
     }
@@ -640,13 +665,16 @@ export class EnglishEngine {
     }
 
     static formatSummary(cfg) {
-        if (!cfg) return '全能8题型 · 360词';
+        if (!cfg) return '全能9题型 · 含校外课专项';
         const enabled = Array.isArray(cfg.enabledTypes) && cfg.enabledTypes.length > 0
             ? cfg.enabledTypes
             : EnglishEngine.getDefaultEnabledTypes(cfg.level);
         let typeSummary = '';
         if (enabled.length >= ALL_ENGLISH_TYPE_IDS.length) {
-            typeSummary = '🌈 英语8题型全开';
+            typeSummary = '🌈 英语9题型全开';
+        } else if (enabled.length === 1 && enabled[0] === 'course_special') {
+            const lesson = getPrimaryCourseLesson(cfg.courseLessonId || 'latest');
+            return `🎓 仅校外课(${lesson?.code || 'S1U1W1'})`;
         } else if (enabled.length <= 2) {
             typeSummary = enabled
                 .map(id => ENGLISH_QUESTION_TYPES.find(t => t.id === id)?.shortName || id)
@@ -808,10 +836,28 @@ export class EnglishEngine {
             forcedWordId = forcedWordIdOrOpts.forcedWordId || null;
             forcedType = forcedWordIdOrOpts.forcedType || forcedType || null;
         } else if (typeof forcedWordIdOrOpts === 'string') {
-            if (ALL_ENGLISH_TYPE_IDS.includes(forcedWordIdOrOpts) || forcedWordIdOrOpts === 'random') {
+            if (
+                ALL_ENGLISH_TYPE_IDS.includes(forcedWordIdOrOpts) ||
+                ALL_COURSE_SUB_IDS.includes(forcedWordIdOrOpts) ||
+                forcedWordIdOrOpts === 'random'
+            ) {
                 forcedType = forcedWordIdOrOpts;
             } else {
                 forcedWordId = forcedWordIdOrOpts;
+            }
+        }
+
+        // 若直接指定了校外英语课子模式（如 course_phonics / course_sight / course_qa / course_all / course_special）
+        if (!forcedWordId && (forcedType === 'course_special' || ALL_COURSE_SUB_IDS.includes(forcedType))) {
+            const subMode = ALL_COURSE_SUB_IDS.includes(forcedType)
+                ? forcedType
+                : (this.config?.courseSubMode || 'course_all');
+            const cq = courseSessionManager.nextQuestion(this.config?.courseLessonId || 'latest', subMode);
+            if (cq) {
+                this._questionTick++;
+                this._lastWasReview = false;
+                this.currentQuiz = cq;
+                return cq;
             }
         }
 
@@ -821,7 +867,9 @@ export class EnglishEngine {
         let wordMastery = {};
 
         if (forcedWordId) {
-            target = ALL_WORDS.find(w => w.id === forcedWordId) || null;
+            target = ALL_WORDS.find(w => w.id === forcedWordId)
+                || ALL_COURSE_WORDS.find(w => w.id === forcedWordId)
+                || null;
         }
 
         if (this.mistakesProvider) {
@@ -833,7 +881,7 @@ export class EnglishEngine {
                 // 艾宾浩斯穿插复习：带 10 题冷却保护，绝不会每两三题就重复弹同一个错词
                 if (!target && !this._lastWasReview && englishMistakes.length > 0 && Math.random() < 0.16) {
                     const eligibleMistakes = englishMistakes
-                        .map(m => ALL_WORDS.find(w => w.id === m.wordId))
+                        .map(m => ALL_WORDS.find(w => w.id === m.wordId) || ALL_COURSE_WORDS.find(w => w.id === m.wordId))
                         .filter(w => {
                             if (!w || w.id === this._lastWordId) return false;
                             const lastTick = this._mistakeCooldownMap[w.id] ?? -999;
@@ -847,6 +895,22 @@ export class EnglishEngine {
             } catch (e) {}
         }
 
+        // 先决定题型：如果随机抽中了校外英语课专项 (course_special)，直接走课后专项洗牌袋，不消耗 360 词主洗牌袋
+        let qType = this._pickQuestionType(forcedType);
+        if (!target && qType === 'course_special') {
+            const cq = courseSessionManager.nextQuestion(
+                this.config?.courseLessonId || 'latest',
+                this.config?.courseSubMode || 'course_all'
+            );
+            if (cq) {
+                this._questionTick++;
+                this._lastWasReview = false;
+                this.currentQuiz = cq;
+                return cq;
+            }
+            qType = 'listen_pic';
+        }
+
         if (!target) {
             target = this._drawFromBag(pool, wordMastery);
         }
@@ -854,7 +918,10 @@ export class EnglishEngine {
         this._recordWordAsked(target.id, Boolean(forcedWordId || isAutoReview));
         this._lastWasReview = Boolean(forcedWordId || isAutoReview);
 
-        const qType = this._pickQuestionType(forcedType);
+        // 若是定向错题复习且抽中了 course_special，转为拼写巩固该错词
+        if (qType === 'course_special') {
+            qType = 'spell_word';
+        }
         const q = this.buildQuestionByType(qType, target, pool);
 
         q.isReview = Boolean(forcedWordId || isAutoReview);

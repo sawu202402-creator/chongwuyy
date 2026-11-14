@@ -22,7 +22,7 @@ import {
     getShopById
 } from '../pet/js/config.js';
 import { ALL_MATH_TYPE_IDS } from './mathEngine.js';
-import { ALL_ENGLISH_TYPE_IDS } from './englishEngine.js';
+import { ALL_ENGLISH_TYPE_IDS, ALL_COURSE_SUB_IDS } from './englishEngine.js';
 
 export const STORAGE_KEY = 'chongwuyy_pet_town_profiles_v2';
 
@@ -45,7 +45,7 @@ export function sanitizeEnglishEnabledTypes(list) {
 export function isValidSmartMode(mode) {
     if (!mode || typeof mode !== 'string') return false;
     if (['grand_random', 'math_random', 'english_random', 'english', 'vocab_camp'].includes(mode)) return true;
-    return ALL_MATH_TYPE_IDS.includes(mode) || ALL_ENGLISH_TYPE_IDS.includes(mode);
+    return ALL_MATH_TYPE_IDS.includes(mode) || ALL_ENGLISH_TYPE_IDS.includes(mode) || ALL_COURSE_SUB_IDS.includes(mode);
 }
 
 function todayDateKey() {
@@ -148,8 +148,12 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
         englishConfig: {
             level: 'level2_match',
             packId: 'all',
+            courseLessonId: 'latest',
+            courseSubMode: 'course_all',
+            courseSpecialMigrated: true,
             enabledTypes: [...ALL_ENGLISH_TYPE_IDS]
         },
+        courseReadChecks: {},
         wordMastery: {},
         scoreRecords: [
             {
@@ -319,9 +323,27 @@ export class UserProfileManager {
             u.mathConfig.enabledTypes = sanitizeMathEnabledTypes(u.mathConfig.enabledTypes);
             // 双向对齐 mathConfig 与 difficulty (供 carrot 和 pvz 原生读取)
             u.difficulty = { ...u.mathConfig };
-            if (!u.englishConfig) u.englishConfig = { level: 'level2_match', packId: 'all', enabledTypes: [...ALL_ENGLISH_TYPE_IDS] };
+            if (!u.englishConfig) {
+                u.englishConfig = {
+                    level: 'level2_match',
+                    packId: 'all',
+                    courseLessonId: 'latest',
+                    courseSubMode: 'course_all',
+                    courseSpecialMigrated: true,
+                    enabledTypes: [...ALL_ENGLISH_TYPE_IDS]
+                };
+            }
+            if (!u.englishConfig.courseSpecialMigrated) {
+                if (Array.isArray(u.englishConfig.enabledTypes) && u.englishConfig.enabledTypes.length >= 8 && !u.englishConfig.enabledTypes.includes('course_special')) {
+                    u.englishConfig.enabledTypes = ['course_special', ...u.englishConfig.enabledTypes];
+                }
+                u.englishConfig.courseSpecialMigrated = true;
+            }
             u.englishConfig.enabledTypes = sanitizeEnglishEnabledTypes(u.englishConfig.enabledTypes);
             if (!u.englishConfig.packId) u.englishConfig.packId = 'all';
+            if (!u.englishConfig.courseLessonId) u.englishConfig.courseLessonId = 'latest';
+            if (!u.englishConfig.courseSubMode) u.englishConfig.courseSubMode = 'course_all';
+            if (!u.courseReadChecks || typeof u.courseReadChecks !== 'object') u.courseReadChecks = {};
             if (!u.wordMastery) u.wordMastery = {};
             if (!Array.isArray(u.scoreRecords)) u.scoreRecords = [];
             if (!Array.isArray(u.badgeLedger)) u.badgeLedger = [];
@@ -1246,6 +1268,45 @@ export class UserProfileManager {
             names,
             msg: `🎉 存档恢复成功！已同步：${names}`
         };
+    }
+
+    /**
+     * 视频朗读打卡标记：支持小朋友跟读每一道课文问答后打勾确认，首次今日打卡赠送 1 颗学习星进度
+     */
+    toggleCourseReadCheck(checkKey) {
+        const u = this.getActiveUser();
+        if (!u || !checkKey) return { checked: false, awarded: false, badgeGain: 0 };
+        if (!u.courseReadChecks || typeof u.courseReadChecks !== 'object') u.courseReadChecks = {};
+        const today = todayDateKey();
+        const prev = u.courseReadChecks[checkKey];
+        if (prev && prev.checked) {
+            u.courseReadChecks[checkKey] = { ...prev, checked: false };
+            this.save();
+            return { checked: false, awarded: false, badgeGain: 0 };
+        }
+        const alreadyRewardedToday = Boolean(prev && prev.rewardDate === today);
+        u.courseReadChecks[checkKey] = {
+            checked: true,
+            rewardDate: today,
+            updatedAt: nowTimeStr()
+        };
+        let badgeGain = 0;
+        let awarded = false;
+        if (!alreadyRewardedToday) {
+            awarded = true;
+            const awardRes = this.awardLearningProgress({
+                title: `📹 校外英语课视频朗读打卡 (${checkKey})`,
+                subjectTag: '朗读打卡',
+                badges: 0,
+                stars: 1,
+                gotTicket: false,
+                combo: 1,
+                isMath: false
+            });
+            badgeGain = awardRes?.actualBadges || 0;
+        }
+        this.save();
+        return { checked: true, awarded, badgeGain };
     }
 }
 
