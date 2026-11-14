@@ -25,8 +25,8 @@
     <!-- 引入保卫萝卜标志性圆体卡通字体 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20261113_opt_v1">
-    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261113_opt_v1">
+    <link rel="stylesheet" href="css/style.css?v=20261114_modes_v1">
+    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261114_modes_v1">
 </head>
 <body>
 
@@ -507,10 +507,17 @@
                 <div class="preset-grade-cards" id="presetGradeCards"></div>
             </div>
 
+            <!-- 3B. 数学启用题型多选（自由勾选随机池包含哪些数学项目） -->
+            <div class="setting-block" style="margin-top:10px;">
+                <div class="setting-title">3B. 🔢 勾选启用的数学题型（共 9 种，大随机/数学随机从中抽取）：</div>
+                <div id="carrotMathTypesBox"></div>
+            </div>
+
             <!-- 4. 少儿英语与每日徽章上限同步配置 -->
             <div class="setting-block" style="margin-top:10px;">
-                <div class="setting-title">4. 🔤 少儿英语题型、词包与 ⏳ 每日徽章上限（三游同步）：</div>
+                <div class="setting-title">4. 🔤 少儿英语启用题型（共 8 种）、20大主题词包与每日上限：</div>
                 <div class="ranges-grid" id="carrotEnLevelGrid" style="margin-bottom:8px;"></div>
+                <div id="carrotEnTypesBox" style="margin-bottom:8px;"></div>
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
                     <span style="font-size:13px;font-weight:800;color:#4e342e;">默认英语词包：</span>
                     <select id="carrotEnPackSelect" class="profile-name-input" style="width:auto;min-width:190px;padding:4px 10px;font-size:13px;"></select>
@@ -615,6 +622,6 @@
     </div>
 
     <!-- 引入游戏逻辑 -->
-    <script type="module" src="js/main.js?v=20261113_opt_v1"></script>
+    <script type="module" src="js/main.js?v=20261114_modes_v1"></script>
 </body>
 </html>

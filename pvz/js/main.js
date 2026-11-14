@@ -5,14 +5,15 @@
 import { GAME_CONFIG, AVATAR_LIST, DIFFICULTY_PRESETS } from './config.js?v=20261113_v2';
 import { assetsLoader } from './assetsLoader.js?v=20261113_v2';
 import { soundEngine } from './audio.js?v=20261113_v2';
-import { mathEngine } from './mathEngine.js?v=20261113_3in1_v1';
+import { mathEngine, MATH_QUESTION_TYPES, ALL_MATH_TYPE_IDS } from './mathEngine.js?v=20261114_modes_v1';
 import { profileManager } from './profileManager.js?v=20261113_3in1_v1';
 import { PvzEngine } from './pvzEngine.js?v=20261113_v2';
 import { createPlant } from './plants.js?v=20261113_v2';
 import { Zombie } from './zombies.js?v=20261113_v2';
 import { SmartChalkboard } from '../../shared/smartChalkboard.js';
 import { sharedSpeech } from '../../shared/audioTTS.js';
-import { ENGLISH_LEVELS, WORD_PACKS, ALL_WORDS } from '../../shared/englishEngine.js';
+import { ENGLISH_LEVELS, WORD_PACKS, ALL_WORDS, ENGLISH_QUESTION_TYPES, ALL_ENGLISH_TYPE_IDS } from '../../shared/englishEngine.js';
+import { renderEnabledTypesSelector } from '../../shared/questionWidgets.js';
 import { DAILY_BADGE_CAP_OPTIONS, DEFAULT_DAILY_BADGE_CAP } from '../../pet/js/config.js';
 import { requireParentGate } from '../../shared/parentGate.js';
 
@@ -43,6 +44,8 @@ class GameApp {
         this.selectedEnLevel = 'level2_match';
         this.selectedEnPack = 'all';
         this.selectedDailyBadgeCap = DEFAULT_DAILY_BADGE_CAP;
+        this.selectedMathTypes = [...ALL_MATH_TYPE_IDS];
+        this.selectedEnTypes = [...ALL_ENGLISH_TYPE_IDS];
         this.activeDiffTab = 'custom'; // 'custom' | 'preset'
         this.viewingRecordsKidId = null;
 
@@ -181,14 +184,18 @@ class GameApp {
                     this.pvzEngine.handleMathAnswerResult(battleRes);
                 }
                 if (battleRes.isCorrect) {
-                    const campTxt = meta.isCampFinish ? '🎉 5词背诵营通关！' : `🎉 英语答对【${meta.wordObj?.word || ''}】！`;
-                    this.dom.feedbackMsg.innerText = `${campTxt}+${battleRes.bonusSun} 阳光${meta.badgeSuffix || ''}`;
+                    const prefix = meta.isInteractiveMath
+                        ? '🎉 数学答对！'
+                        : (meta.isCampFinish ? '🎉 5词背诵营通关！' : `🎉 英语答对【${meta.wordObj?.word || ''}】！`);
+                    this.dom.feedbackMsg.innerText = `${prefix}+${battleRes.bonusSun} 阳光${meta.badgeSuffix || ''}`;
                     this.dom.mascotEmoji.innerText = '🌻';
-                    this.dom.mascotTalk.innerText = '太棒啦！读单词也能召唤大阳光与觉醒大招！';
+                    this.dom.mascotTalk.innerText = '太棒啦！互动闯关也能召唤大阳光与觉醒大招！';
                 } else {
-                    this.dom.feedbackMsg.innerText = `差一点哦~ 正确单词是 ${meta.wordObj?.word || ''} (${meta.wordObj?.zh || ''})`;
+                    this.dom.feedbackMsg.innerText = meta.isInteractiveMath
+                        ? `差一点哦~ 正确答案是 ${battleRes.expected}，再试一题！`
+                        : `差一点哦~ 正确单词是 ${meta.wordObj?.word || ''} (${meta.wordObj?.zh || ''})`;
                     this.dom.mascotEmoji.innerText = '🌿';
-                    this.dom.mascotTalk.innerText = '没关系，听听发音再来一次！';
+                    this.dom.mascotTalk.innerText = '没关系，仔细看看再来一次！';
                 }
             }
         });
@@ -1258,11 +1265,42 @@ class GameApp {
             this.dom.presetGradeCards.appendChild(card);
         });
 
-        // 10. 渲染英语题型、默认词包与每日徽章上限（四端 100% 对齐）
+        // 10. 渲染数学启用题型(9种)、英语启用题型(8种)、默认词包与每日徽章上限（四端 100% 对齐）
+        this.selectedMathTypes = (targetUser && Array.isArray(targetUser.difficulty?.enabledTypes) && targetUser.difficulty.enabledTypes.length > 0)
+            ? [...targetUser.difficulty.enabledTypes]
+            : [...ALL_MATH_TYPE_IDS];
+
+        const pvzMathTypesBox = document.getElementById('pvzMathTypesBox');
+        if (pvzMathTypesBox) {
+            renderEnabledTypesSelector(
+                pvzMathTypesBox,
+                MATH_QUESTION_TYPES,
+                this.selectedMathTypes,
+                (nextIds) => { this.selectedMathTypes = nextIds; },
+                ['calc', 'compare', 'bond_pop', 'sequence_train', 'clock_money']
+            );
+        }
+
         const enConf = targetUser ? (targetUser.englishConfig || {}) : {};
         this.selectedEnLevel = enConf.level || 'level2_match';
         this.selectedEnPack = enConf.packId || 'all';
+        this.selectedEnTypes = (Array.isArray(enConf.enabledTypes) && enConf.enabledTypes.length > 0)
+            ? [...enConf.enabledTypes]
+            : [...ALL_ENGLISH_TYPE_IDS];
         this.selectedDailyBadgeCap = (targetUser && targetUser.dailyBadgeCap) || DEFAULT_DAILY_BADGE_CAP;
+
+        const pvzEnTypesBox = document.getElementById('pvzEnTypesBox');
+        const drawPvzEnTypes = () => {
+            if (!pvzEnTypesBox) return;
+            renderEnabledTypesSelector(
+                pvzEnTypesBox,
+                ENGLISH_QUESTION_TYPES,
+                this.selectedEnTypes,
+                (nextIds) => { this.selectedEnTypes = nextIds; },
+                ['listen_pic', 'match_word', 'bubble_pair', 'riddle_qa']
+            );
+        };
+        drawPvzEnTypes();
 
         if (this.dom.pvzEnLevelGrid) {
             this.dom.pvzEnLevelGrid.innerHTML = '';
@@ -1273,6 +1311,10 @@ class GameApp {
                 pill.innerText = lv.name;
                 pill.addEventListener('click', () => {
                     this.selectedEnLevel = lv.id;
+                    if (Array.isArray(lv.presetTypes) && lv.presetTypes.length > 0) {
+                        this.selectedEnTypes = [...lv.presetTypes];
+                        drawPvzEnTypes();
+                    }
                     this.dom.pvzEnLevelGrid.querySelectorAll('.range-pill, .range-pill-btn').forEach(p => p.classList.remove('selected'));
                     pill.classList.add('selected');
                 });
@@ -1282,7 +1324,7 @@ class GameApp {
 
         if (this.dom.pvzEnPackSelect) {
             this.dom.pvzEnPackSelect.innerHTML = [
-                `<option value="all">📚 全部12主题 (${ALL_WORDS.length}词)</option>`,
+                `<option value="all">🌟 全部20主题 (${ALL_WORDS.length}词)</option>`,
                 ...WORD_PACKS.map(pk => `<option value="${pk.id}">${pk.icon} ${pk.name}</option>`)
             ].join('');
             this.dom.pvzEnPackSelect.value = this.selectedEnPack;
@@ -1327,11 +1369,13 @@ class GameApp {
             range: this.selectedRange,
             maxMultiplier: this.selectedMultiplier,
             allowCarryBorrow: this.dom.chkOptCarryBorrow.checked,
-            allowFillBlank: this.dom.chkOptFillBlank.checked
+            allowFillBlank: this.dom.chkOptFillBlank.checked,
+            enabledTypes: this.selectedMathTypes
         };
         const englishConfig = {
             level: this.selectedEnLevel || 'level2_match',
-            packId: (this.dom.pvzEnPackSelect && this.dom.pvzEnPackSelect.value) || this.selectedEnPack || 'all'
+            packId: (this.dom.pvzEnPackSelect && this.dom.pvzEnPackSelect.value) || this.selectedEnPack || 'all',
+            enabledTypes: this.selectedEnTypes
         };
         const dailyBadgeCap = this.selectedDailyBadgeCap || DEFAULT_DAILY_BADGE_CAP;
 

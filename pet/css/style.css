@@ -1274,7 +1274,7 @@ button:active {
 
 .subject-main-tabs {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: repeat(4, 1fr);
     background: rgba(0, 0, 0, 0.26);
     padding: 3px;
     border-radius: 13px;
@@ -1282,18 +1282,24 @@ button:active {
 }
 
 .subj-tab {
-    padding: 7px 4px;
+    padding: 7px 2px;
     border-radius: 10px;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 900;
     color: #cbbef5;
     background: transparent;
+    white-space: nowrap;
 }
 
 .subj-tab.active {
     background: linear-gradient(135deg, #ff9f2e, #ff6c24);
     color: #fff;
     box-shadow: 0 3px 8px rgba(255, 118, 28, 0.35);
+}
+
+.subj-tab[data-subj="grand_random"].active {
+    background: linear-gradient(135deg, #a855f7, #ec4899);
+    box-shadow: 0 3px 8px rgba(236, 72, 153, 0.38);
 }
 
 .rev-dot {
@@ -1317,19 +1323,68 @@ button:active {
     gap: 5px;
 }
 
+.sub-mode-pills.scrollable-pills {
+    overflow-x: auto;
+    padding-bottom: 2px;
+    flex-shrink: 0;
+    scrollbar-width: none;
+}
+
+.sub-mode-pills.scrollable-pills::-webkit-scrollbar {
+    display: none;
+}
+
 .sub-pill {
-    flex: 1;
-    padding: 5px 6px;
+    flex: 0 0 auto;
+    padding: 5px 10px;
     border-radius: 999px;
-    font-size: 12px;
+    font-size: 11.5px;
     font-weight: 800;
     background: rgba(255, 255, 255, 0.12);
     color: #dcd3fa;
+    white-space: nowrap;
 }
 
 .sub-pill.active {
     background: #8c6eff;
     color: #ffffff;
+    box-shadow: 0 2px 6px rgba(140, 110, 255, 0.45);
+}
+
+.pet-interactive-card {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 244, 255, 0.96) 100%);
+    color: #291f45;
+    border-radius: 18px;
+    padding: 14px 13px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: inset 0 2px 10px rgba(124, 92, 252, 0.08);
+}
+
+.pet-interactive-card .qw-stage-wrap {
+    gap: 13px;
+}
+
+.pet-interactive-card .qw-balance-stage,
+.pet-interactive-card .qw-detective-eq,
+.pet-interactive-card .qw-train-track,
+.pet-interactive-card .qw-clock-money-box,
+.pet-interactive-card .qw-pyr-grid-box,
+.pet-interactive-card .qw-en-card {
+    padding: 16px 12px;
+}
+
+.pet-interactive-card .qw-choice-btn,
+.pet-interactive-card .qw-en-opt {
+    min-height: 62px;
+}
+
+.pet-interactive-card .qw-pop-bubble {
+    min-height: 68px;
 }
 
 /* 森林墨绿智慧小黑板 (致敬 shuxue/shuxuejs) */

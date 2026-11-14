@@ -7,9 +7,28 @@
  * 3. 全局【错题重练消消乐】（数学错题互动答题消除 + 英语待强化词听音重练消除，攻克赢星星/徽章）；
  * 4. 存档备份码（CWYY1:...）与 .json 文件一键导出/恢复，跨 iPad 无缝迁移防丢失。
  */
-import { profileManager } from '../shared/unifiedProfile.js';
-import { MathEngine } from '../shared/mathEngine.js';
-import { WORD_PACKS, ALL_WORDS, ENGLISH_LEVELS, EnglishEngine } from '../shared/englishEngine.js';
+import {
+    profileManager,
+    sanitizeMathEnabledTypes,
+    sanitizeEnglishEnabledTypes
+} from '../shared/unifiedProfile.js';
+import {
+    MathEngine,
+    MATH_QUESTION_TYPES,
+    ALL_MATH_TYPE_IDS
+} from '../shared/mathEngine.js';
+import {
+    WORD_PACKS,
+    ALL_WORDS,
+    ENGLISH_LEVELS,
+    ENGLISH_QUESTION_TYPES,
+    ALL_ENGLISH_TYPE_IDS,
+    EnglishEngine
+} from '../shared/englishEngine.js';
+import {
+    renderEnabledTypesSelector,
+    renderMathInteractiveWidget
+} from '../shared/questionWidgets.js';
 import { AVATAR_LIST, DAILY_BADGE_CAP_OPTIONS, getPetById } from '../pet/js/config.js';
 import { sharedSpeech } from '../shared/audioTTS.js';
 import { requireParentGate } from '../shared/parentGate.js';
@@ -27,8 +46,10 @@ class PortalHubApp {
             maxMultiplier: 5,
             allowCarryBorrow: true,
             allowFillBlank: true,
-            enLevel: 'level2_match',
+            mathTypes: [...ALL_MATH_TYPE_IDS],
+            enLevel: 'mixed',
             enPackId: 'all',
+            enTypes: [...ALL_ENGLISH_TYPE_IDS],
             parentLockEnabled: true,
             parentPin: ''
         };
@@ -77,6 +98,17 @@ class PortalHubApp {
             requireParentGate(() => this.openSettingsModal(), {
                 profileManager,
                 actionLabel: '进入家长难度与上限管理'
+            });
+        });
+        document.getElementById('btnHubQuickTypesCfg')?.addEventListener('click', () => {
+            requireParentGate(() => {
+                this.openSettingsModal();
+                setTimeout(() => {
+                    document.getElementById('hubMathTypesBox')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 80);
+            }, {
+                profileManager,
+                actionLabel: '勾选启用上场的数学/英语题型'
             });
         });
         document.getElementById('btnCloseHubSettings')?.addEventListener('click', () => {
@@ -236,6 +268,9 @@ class PortalHubApp {
             : `${daily.earned} / ${daily.cap}`;
         document.getElementById('bannerDailyFill').style.width = `${pct}%`;
 
+        // 2B. 全局统一大随机 & 单项目直达快捷栏
+        this.renderSmartModeStrip(active);
+
         // 3. 三张游戏卡的实时独立个性化进度
         const unlockedPetsCount = Object.values(active.pets || {}).filter(p => p.unlocked).length;
         const activePetState = active.pets?.[active.activePetId] || { level: 1 };
@@ -271,6 +306,54 @@ class PortalHubApp {
         }
     }
 
+    renderSmartModeStrip(active) {
+        const strip = document.getElementById('hubSmartModeStrip');
+        if (!strip) return;
+        const curMode = active.preferredSmartMode || 'grand_random';
+        const mCnt = sanitizeMathEnabledTypes(active.mathConfig?.enabledTypes).length;
+        const eCnt = sanitizeEnglishEnabledTypes(active.englishConfig?.enabledTypes).length;
+
+        const entries = [
+            { id: 'grand_random', label: `🎲 数英大随机(${mCnt}+${eCnt})`, grand: true, title: '从已勾选的数学题型与英语题型中智能穿插出题' },
+            { id: 'math_random', label: `🎲 数学随机(${mCnt})`, title: '仅从已勾选的数学题型中随机出题' },
+            { id: 'english_random', label: `🎲 英语随机(${eCnt})`, title: '仅从已勾选的英语题型中随机出题' },
+            { id: 'vocab_camp', label: '📖 5词背诵', title: '进入游戏直接开启 5 词闪卡认读 + 闯关检验' },
+            { divider: true },
+            ...MATH_QUESTION_TYPES.map(t => ({ id: t.id, label: t.shortName, title: `单项目直达：${t.name}（${t.desc}）` })),
+            { divider: true },
+            ...ENGLISH_QUESTION_TYPES.map(t => ({ id: t.id, label: t.shortName, title: `单项目直达：${t.name}（${t.desc}）` }))
+        ];
+
+        strip.innerHTML = '';
+        let activeLabel = '🎲 数英大随机';
+        entries.forEach(item => {
+            if (item.divider) {
+                const div = document.createElement('span');
+                div.className = 'hub-mode-divider';
+                strip.appendChild(div);
+                return;
+            }
+            const isSel = curMode === item.id;
+            if (isSel) activeLabel = item.label;
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `hub-mode-pill ${item.grand ? 'grand' : ''} ${isSel ? 'active' : ''}`;
+            btn.dataset.smode = item.id;
+            btn.title = item.title || item.label;
+            btn.textContent = item.label;
+            btn.addEventListener('click', () => {
+                profileManager.setPreferredSmartMode(item.id);
+                this.renderSmartModeStrip(profileManager.getActiveUser());
+            });
+            strip.appendChild(btn);
+        });
+
+        const subHint = document.getElementById('bannerSubHint');
+        if (subHint) {
+            subHint.textContent = `✨ 当前出题入口：【${activeLabel}】· 点击下方任意一款游戏即按该模式开玩（游戏内小黑板也可随时秒切）！`;
+        }
+    }
+
     // ==================== 统一档案与难度设置弹窗 ====================
     openSettingsModal() {
         const active = profileManager.getActiveUser();
@@ -293,8 +376,10 @@ class PortalHubApp {
             maxMultiplier: Number(mc.maxMultiplier) || 5,
             allowCarryBorrow: mc.allowCarryBorrow !== false,
             allowFillBlank: mc.allowFillBlank !== false,
-            enLevel: ec.level || 'level2_match',
+            mathTypes: sanitizeMathEnabledTypes(mc.enabledTypes),
+            enLevel: ec.level || 'mixed',
             enPackId: ec.packId || 'all',
+            enTypes: sanitizeEnglishEnabledTypes(ec.enabledTypes),
             parentLockEnabled: profileManager.data.parentLockEnabled !== false,
             parentPin: profileManager.data.parentPin || ''
         };
@@ -487,9 +572,17 @@ class PortalHubApp {
             extraRow.appendChild(btnFill);
         }
 
-        // 4. 英语题型与 12 大主题词包
+        renderEnabledTypesSelector(
+            document.getElementById('hubMathTypesBox'),
+            MATH_QUESTION_TYPES,
+            this.formState.mathTypes,
+            (next) => { this.formState.mathTypes = next; },
+            ['calc', 'compare', 'bond_pop', 'sequence_train', 'clock_money']
+        );
+
+        // 4. 英语题型多选与 20 大主题词包（360词）
         const enLevelRow = document.getElementById('hubEnLevelRow');
-        enLevelRow.innerHTML = '<span style="font-size:12.5px;font-weight:800;">英语题型：</span>';
+        enLevelRow.innerHTML = '<span style="font-size:12.5px;font-weight:800;">快捷预设：</span>';
         Object.values(ENGLISH_LEVELS).forEach(lvl => {
             const b = document.createElement('button');
             b.type = 'button';
@@ -497,14 +590,25 @@ class PortalHubApp {
             b.textContent = lvl.name;
             b.addEventListener('click', () => {
                 this.formState.enLevel = lvl.id;
+                if (Array.isArray(lvl.presetTypes)) {
+                    this.formState.enTypes = [...lvl.presetTypes];
+                }
                 this.renderSettingsModal();
             });
             enLevelRow.appendChild(b);
         });
 
+        renderEnabledTypesSelector(
+            document.getElementById('hubEnTypesBox'),
+            ENGLISH_QUESTION_TYPES,
+            this.formState.enTypes,
+            (next) => { this.formState.enTypes = next; },
+            ['listen_pic', 'match_word', 'bubble_pair', 'phonics_chunks']
+        );
+
         const enPackRow = document.getElementById('hubEnPackRow');
         enPackRow.innerHTML = '<span style="font-size:12.5px;font-weight:800;">默认词包：</span>';
-        const packChoices = [{ id: 'all', icon: '📚', name: `全部12主题(${ALL_WORDS.length}词)` }, ...WORD_PACKS];
+        const packChoices = [{ id: 'all', icon: '🌟', name: `全部20主题(${ALL_WORDS.length}词)` }, ...WORD_PACKS];
         packChoices.forEach(pk => {
             const b = document.createElement('button');
             b.type = 'button';
@@ -533,6 +637,9 @@ class PortalHubApp {
             pin: rawPin
         });
 
+        const cleanMathTypes = sanitizeMathEnabledTypes(this.formState.mathTypes);
+        const cleanEnTypes = sanitizeEnglishEnabledTypes(this.formState.enTypes);
+
         const presetGrade = this.formState.mode === 'preset'
             ? this.formState.presetGrade
             : (this.formState.range >= 500 ? 'grade5_6' : (this.formState.range >= 50 ? 'grade3_4' : 'grade1_2'));
@@ -544,11 +651,15 @@ class PortalHubApp {
             range: this.formState.range,
             maxMultiplier: this.formState.maxMultiplier,
             allowCarryBorrow: this.formState.allowCarryBorrow,
-            allowFillBlank: this.formState.allowFillBlank
+            allowFillBlank: this.formState.allowFillBlank,
+            includeWordProblems: cleanMathTypes.includes('word'),
+            includeDataCharts: cleanMathTypes.includes('data'),
+            enabledTypes: cleanMathTypes
         };
         const englishConfig = {
             level: this.formState.enLevel,
-            packId: this.formState.enPackId
+            packId: this.formState.enPackId,
+            enabledTypes: cleanEnTypes
         };
 
         if (this.editingKidId === '__NEW__') {
@@ -718,6 +829,50 @@ class PortalHubApp {
     }
 
     renderMathPracticeCard(stage, item, remainingCount) {
+        if (item.isInteractiveWidget) {
+            stage.innerHTML = `
+                <div class="hub-prac-header">
+                    <span>🎯 数学错题消消乐 · 剩余 ${remainingCount} 题（答对自动移出错题本并攒星⭐）</span>
+                    <button type="button" class="hub-opt-pill" id="btnExitPractice" style="padding:2px 10px;font-size:12px;">收起 ✕</button>
+                </div>
+                <div id="hubPracInteractiveMount" style="margin:6px 0;"></div>
+                <div class="hub-prac-feedback" id="hubPracFeedback">仔细推理，选对即可消灭这道互动错题！</div>
+            `;
+            stage.querySelector('#btnExitPractice')?.addEventListener('click', () => this.stopMistakePractice());
+            const mountEl = stage.querySelector('#hubPracInteractiveMount');
+            const fbEl = stage.querySelector('#hubPracFeedback');
+            renderMathInteractiveWidget(mountEl, item, {
+                theme: 'dark',
+                onEvaluate: (ok) => {
+                    if (ok) {
+                        this.practiceState.locked = true;
+                        this.practiceState.clearedCount += 1;
+                        profileManager.resolveMathMistake(item);
+                        const prog = profileManager.awardLearningProgress({
+                            title: `🎯 [错题消消乐] 成功攻克错题 ${item.expr || item.formula || ''}`,
+                            subjectTag: '错题攻坚',
+                            badges: 0,
+                            stars: 1,
+                            gotTicket: false,
+                            combo: this.practiceState.clearedCount,
+                            isMath: true
+                        });
+                        const rewardTip = prog.actualBadges > 0 ? `🏅+${prog.actualBadges}枚徽章！` : `⭐攒星 ${prog.starProgress}/3`;
+                        fbEl.style.color = '#55efc4';
+                        fbEl.textContent = `🎉 答对啦！错题已消灭！${rewardTip}`;
+                        this.renderAll();
+                        this.renderReportList();
+                        setTimeout(() => this.nextPracticeQuestion(), 650);
+                    } else {
+                        fbEl.style.color = '#ff7675';
+                        fbEl.textContent = `💡 差一点点（正确答案是 ${item.answer ?? item.expected}），下一轮再接再厉！`;
+                        setTimeout(() => this.nextPracticeQuestion(), 900);
+                    }
+                }
+            });
+            return;
+        }
+
         const promptText = item.questionText || item.storyHtml || item.formula || item.expr || '';
         stage.innerHTML = `
             <div class="hub-prac-header">
@@ -898,7 +1053,7 @@ class PortalHubApp {
 
             if (toolbar) {
                 const packOpts = [
-                    `<option value="all">📚 全部12大主题 (${ALL_WORDS.length}词)</option>`,
+                    `<option value="all">🌟 全部20大主题 (${ALL_WORDS.length}词)</option>`,
                     ...WORD_PACKS.map(p => `<option value="${p.id}" ${this.enReportPackFilter === p.id ? 'selected' : ''}>${p.icon} ${p.name} (${p.words.length}词)</option>`)
                 ].join('');
                 toolbar.innerHTML = `

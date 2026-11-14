@@ -6,7 +6,7 @@
  * 3. PNG / JPG / GIF / SVG / ICO 静态美术资源采用 Stale-While-Revalidate（二次秒开）。
  */
 
-const CACHE_VERSION = 'chongwuyy-v20261113-opt1';
+const CACHE_VERSION = 'chongwuyy-v20261114-modes1';
 const PRECACHE_URLS = [
     './',
     './index.html',
@@ -15,6 +15,7 @@ const PRECACHE_URLS = [
     './shared/unifiedProfile.js',
     './shared/mathEngine.js',
     './shared/englishEngine.js',
+    './shared/questionWidgets.js',
     './shared/audioTTS.js',
     './shared/parentGate.js',
     './shared/smartChalkboard.js',

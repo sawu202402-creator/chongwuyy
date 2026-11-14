@@ -15,14 +15,15 @@ import {
 import { LEVEL_CONFIGS, ensureStageConfigLoaded } from './map.js?v=20261113_opt_v1';
 import { sound } from './audio.js?v=20261113_opt_v1';
 import { assetsManager } from './assetsLoader.js?v=20261113_opt_v1';
-import { MathEngine } from './mathEngine.js?v=20261113_opt_v1';
+import { MathEngine, MATH_QUESTION_TYPES, ALL_MATH_TYPE_IDS } from './mathEngine.js?v=20261114_modes_v1';
 import { GameEngine } from './gameEngine.js?v=20261113_opt_v1';
 import { MapEditor } from './editor.js?v=20261113_opt_v1';
 import { LevelSelectManager } from './levelSelect.js?v=20261113_opt_v1';
 import { profileManager } from '../../shared/unifiedProfile.js';
 import { SmartChalkboard } from '../../shared/smartChalkboard.js';
 import { sharedSpeech } from '../../shared/audioTTS.js';
-import { ENGLISH_LEVELS, WORD_PACKS, ALL_WORDS } from '../../shared/englishEngine.js';
+import { ENGLISH_LEVELS, WORD_PACKS, ALL_WORDS, ENGLISH_QUESTION_TYPES, ALL_ENGLISH_TYPE_IDS } from '../../shared/englishEngine.js';
+import { renderEnabledTypesSelector } from '../../shared/questionWidgets.js';
 import { DAILY_BADGE_CAP_OPTIONS } from '../../pet/js/config.js';
 import { requireParentGate } from '../../shared/parentGate.js';
 
@@ -470,13 +471,17 @@ const smartBoard = new SmartChalkboard({
     onEnglishBattleResult: (battleRes, meta) => {
         if (battleRes.correct) {
             feedbackMsg.className = 'bb-feedback correct';
-            const campTxt = meta.isCampFinish ? '🎉 5词背诵营通关！' : `✓ 英语答对【${meta.wordObj?.word || ''}】！`;
-            feedbackMsg.textContent = `${campTxt}+${battleRes.goldGain}G${meta.badgeSuffix || ''}`;
+            const prefix = meta.isInteractiveMath
+                ? `✓ 数学答对！`
+                : (meta.isCampFinish ? '🎉 5词背诵营通关！' : `✓ 英语答对【${meta.wordObj?.word || ''}】！`);
+            feedbackMsg.textContent = `${prefix}+${battleRes.goldGain}G${meta.badgeSuffix || ''}`;
             triggerMascotReaction('correct', battleRes.combo);
             gameEngine.handleMathAnswerCorrect(battleRes);
         } else {
             feedbackMsg.className = 'bb-feedback wrong';
-            feedbackMsg.textContent = `✗ 选错啦，正确单词是 ${meta.wordObj?.word || ''} (${meta.wordObj?.zh || ''})`;
+            feedbackMsg.textContent = meta.isInteractiveMath
+                ? `✗ 答错啦，正确答案是 ${battleRes.expected}，继续加油！`
+                : `✗ 选错啦，正确单词是 ${meta.wordObj?.word || ''} (${meta.wordObj?.zh || ''})`;
             gameEngine.handleMathAnswerWrong();
             triggerMascotReaction('wrong');
         }
@@ -1518,6 +1523,8 @@ let modalEditPreset = 'grade1_2';
 let modalEditEnLevel = 'level2_match';
 let modalEditEnPack = 'all';
 let modalEditDailyCap = 30;
+let modalEditMathTypes = [...ALL_MATH_TYPE_IDS];
+let modalEditEnTypes = [...ALL_ENGLISH_TYPE_IDS];
 
 function syncUserProfileUI() {
     const user = profileManager.getActiveUser();
@@ -1606,6 +1613,12 @@ function populateUserForm(user, isNew = false) {
     modalEditEnLevel = user.englishConfig?.level || 'level2_match';
     modalEditEnPack = user.englishConfig?.packId || 'all';
     modalEditDailyCap = user.dailyBadgeCap || 30;
+    modalEditMathTypes = Array.isArray(user.difficulty?.enabledTypes) && user.difficulty.enabledTypes.length > 0
+        ? [...user.difficulty.enabledTypes]
+        : [...ALL_MATH_TYPE_IDS];
+    modalEditEnTypes = Array.isArray(user.englishConfig?.enabledTypes) && user.englishConfig.enabledTypes.length > 0
+        ? [...user.englishConfig.enabledTypes]
+        : [...ALL_ENGLISH_TYPE_IDS];
 
     // 填入名字
     if (inputKidName) {
@@ -1732,7 +1745,32 @@ function populateUserForm(user, isNew = false) {
         });
     }
 
+    // 渲染数学启用题型多选 (9种)
+    const carrotMathTypesBox = document.getElementById('carrotMathTypesBox');
+    if (carrotMathTypesBox) {
+        renderEnabledTypesSelector(
+            carrotMathTypesBox,
+            MATH_QUESTION_TYPES,
+            modalEditMathTypes,
+            (nextIds) => { modalEditMathTypes = nextIds; },
+            ['calc', 'compare', 'bond_pop', 'sequence_train', 'clock_money']
+        );
+    }
+
     // 渲染少儿英语题型、词包与每日徽章上限（与大厅/萌宠店/PVZ 100%对齐）
+    const carrotEnTypesBox = document.getElementById('carrotEnTypesBox');
+    const drawCarrotEnTypes = () => {
+        if (!carrotEnTypesBox) return;
+        renderEnabledTypesSelector(
+            carrotEnTypesBox,
+            ENGLISH_QUESTION_TYPES,
+            modalEditEnTypes,
+            (nextIds) => { modalEditEnTypes = nextIds; },
+            ['listen_pic', 'match_word', 'bubble_pair', 'riddle_qa']
+        );
+    };
+    drawCarrotEnTypes();
+
     const enLevelGrid = document.getElementById('carrotEnLevelGrid');
     if (enLevelGrid) {
         enLevelGrid.innerHTML = '';
@@ -1743,6 +1781,10 @@ function populateUserForm(user, isNew = false) {
             btn.textContent = lvl.name;
             btn.addEventListener('click', () => {
                 modalEditEnLevel = lvl.id;
+                if (Array.isArray(lvl.presetTypes) && lvl.presetTypes.length > 0) {
+                    modalEditEnTypes = [...lvl.presetTypes];
+                    drawCarrotEnTypes();
+                }
                 enLevelGrid.querySelectorAll('.range-chip').forEach(c => c.classList.remove('selected'));
                 btn.classList.add('selected');
             });
@@ -1753,7 +1795,7 @@ function populateUserForm(user, isNew = false) {
     const enPackSelect = document.getElementById('carrotEnPackSelect');
     if (enPackSelect) {
         const packOpts = [
-            `<option value="all">📚 全部12主题 (${ALL_WORDS.length}词)</option>`,
+            `<option value="all">🌟 全部20主题 (${ALL_WORDS.length}词)</option>`,
             ...WORD_PACKS.map(p => `<option value="${p.id}">${p.icon} ${p.name}</option>`)
         ].join('');
         enPackSelect.innerHTML = packOpts;
@@ -1836,20 +1878,23 @@ function saveUserProfileModal() {
             range: modalEditRange,
             maxMultiplier: modalEditMultiplier,
             allowFillBlank: !!chkOptFillBlank?.checked,
-            allowCarryBorrow: !!chkOptCarryBorrow?.checked
+            allowCarryBorrow: !!chkOptCarryBorrow?.checked,
+            enabledTypes: modalEditMathTypes
         };
     } else {
         const pLvl = DIFFICULTY_LEVELS[modalEditPreset];
         diff = {
             mode: 'preset',
             presetGrade: modalEditPreset,
-            maxMultiplier: pLvl?.defaultMultiplier || 5
+            maxMultiplier: pLvl?.defaultMultiplier || 5,
+            enabledTypes: modalEditMathTypes
         };
     }
 
     const englishConfig = {
         level: modalEditEnLevel || 'level2_match',
-        packId: modalEditEnPack || 'all'
+        packId: modalEditEnPack || 'all',
+        enabledTypes: modalEditEnTypes
     };
 
     if (isNew) {
@@ -1992,9 +2037,9 @@ btnStartGame.addEventListener('click', async () => {
     const user = profileManager.getActiveUser();
     mathEngine.setDifficulty(user.difficulty);
     syncUserProfileUI();
-    updateQuestionUI();
     await ensureStageConfigLoaded(gameEngine.currentLevel || 1);
     gameEngine.startNewGame();
+    updateQuestionUI();
     checkNewTowerAlmanacForStage(gameEngine.currentLevel || 1);
 });
 

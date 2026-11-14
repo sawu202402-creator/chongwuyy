@@ -21,9 +21,26 @@ import {
     getShopById
 } from './config.js';
 import { soundEngine } from './audio.js';
-import { mathEngine, MathEngine } from './mathEngine.js';
-import { englishEngine, EnglishEngine, WORD_PACKS, ALL_WORDS } from './englishEngine.js';
-import { profileManager } from './profileManager.js';
+import { mathEngine, MathEngine, MATH_QUESTION_TYPES, ALL_MATH_TYPE_IDS } from './mathEngine.js';
+import {
+    englishEngine,
+    EnglishEngine,
+    WORD_PACKS,
+    ALL_WORDS,
+    ENGLISH_QUESTION_TYPES,
+    ALL_ENGLISH_TYPE_IDS,
+    ENGLISH_LEVELS
+} from './englishEngine.js';
+import {
+    profileManager,
+    sanitizeMathEnabledTypes,
+    sanitizeEnglishEnabledTypes
+} from './profileManager.js';
+import {
+    renderMathInteractiveWidget,
+    renderEnglishQuizWidget,
+    renderEnabledTypesSelector
+} from '../../shared/questionWidgets.js';
 import { requireParentGate } from '../../shared/parentGate.js';
 
 // ==================== 全屏高帧率飞行徽章与礼花粒子引擎 ====================
@@ -161,11 +178,15 @@ class PetWonderTownApp {
         this.townPendingPlacement = null;  // 若不为null，点击小镇地块直接落点
 
         // 右侧学习面板状态
-        this.activeSubject = 'math';       // 'math' | 'english' | 'review'
+        this.activeSubject = 'grand_random'; // 'grand_random' | 'math' | 'english' | 'review'
+        this._grandActivePanel = 'math';     // 在 grand_random 下当前这道题属于 'math' 还是 'english'
+        this._grandStreakSubject = '';
+        this._grandStreakCount = 0;
+        this.mathSubMode = 'random';         // 'random' | 9大数学题型ID之一
         this.mathInputStr = '';
-        this.engSubMode = 'vocab_camp';    // 'vocab_camp' (5词背诵营) | 'quick_quiz' (听说闪电闯关)
-        this.activeWordPackId = 'pack_animals';
-        this.spellFilledMap = {};          // 拼写题当前填入槽位 { missingIdxPos: { char, tileId } }
+        this._numericKeypadActive = true;
+        this.engSubMode = 'english_random';  // 'vocab_camp' | 'english_random' | 8大英语题型ID之一
+        this.activeWordPackId = 'all';       // 默认开启全部20主题·360词洗牌防重
         this.quizLocked = false;
 
         // 个人档案弹窗临时编辑状态
@@ -176,8 +197,10 @@ class PetWonderTownApp {
         this.draftMathPreset = 'grade1_2';
         this.draftMathRange = 20;
         this.draftMathMul = 9;
-        this.draftEngLevel = 'level2_match';
+        this.draftMathTypes = [...ALL_MATH_TYPE_IDS];
+        this.draftEngLevel = 'mixed';
         this.draftEngPack = 'all';
+        this.draftEngTypes = [...ALL_ENGLISH_TYPE_IDS];
 
         this.init();
     }
@@ -186,8 +209,8 @@ class PetWonderTownApp {
         this.syncEnginesWithActiveUser();
         this.bindGlobalEvents();
         this.renderAll();
-        this.renderCurrentMathQuestion();
         this.initVocabCampForPack(this.activeWordPackId, false);
+        this.switchSubjectTab(this.activeSubject, false, false);
     }
 
     syncEnginesWithActiveUser() {
@@ -206,11 +229,101 @@ class PetWonderTownApp {
         }
         mathEngine.setConfig(u.mathConfig);
         englishEngine.setConfig(u.englishConfig);
-        if (u.englishConfig?.packId && u.englishConfig.packId !== 'all') {
-            this.activeWordPackId = u.englishConfig.packId;
+        this.activeWordPackId = u.englishConfig?.packId || 'all';
+        englishEngine.config.packId = this.activeWordPackId;
+
+        const pm = u.preferredSmartMode || 'grand_random';
+        if (pm === 'grand_random') {
+            this.activeSubject = 'grand_random';
+            this.mathSubMode = 'random';
+            this.engSubMode = 'english_random';
+        } else if (pm === 'math_random' || pm === 'math') {
+            this.activeSubject = 'math';
+            this.mathSubMode = 'random';
+        } else if (ALL_MATH_TYPE_IDS.includes(pm)) {
+            this.activeSubject = 'math';
+            this.mathSubMode = pm;
+        } else if (pm === 'english_random' || pm === 'english') {
+            this.activeSubject = 'english';
+            this.engSubMode = 'english_random';
+        } else if (pm === 'vocab_camp') {
+            this.activeSubject = 'english';
+            this.engSubMode = 'vocab_camp';
+        } else if (ALL_ENGLISH_TYPE_IDS.includes(pm)) {
+            this.activeSubject = 'english';
+            this.engSubMode = pm;
+        } else {
+            this.activeSubject = 'grand_random';
+            this.mathSubMode = 'random';
+            this.engSubMode = 'english_random';
         }
+
+        mathEngine.setSubMode(this.mathSubMode);
         this.pairDraftShopId = u.activeShopId || 'supermarket';
         this.pairDraftPetId = u.activePetId || 'rabbit';
+    }
+
+    renderSubModePills() {
+        const mathWrap = document.getElementById('petMathSubPills');
+        if (mathWrap) {
+            const u = profileManager.getActiveUser();
+            const enabledCount = sanitizeMathEnabledTypes(u?.mathConfig?.enabledTypes).length;
+            const items = [
+                { id: 'random', label: `🎲 数学随机(${enabledCount})` },
+                ...MATH_QUESTION_TYPES.map(t => ({ id: t.id, label: t.shortName }))
+            ];
+            mathWrap.innerHTML = '';
+            items.forEach(item => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                const isActive = this.activeSubject === 'math'
+                    ? this.mathSubMode === item.id
+                    : (this.activeSubject === 'grand_random' && item.id === 'random');
+                btn.className = `sub-pill ${isActive ? 'active' : ''}`;
+                btn.dataset.mathmode = item.id;
+                btn.textContent = item.label;
+                btn.onclick = () => {
+                    soundEngine.playTap();
+                    this.activeSubject = 'math';
+                    this.mathSubMode = item.id;
+                    profileManager.setPreferredSmartMode(item.id === 'random' ? 'math_random' : item.id);
+                    mathEngine.setSubMode(item.id);
+                    mathEngine.nextQuestion();
+                    this.switchSubjectTab('math', false, false);
+                };
+                mathWrap.appendChild(btn);
+            });
+        }
+
+        const engWrap = document.getElementById('petEngSubPills');
+        if (engWrap) {
+            const u = profileManager.getActiveUser();
+            const enabledCount = sanitizeEnglishEnabledTypes(u?.englishConfig?.enabledTypes).length;
+            const items = [
+                { id: 'vocab_camp', label: '📖 5词背诵' },
+                { id: 'english_random', label: `🎲 英语随机(${enabledCount})` },
+                ...ENGLISH_QUESTION_TYPES.map(t => ({ id: t.id, label: t.shortName }))
+            ];
+            engWrap.innerHTML = '';
+            items.forEach(item => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                const isActive = this.activeSubject === 'english'
+                    ? this.engSubMode === item.id
+                    : (this.activeSubject === 'grand_random' && item.id === 'english_random');
+                btn.className = `sub-pill ${isActive ? 'active' : ''}`;
+                btn.dataset.engmode = item.id;
+                btn.textContent = item.label;
+                btn.onclick = () => {
+                    soundEngine.playTap();
+                    this.activeSubject = 'english';
+                    this.engSubMode = item.id;
+                    profileManager.setPreferredSmartMode(item.id);
+                    this.switchSubjectTab('english', true, true);
+                };
+                engWrap.appendChild(btn);
+            });
+        }
     }
 
     // ==================== 全局刷新渲染 ====================
@@ -222,6 +335,7 @@ class PetWonderTownApp {
         this.renderGachaView();
         this.renderSiblingVisitor();
         this.updateReviewCountBadge();
+        this.renderSubModePills();
         this.renderBoardFooter();
     }
 
@@ -820,7 +934,45 @@ class PetWonderTownApp {
         });
     }
 
-    // ==================== 右侧面板 1：数学口算 · 乘除应用题 · 销量数据图表 ====================
+    // ==================== 🎲 数英大随机统一调度 ====================
+    drawNextGrandRandomQuestion(autoSpeak = false) {
+        let nextSubj = Math.random() < 0.5 ? 'math' : 'english';
+        if (this._grandStreakSubject === nextSubj && this._grandStreakCount >= 2) {
+            nextSubj = nextSubj === 'math' ? 'english' : 'math';
+        }
+        if (this._grandStreakSubject === nextSubj) {
+            this._grandStreakCount += 1;
+        } else {
+            this._grandStreakSubject = nextSubj;
+            this._grandStreakCount = 1;
+        }
+        this._grandActivePanel = nextSubj;
+
+        document.querySelectorAll('.subj-tab').forEach(b => {
+            b.classList.toggle('active', b.dataset.subj === 'grand_random');
+        });
+        document.getElementById('panelReview').style.display = 'none';
+        this.renderSubModePills();
+
+        if (nextSubj === 'math') {
+            document.getElementById('panelMath').style.display = 'flex';
+            document.getElementById('panelEnglish').style.display = 'none';
+            mathEngine.setSubMode('random');
+            const q = mathEngine.nextQuestion();
+            this.renderCurrentMathQuestion(q);
+            document.getElementById('mathFeedbackBar').textContent = '🎲 数英大随机连击中 · 答对数学或英语都可赚徽章喂萌宠！';
+        } else {
+            document.getElementById('panelMath').style.display = 'none';
+            document.getElementById('panelEnglish').style.display = 'flex';
+            englishEngine.config.packId = this.activeWordPackId;
+            this.renderWordPackStrip();
+            const eq = englishEngine.nextQuickQuestion(null, null);
+            this.renderEnglishQuizQuestion(eq, autoSpeak);
+            document.getElementById('engFeedbackBar').textContent = '🎲 数英大随机连击中 · 点击喇叭可反复听纯正美音！';
+        }
+    }
+
+    // ==================== 右侧面板 1：数学 9 大题型（数字小黑板 + 6大新互动果冻组件） ====================
     renderCurrentMathQuestion(forcedQ = null) {
         if (this._wrongMathTimer) {
             clearTimeout(this._wrongMathTimer);
@@ -829,6 +981,31 @@ class PetWonderTownApp {
         const q = forcedQ || mathEngine.currentQuestion || mathEngine.nextQuestion();
         this.mathInputStr = '';
         this.updateMathInputView();
+
+        const interactiveStage = document.getElementById('petMathInteractiveStage');
+        const boardBox = document.getElementById('mathBoardBox');
+        const inputRow = document.getElementById('mathInputRow');
+        const keypad = document.getElementById('mathKeypad');
+
+        if (q.isInteractiveWidget && interactiveStage) {
+            this._numericKeypadActive = false;
+            boardBox.style.display = 'none';
+            if (inputRow) inputRow.style.display = 'none';
+            keypad.style.display = 'none';
+            interactiveStage.style.display = 'flex';
+            renderMathInteractiveWidget(interactiveStage, q, {
+                theme: 'light',
+                onTapSound: () => soundEngine.playTap(),
+                onEvaluate: (ok, userAnsLabel) => this.handleInteractiveMathEvaluated(ok, userAnsLabel)
+            });
+            return;
+        }
+
+        this._numericKeypadActive = true;
+        if (interactiveStage) interactiveStage.style.display = 'none';
+        boardBox.style.display = 'flex';
+        if (inputRow) inputRow.style.display = 'grid';
+        keypad.style.display = 'grid';
 
         document.getElementById('mathHintTag').textContent = `🎯 ${q.hint || '智慧数学挑战'}`;
         document.getElementById('mathUnitBadge').textContent = q.unitLabel || '';
@@ -890,25 +1067,24 @@ class PetWonderTownApp {
         }
     }
 
-    handleMathSubmit() {
-        if (!this.mathInputStr) return;
-        const res = mathEngine.checkAnswer(this.mathInputStr);
+    _processMathAttemptResult(res, flySourceEl) {
         const fb = document.getElementById('mathFeedbackBar');
         this.updateComboHud(res.combo);
+        const typeMeta = MATH_QUESTION_TYPES.find(t => t.id === res.question?.kind);
+        const kindTitle = typeMeta ? typeMeta.name.replace(/^[^\s]+\s*/, '') : '数学挑战';
 
         if (res.isCorrect) {
             soundEngine.playCorrect();
             if (res.question.isReview) {
                 profileManager.resolveMathMistake(res.question);
             }
-            const tagMap = { calc: '数学口算', word: '乘除应用题', data: '数据图表认知' };
             const recTitle = res.combo >= 3
-                ? `🔥 ${tagMap[res.question.kind] || '数学'}达成 ${res.combo} 连对！(${res.question.formula})`
-                : `✅ 完成${tagMap[res.question.kind] || '数学挑战'}：${res.question.formula}`;
+                ? `🔥 ${kindTitle}达成 ${res.combo} 连对！(${res.question.formula || res.question.expr})`
+                : `✅ 完成${kindTitle}：${res.question.formula || res.question.expr}`;
 
             const award = profileManager.awardLearningProgress({
                 title: recTitle,
-                subjectTag: tagMap[res.question.kind] || '数学天地',
+                subjectTag: kindTitle,
                 badges: res.badgeEarned,
                 stars: res.starEarned,
                 gotTicket: res.gotGachaTicket,
@@ -917,12 +1093,12 @@ class PetWonderTownApp {
             });
 
             if (award.alreadyAtCap) {
-                fb.textContent = `🌟 答对啦！今日徽章已集满 (${award.dailyEarned}/${award.dailyCap})，当前练习继续巩固熟练度哦！`;
+                fb.textContent = `🌟 答对啦！今日徽章已集满 (${award.dailyEarned}/${award.dailyCap})，继续练习巩固熟练度！`;
             } else if (award.actualTicket) {
                 fb.textContent = `🎉 15连对大满贯！+${award.actualBadges}🏅 并获赠 1 张 🎟️ 神秘盲盒券！`;
             } else if (award.actualBadges > 0) {
                 fb.textContent = `🌟 棒极啦！荣获 +${award.actualBadges} 🏅 徽章（今日 ${award.dailyEarned}/${award.dailyCap}）！`;
-                this.fx.flyBadges(document.getElementById('btnSubmitMath'), document.getElementById('heroMainSprite'), award.actualBadges);
+                this.fx.flyBadges(flySourceEl, document.getElementById('heroMainSprite'), award.actualBadges);
             } else {
                 fb.textContent = `⭐ 答对集星！学习星 ${award.starProgress}/3（再集 ${3 - award.starProgress} 星合成 1 枚🏅）！`;
             }
@@ -933,16 +1109,47 @@ class PetWonderTownApp {
             if (award.reachedCapNow) {
                 this.celebrateDailyCapReached(award.dailyCap);
             }
-
-            mathEngine.nextQuestion();
-            this.renderCurrentMathQuestion();
-            if (this.activeSubject === 'review') this.renderReviewPanel();
+            return true;
         } else {
             soundEngine.playWrong();
             profileManager.recordMathMistake(res.question, res.userAns);
             this.updateReviewCountBadge();
+            fb.textContent = `💪 差一点点（正确答案是 ${res.expected}），${res.question.visualTip || '下一题加油！'}`;
+            return false;
+        }
+    }
 
-            // 答错贴心展示图解思路，清空当前输入并在短暂展示后切换新题
+    handleInteractiveMathEvaluated(isCorrect, userAnsLabel = '') {
+        const res = mathEngine.evaluateInteractiveAttempt(isCorrect, userAnsLabel, false);
+        const stageEl = document.getElementById('petMathInteractiveStage');
+        const ok = this._processMathAttemptResult(res, stageEl);
+
+        if (this._wrongMathTimer) clearTimeout(this._wrongMathTimer);
+        this._wrongMathTimer = setTimeout(() => {
+            this._wrongMathTimer = null;
+            if (this.activeSubject === 'grand_random') {
+                this.drawNextGrandRandomQuestion(true);
+            } else {
+                mathEngine.nextQuestion();
+                this.renderCurrentMathQuestion();
+                if (this.activeSubject === 'review') this.renderReviewPanel();
+            }
+        }, ok ? 650 : 1300);
+    }
+
+    handleMathSubmit() {
+        if (!this.mathInputStr) return;
+        const res = mathEngine.checkAnswer(this.mathInputStr);
+        const ok = this._processMathAttemptResult(res, document.getElementById('btnSubmitMath'));
+
+        if (ok) {
+            if (this.activeSubject === 'grand_random') {
+                this.drawNextGrandRandomQuestion(true);
+            } else {
+                this.renderCurrentMathQuestion();
+                if (this.activeSubject === 'review') this.renderReviewPanel();
+            }
+        } else {
             this.mathInputStr = '';
             this.updateMathInputView();
             if (res.question.visualTip) {
@@ -950,21 +1157,29 @@ class PetWonderTownApp {
                 tipBox.style.display = 'block';
                 tipBox.textContent = `💡 小提示：${res.question.visualTip}`;
             }
-            fb.textContent = `💪 差一点点（正确答案是 ${res.expected}），已加入双倍复习屋，下一题加油！`;
             if (this._wrongMathTimer) clearTimeout(this._wrongMathTimer);
             this._wrongMathTimer = setTimeout(() => {
                 this._wrongMathTimer = null;
-                mathEngine.nextQuestion();
-                this.renderCurrentMathQuestion();
+                if (this.activeSubject === 'grand_random') {
+                    this.drawNextGrandRandomQuestion(true);
+                } else {
+                    mathEngine.nextQuestion();
+                    this.renderCurrentMathQuestion();
+                }
             }, 1200);
         }
     }
 
-    // ==================== 右侧面板 2：英语【魔法背单词 + 听说闪电闯关】 ====================
+    // ==================== 右侧面板 2：英语【20主题360词 · 5词背诵 + 8大互动题型】 ====================
     renderWordPackStrip() {
         const strip = document.getElementById('engPackStrip');
+        if (!strip) return;
         strip.innerHTML = '';
-        WORD_PACKS.forEach(p => {
+        const packsWithAll = [
+            { id: 'all', icon: '🌟', name: `全部20主题(${ALL_WORDS.length})` },
+            ...WORD_PACKS
+        ];
+        packsWithAll.forEach(p => {
             const btn = document.createElement('button');
             btn.type = 'button';
             btn.className = `pack-chip ${this.activeWordPackId === p.id ? 'active' : ''}`;
@@ -972,6 +1187,7 @@ class PetWonderTownApp {
             btn.onclick = () => {
                 soundEngine.playTap();
                 this.activeWordPackId = p.id;
+                englishEngine.config.packId = p.id;
                 const active = profileManager.getActiveUser();
                 if (active) {
                     profileManager.updateUserSettings(active.id, {
@@ -979,11 +1195,13 @@ class PetWonderTownApp {
                     });
                 }
                 this.renderWordPackStrip();
-                if (this.engSubMode === 'vocab_camp') {
+                if (this.activeSubject === 'grand_random') {
+                    this.renderEnglishQuizQuestion(englishEngine.nextQuickQuestion(null, null), true);
+                } else if (this.engSubMode === 'vocab_camp') {
                     this.initVocabCampForPack(p.id, true);
                 } else {
-                    englishEngine.config.packId = p.id;
-                    this.renderEnglishQuizQuestion(englishEngine.nextQuickQuestion(), true);
+                    const forcedType = ALL_ENGLISH_TYPE_IDS.includes(this.engSubMode) ? this.engSubMode : null;
+                    this.renderEnglishQuizQuestion(englishEngine.nextQuickQuestion(null, forcedType), true);
                 }
             };
             strip.appendChild(btn);
@@ -992,7 +1210,7 @@ class PetWonderTownApp {
 
     initVocabCampForPack(packId, speakFirst = false) {
         const u = profileManager.getActiveUser();
-        englishEngine.startVocabStudySession(packId, u.wordMastery || {});
+        englishEngine.startVocabStudySession(packId || 'all', u.wordMastery || {});
         this.renderWordPackStrip();
         this.renderVocabFlashcard(speakFirst);
     }
@@ -1025,161 +1243,42 @@ class PetWonderTownApp {
         }
 
         if (autoSpeak && this.activeSubject === 'english') {
-            soundEngine.speakEnglish(w.word, false);
+            soundEngine.speakEnglish(w.word, false, w.phonics);
         }
     }
 
     renderEnglishQuizQuestion(q, autoSpeak = true) {
+        if (!q) return;
         this.quizLocked = false;
+        this._numericKeypadActive = false;
         englishEngine.currentQuiz = q;
 
         document.getElementById('engStudyWrap').style.display = 'none';
         document.getElementById('engQuizWrap').style.display = 'flex';
-        document.getElementById('engQuizHint').textContent = q.hint;
 
-        const progEl = document.getElementById('engSessionProgress');
         const sess = englishEngine.studySession;
-        if (this.engSubMode === 'vocab_camp' && sess && sess.phase === 'quiz') {
-            progEl.style.display = 'inline-block';
-            progEl.textContent = `背词通关 ${sess.quizIdx + 1}/${sess.quizQueue.length}`;
-        } else {
-            progEl.style.display = 'none';
+        let badgeTitle = '⚡ 英语闪电闯关';
+        if (this.activeSubject === 'grand_random') {
+            badgeTitle = '🎲 大随机 · 英语';
+        } else if (this.engSubMode === 'vocab_camp' && sess && sess.phase === 'quiz') {
+            badgeTitle = `📖 背词通关 ${sess.quizIdx + 1}/${sess.quizQueue.length}`;
+        } else if (ALL_ENGLISH_TYPE_IDS.includes(this.engSubMode)) {
+            const tm = ENGLISH_QUESTION_TYPES.find(t => t.id === this.engSubMode);
+            if (tm) badgeTitle = tm.name;
         }
 
-        const promptArea = document.getElementById('engPromptArea');
-        const optGrid = document.getElementById('engOptionsGrid');
-        const spellArea = document.getElementById('engSpellArea');
-
-        promptArea.innerHTML = '';
-        optGrid.innerHTML = '';
-
-        if (q.mode === 'listen_pic') {
-            optGrid.style.display = 'grid';
-            spellArea.style.display = 'none';
-
-            promptArea.innerHTML = `
-                <div style="display:flex; gap:8px;">
-                    <button type="button" class="eq-big-speaker-btn" id="btnQuizSpeakNow">🔊 点击听单词发音</button>
-                    <button type="button" class="btn-voice-pill slow" id="btnQuizSpeakSlow">🐢 慢读</button>
-                </div>
-            `;
-            q.options.forEach(opt => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'eq-opt-btn';
-                btn.innerHTML = `<span class="opt-emoji">${opt.icon}</span><span style="font-size:14px;">${opt.zh}</span>`;
-                btn.onclick = () => this.submitEnglishChoice(opt.id, btn, q);
-                optGrid.appendChild(btn);
-            });
-        } else if (q.mode === 'match_word') {
-            optGrid.style.display = 'grid';
-            spellArea.style.display = 'none';
-
-            promptArea.innerHTML = `
-                <div style="font-size:48px; line-height:1;">${q.wordObj.icon}</div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <strong style="font-size:17px;">${q.wordObj.zh}</strong>
-                    <button type="button" class="btn-voice-pill" id="btnQuizSpeakNow">🔊 听音</button>
-                    <button type="button" class="btn-voice-pill slow" id="btnQuizSpeakSlow">🐢 慢读</button>
-                </div>
-            `;
-            q.options.forEach(opt => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'eq-opt-btn';
-                btn.innerHTML = `<span class="opt-word">${opt.phonicsHtml}</span>`;
-                btn.onclick = () => this.submitEnglishChoice(opt.id, btn, q);
-                optGrid.appendChild(btn);
-            });
-        } else {
-            // 果冻字母拼写
-            optGrid.style.display = 'none';
-            spellArea.style.display = 'flex';
-            this.spellFilledMap = {};
-
-            promptArea.innerHTML = `
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:42px;">${q.wordObj.icon}</span>
-                    <div>
-                        <div style="font-size:17px; font-weight:900;">${q.wordObj.zh}</div>
-                        <div style="display:flex; gap:6px; margin-top:4px;">
-                            <button type="button" class="btn-voice-pill" id="btnQuizSpeakNow" style="padding:4px 10px; font-size:11px;">🔊 发音</button>
-                            <button type="button" class="btn-voice-pill slow" id="btnQuizSpeakSlow" style="padding:4px 10px; font-size:11px;">🐢 慢读</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            this.renderSpellInteractiveUI(q);
-        }
-
-        const spkBtn = document.getElementById('btnQuizSpeakNow');
-        const slowBtn = document.getElementById('btnQuizSpeakSlow');
-        if (spkBtn) spkBtn.onclick = () => soundEngine.speakEnglish(q.speakText, false);
-        if (slowBtn) slowBtn.onclick = () => soundEngine.speakEnglish(q.speakText, true);
-
-        if (autoSpeak) {
-            soundEngine.speakEnglish(q.speakText, false);
-        }
-    }
-
-    renderSpellInteractiveUI(q) {
-        const slotsRow = document.getElementById('engSpellSlots');
-        const tilesPool = document.getElementById('engSpellTiles');
-        slotsRow.innerHTML = '';
-        tilesPool.innerHTML = '';
-
-        q.chars.forEach((ch, idx) => {
-            const isMissing = q.missingIndices.includes(idx);
-            const slot = document.createElement('div');
-            if (!isMissing) {
-                slot.className = 'spell-slot';
-                slot.textContent = ch;
-            } else {
-                const filled = this.spellFilledMap[idx];
-                slot.className = 'spell-slot missing';
-                slot.textContent = filled ? filled.char : '_';
-                if (filled) {
-                    slot.style.cursor = 'pointer';
-                    slot.onclick = () => {
-                        soundEngine.playTap();
-                        delete this.spellFilledMap[idx];
-                        this.renderSpellInteractiveUI(q);
-                    };
-                }
-            }
-            slotsRow.appendChild(slot);
-        });
-
-        const usedIds = Object.values(this.spellFilledMap).map(v => v.tileId);
-        q.tiles.forEach(tile => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = `spell-tile-btn ${usedIds.includes(tile.tileId) ? 'used' : ''}`;
-            btn.textContent = tile.char;
-            btn.onclick = () => {
+        const stageEl = document.getElementById('petEngQuizStage');
+        renderEnglishQuizWidget(stageEl, q, {
+            theme: 'light',
+            badgeTitle,
+            autoSpeak,
+            speakFn: (txt, slow, ph) => soundEngine.speakEnglish(txt, slow, ph),
+            onTapSound: () => soundEngine.playTap(),
+            onEvaluate: (ok, userAns) => {
                 if (this.quizLocked) return;
-                soundEngine.playTap();
-                const nextEmptyIdx = q.missingIndices.find(idx => !this.spellFilledMap[idx]);
-                if (nextEmptyIdx === undefined) return;
-                this.spellFilledMap[nextEmptyIdx] = tile;
-                this.renderSpellInteractiveUI(q);
-
-                // 检查是否已全部填满
-                if (q.missingIndices.every(idx => Boolean(this.spellFilledMap[idx]))) {
-                    const userWord = q.chars.map((c, idx) => (this.spellFilledMap[idx] ? this.spellFilledMap[idx].char : c)).join('');
-                    const ok = userWord.toLowerCase() === q.expectedWord;
-                    this.handleEnglishEvaluated(ok, q);
-                }
-            };
-            tilesPool.appendChild(btn);
+                this.handleEnglishEvaluated(ok, q, userAns);
+            }
         });
-    }
-
-    submitEnglishChoice(selectedId, btnEl, q) {
-        if (this.quizLocked) return;
-        const ok = selectedId === q.answerId;
-        btnEl.classList.add(ok ? 'correct' : 'wrong');
-        this.handleEnglishEvaluated(ok, q);
     }
 
     handleEnglishEvaluated(isCorrect, q) {
@@ -1187,15 +1286,23 @@ class PetWonderTownApp {
         const res = englishEngine.evaluateResult(isCorrect, q.wordObj, q.isReview);
         const fb = document.getElementById('engFeedbackBar');
         this.updateComboHud(res.combo);
+        const enTypeMeta = ENGLISH_QUESTION_TYPES.find(t => t.id === q.mode);
+        const modeTag = enTypeMeta ? enTypeMeta.shortName : '少儿英语';
 
         if (isCorrect) {
             soundEngine.playCorrect();
-            soundEngine.speakEnglish(q.wordObj.word, false);
-            profileManager.updateWordProgress(q.wordObj, true, 1);
+            if (q.mode !== 'bubble_pair') {
+                soundEngine.speakEnglish(q.wordObj.word, false, q.wordObj.phonics);
+            }
+            if (Array.isArray(q.pairWords) && q.pairWords.length > 0) {
+                q.pairWords.forEach(pw => profileManager.updateWordProgress(pw, true, 1));
+            } else {
+                profileManager.updateWordProgress(q.wordObj, true, 1);
+            }
 
             const award = profileManager.awardLearningProgress({
-                title: `🔤 英语答对单词【${q.wordObj.word} · ${q.wordObj.zh}】`,
-                subjectTag: '少儿英语',
+                title: `🔤 ${modeTag}答对【${q.wordObj.word} · ${q.wordObj.zh}】`,
+                subjectTag: modeTag,
                 badges: res.badgeEarned,
                 stars: res.starEarned,
                 gotTicket: res.gotGachaTicket,
@@ -1220,7 +1327,7 @@ class PetWonderTownApp {
             setTimeout(() => this.advanceEnglishStep(), 700);
         } else {
             soundEngine.playWrong();
-            soundEngine.speakEnglish(q.wordObj.word, true);
+            soundEngine.speakEnglish(q.wordObj.word, true, q.wordObj.phonics);
             profileManager.updateWordProgress(q.wordObj, false, 0);
             this.updateReviewCountBadge();
             fb.textContent = `💡 正确拼读是 ${q.wordObj.word} (${q.wordObj.zh})，已收入双倍复习本！`;
@@ -1229,6 +1336,10 @@ class PetWonderTownApp {
     }
 
     advanceEnglishStep() {
+        if (this.activeSubject === 'grand_random') {
+            this.drawNextGrandRandomQuestion(true);
+            return;
+        }
         if (this.activeSubject === 'review') {
             this.renderReviewPanel();
             return;
@@ -1268,12 +1379,14 @@ class PetWonderTownApp {
                 this.initVocabCampForPack(this.activeWordPackId, false);
             }
         } else {
-            this.renderEnglishQuizQuestion(englishEngine.nextQuickQuestion(), true);
+            const forcedType = ALL_ENGLISH_TYPE_IDS.includes(this.engSubMode) ? this.engSubMode : null;
+            this.renderEnglishQuizQuestion(englishEngine.nextQuickQuestion(null, forcedType), true);
         }
     }
 
     // ==================== 右侧面板 3：错题 & 生词双倍徽章淘金屋 ====================
     renderReviewPanel() {
+        this._numericKeypadActive = false;
         const u = profileManager.getActiveUser();
         const box = document.getElementById('reviewInteractiveBox');
         const mList = u.mathMistakes || [];
@@ -1301,7 +1414,7 @@ class PetWonderTownApp {
         if (mBtn) {
             mBtn.onclick = () => {
                 soundEngine.playTap();
-                this.switchSubjectTab('math');
+                this.switchSubjectTab('math', false, false);
                 const targetMistake = mList[0];
                 const q = mathEngine.nextQuestion(targetMistake);
                 this.renderCurrentMathQuestion(q);
@@ -1313,11 +1426,8 @@ class PetWonderTownApp {
         if (eBtn) {
             eBtn.onclick = () => {
                 soundEngine.playTap();
-                this.switchSubjectTab('english');
-                this.engSubMode = 'quick_quiz';
-                document.querySelectorAll('#panelEnglish .sub-pill').forEach(b => {
-                    b.classList.toggle('active', b.dataset.engmode === 'quick_quiz');
-                });
+                this.engSubMode = 'english_random';
+                this.switchSubjectTab('english', false, false);
                 const q = englishEngine.nextQuickQuestion(eList[0].wordId);
                 this.renderEnglishQuizQuestion(q, true);
                 document.getElementById('engFeedbackBar').textContent = '🌟 双倍生词复习：答对直接拿 2 倍徽章！';
@@ -1425,10 +1535,12 @@ class PetWonderTownApp {
         this.draftMathPreset = mc.presetGrade || 'grade1_2';
         this.draftMathRange = mc.range || 20;
         this.draftMathMul = mc.maxMultiplier || 9;
+        this.draftMathTypes = sanitizeMathEnabledTypes(mc.enabledTypes);
 
         const ec = u.englishConfig || {};
-        this.draftEngLevel = ec.level || 'level2_match';
+        this.draftEngLevel = ec.level || 'mixed';
         this.draftEngPack = ec.packId || 'all';
+        this.draftEngTypes = sanitizeEnglishEnabledTypes(ec.enabledTypes);
 
         document.getElementById('inputKidName').value = u.name;
         document.getElementById('btnDeleteKid').style.display = profileManager.getUsers().length > 1 ? 'inline-block' : 'none';
@@ -1462,7 +1574,7 @@ class PetWonderTownApp {
                 this.syncEnginesWithActiveUser();
                 this.loadUserIntoDraft(kid);
                 this.renderAll();
-                this.renderCurrentMathQuestion();
+                this.switchSubjectTab(this.activeSubject, false, false);
             };
             chips.appendChild(b);
         });
@@ -1551,12 +1663,20 @@ class PetWonderTownApp {
             pStack.appendChild(d);
         });
 
-        // 4. 英语梯度设置
+        renderEnabledTypesSelector(
+            document.getElementById('petMathTypesBox'),
+            MATH_QUESTION_TYPES,
+            this.draftMathTypes,
+            (next) => { this.draftMathTypes = next; },
+            ['calc', 'compare', 'bond_pop', 'sequence_train', 'clock_money']
+        );
+
+        // 4. 英语梯度设置 + 8题型多选
         const engLevels = [
-            { id: 'level1_listen', title: '🌱 启蒙级：听音选图磨耳朵', desc: '听纯正美音选可爱图案，零识字门槛轻松开口' },
-            { id: 'level2_match', title: '⚡ 初阶级：图词配对 + 自然拼读', desc: '看萌图听音辨认彩色音节单词，适合 1~3 年级' },
-            { id: 'level3_spell', title: '🔥 进阶级：果冻字母拼写达人', desc: '动手拼写完整英语单词，牢固掌握拼读与默写' },
-            { id: 'mixed', title: '🌈 全能混合：听说认读拼综合交替', desc: '三种趣味题型轮换出击，全面提升语感' }
+            { id: 'level1_listen', title: '🌱 启蒙级：听音选图 + 消消乐', desc: '听纯正美音选可爱图案与泡泡配对，零识字门槛轻松开口' },
+            { id: 'level2_match', title: '⚡ 初阶级：图词配对 + 自然拼读 + 情景句', desc: '看萌图辨认彩色音节积木与短句填空，适合 1~3 年级' },
+            { id: 'level3_spell', title: '🔥 进阶级：谜语问答 + 连词成句 + 拼写', desc: '英语小侦探猜谜、小火车排句与完整拼写，综合进阶' },
+            { id: 'mixed', title: '🌈 全能混合：8大趣味互动题型自由轮换', desc: '听说、消消乐、拼读积木、猜谜、连词成句全面提升语感' }
         ];
         const eStack = document.getElementById('engLevelCards');
         eStack.innerHTML = '';
@@ -1566,14 +1686,26 @@ class PetWonderTownApp {
             d.innerHTML = `<strong>${el.title}</strong><small>${el.desc}</small>`;
             d.onclick = () => {
                 this.draftEngLevel = el.id;
+                const lvMeta = ENGLISH_LEVELS[el.id];
+                if (lvMeta && Array.isArray(lvMeta.presetTypes)) {
+                    this.draftEngTypes = [...lvMeta.presetTypes];
+                }
                 this.renderProfileModalControls();
             };
             eStack.appendChild(d);
         });
 
+        renderEnabledTypesSelector(
+            document.getElementById('petEnTypesBox'),
+            ENGLISH_QUESTION_TYPES,
+            this.draftEngTypes,
+            (next) => { this.draftEngTypes = next; },
+            ['listen_pic', 'match_word', 'bubble_pair', 'phonics_chunks']
+        );
+
         const ePackRow = document.getElementById('engDefaultPackPills');
         ePackRow.innerHTML = '';
-        [{ id: 'all', name: '🌟 全部主题混合' }, ...WORD_PACKS.map(p => ({ id: p.id, name: `${p.icon}${p.name}` }))].forEach(pk => {
+        [{ id: 'all', name: `🌟 全部20主题·${ALL_WORDS.length}词` }, ...WORD_PACKS.map(p => ({ id: p.id, name: `${p.icon}${p.name}` }))].forEach(pk => {
             const b = document.createElement('button');
             b.type = 'button';
             b.className = `radio-pill-btn ${this.draftEngPack === pk.id ? 'active' : ''}`;
@@ -1587,6 +1719,9 @@ class PetWonderTownApp {
     }
 
     saveProfileModal() {
+        const cleanMathTypes = sanitizeMathEnabledTypes(this.draftMathTypes);
+        const cleanEngTypes = sanitizeEnglishEnabledTypes(this.draftEngTypes);
+
         const ops = [];
         if (document.getElementById('chkAdd').checked) ops.push('add');
         if (document.getElementById('chkSub').checked) ops.push('sub');
@@ -1602,13 +1737,15 @@ class PetWonderTownApp {
             maxMultiplier: this.draftMathMul,
             allowCarryBorrow: document.getElementById('chkCarry').checked,
             allowFillBlank: document.getElementById('chkFill').checked,
-            includeWordProblems: document.getElementById('chkWordProb').checked,
-            includeDataCharts: document.getElementById('chkDataChart').checked
+            includeWordProblems: cleanMathTypes.includes('word') && document.getElementById('chkWordProb').checked,
+            includeDataCharts: cleanMathTypes.includes('data') && document.getElementById('chkDataChart').checked,
+            enabledTypes: cleanMathTypes
         };
 
         const englishConfig = {
             level: this.draftEngLevel,
-            packId: this.draftEngPack
+            packId: this.draftEngPack,
+            enabledTypes: cleanEngTypes
         };
 
         profileManager.updateUserSettings(this.editingUserId, {
@@ -1621,9 +1758,8 @@ class PetWonderTownApp {
 
         soundEngine.playCorrect();
         this.syncEnginesWithActiveUser();
-        mathEngine.nextQuestion();
-        this.renderCurrentMathQuestion();
         this.renderAll();
+        this.switchSubjectTab(this.activeSubject, false, true);
         this.closeModal('modalProfile');
     }
 
@@ -1704,21 +1840,43 @@ class PetWonderTownApp {
         this.renderAll();
     }
 
-    switchSubjectTab(subj) {
+    switchSubjectTab(subj, autoSpeak = true, forceNewQuestion = false) {
         this.activeSubject = subj;
         document.querySelectorAll('.subj-tab').forEach(b => {
             b.classList.toggle('active', b.dataset.subj === subj);
         });
+
+        if (subj === 'grand_random') {
+            this.drawNextGrandRandomQuestion(autoSpeak);
+            return;
+        }
+
         document.getElementById('panelMath').style.display = subj === 'math' ? 'flex' : 'none';
         document.getElementById('panelEnglish').style.display = subj === 'english' ? 'flex' : 'none';
         document.getElementById('panelReview').style.display = subj === 'review' ? 'flex' : 'none';
+        this.renderSubModePills();
 
-        if (subj === 'english') {
+        if (subj === 'math') {
+            mathEngine.setSubMode(this.mathSubMode);
+            if (forceNewQuestion || !mathEngine.currentQuestion) {
+                mathEngine.nextQuestion();
+            }
+            this.renderCurrentMathQuestion();
+        } else if (subj === 'english') {
+            englishEngine.config.packId = this.activeWordPackId;
+            this.renderWordPackStrip();
             if (this.engSubMode === 'vocab_camp') {
-                this.renderVocabFlashcard(true);
+                if (forceNewQuestion || !englishEngine.studySession) {
+                    this.initVocabCampForPack(this.activeWordPackId, autoSpeak);
+                } else {
+                    this.renderVocabFlashcard(autoSpeak);
+                }
             } else {
-                if (!englishEngine.currentQuiz) {
-                    this.renderEnglishQuizQuestion(englishEngine.nextQuickQuestion(), true);
+                const forcedType = ALL_ENGLISH_TYPE_IDS.includes(this.engSubMode) ? this.engSubMode : null;
+                if (forceNewQuestion || !englishEngine.currentQuiz || (forcedType && englishEngine.currentQuiz.mode !== forcedType)) {
+                    this.renderEnglishQuizQuestion(englishEngine.nextQuickQuestion(null, forcedType), autoSpeak);
+                } else {
+                    this.renderEnglishQuizQuestion(englishEngine.currentQuiz, autoSpeak);
                 }
             }
         } else if (subj === 'review') {
@@ -1749,8 +1907,7 @@ class PetWonderTownApp {
                 profileManager.ensureIntegrity();
                 this.syncEnginesWithActiveUser();
                 this.renderAll();
-                mathEngine.nextQuestion();
-                this.renderCurrentMathQuestion();
+                this.switchSubjectTab(this.activeSubject, false, true);
             }
         });
 
@@ -1996,21 +2153,19 @@ class PetWonderTownApp {
             }, 520);
         };
 
-        // 右侧三大学科主选项卡切换
+        // 右侧四大主入口切换 (🎲 大随机 | 🔢 数学 | 🔤 英语 | 🌟 复习)
         document.querySelectorAll('.subj-tab').forEach(btn => {
             btn.onclick = () => {
                 soundEngine.playTap();
-                this.switchSubjectTab(btn.dataset.subj);
-            };
-        });
-
-        // 数学三小类模式切换 (口算 | 乘除应用题 | 销量数据图)
-        document.querySelectorAll('#panelMath .sub-pill').forEach(btn => {
-            btn.onclick = () => {
-                soundEngine.playTap();
-                document.querySelectorAll('#panelMath .sub-pill').forEach(b => b.classList.toggle('active', b === btn));
-                mathEngine.setSubMode(btn.dataset.mathmode);
-                this.renderCurrentMathQuestion();
+                const subj = btn.dataset.subj;
+                if (subj === 'grand_random') {
+                    profileManager.setPreferredSmartMode('grand_random');
+                } else if (subj === 'math') {
+                    profileManager.setPreferredSmartMode(this.mathSubMode === 'random' ? 'math_random' : this.mathSubMode);
+                } else if (subj === 'english') {
+                    profileManager.setPreferredSmartMode(this.engSubMode);
+                }
+                this.switchSubjectTab(subj, true, false);
             };
         });
 
@@ -2045,7 +2200,8 @@ class PetWonderTownApp {
 
         window.addEventListener('keydown', (e) => {
             if (document.getElementById('modalProfile').style.display !== 'none') return;
-            if (this.activeSubject !== 'math') return;
+            if (!this._numericKeypadActive) return;
+            if (document.getElementById('panelMath').style.display === 'none') return;
             if (e.key >= '0' && e.key <= '9') {
                 if (this.mathInputStr.length < 5) {
                     soundEngine.playTap();
@@ -2058,21 +2214,6 @@ class PetWonderTownApp {
             } else if (e.key === 'Enter') {
                 this.handleMathSubmit();
             }
-        });
-
-        // 英语子模式切换 (魔法背单词 vs 听说闪电闯关)
-        document.querySelectorAll('#panelEnglish .sub-pill').forEach(btn => {
-            btn.onclick = () => {
-                soundEngine.playTap();
-                this.engSubMode = btn.dataset.engmode;
-                document.querySelectorAll('#panelEnglish .sub-pill').forEach(b => b.classList.toggle('active', b === btn));
-                if (this.engSubMode === 'vocab_camp') {
-                    this.initVocabCampForPack(this.activeWordPackId, true);
-                } else {
-                    englishEngine.config.packId = this.activeWordPackId;
-                    this.renderEnglishQuizQuestion(englishEngine.nextQuickQuestion(), true);
-                }
-            };
         });
 
         // 背单词闪卡按钮

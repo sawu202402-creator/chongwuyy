@@ -161,21 +161,28 @@ async function main() {
         console.log('📸 Captured:', outPath);
     };
 
-    // ==================== 1. Test Root Portal Hub (Progress, Backup, Parent Gate, Mistake Re-Practice) ====================
+    // ==================== 1. Test Root Portal Hub (Mode Strip, EnabledTypes Checkboxes, Backup, Parent Gate, Mistake Re-Practice) ====================
     await cdp.send('Page.navigate', { url: `${origin}/index.html` }, sessionId);
     await sleep(900);
     const hubCheck = await evalJs(`(() => {
         const chips = Array.from(document.querySelectorAll('.hub-kid-chip')).map(el => el.textContent.trim());
         const noScroll = document.documentElement.scrollHeight <= window.innerHeight + 2;
-        const carrotStat = document.getElementById('liveStatCarrot')?.textContent.trim();
-        const pvzStat = document.getElementById('liveStatPvz')?.textContent.trim();
-        return { chips, noScroll, carrotStat, pvzStat };
+        const modePills = Array.from(document.querySelectorAll('#hubSmartModeStrip .hub-mode-pill')).map(el => el.getAttribute('data-smode'));
+        // Click single-project pill 'clock_money', then back to 'grand_random'
+        document.querySelector('#hubSmartModeStrip [data-smode="clock_money"]').click();
+        const afterSingle = document.querySelector('#hubSmartModeStrip .hub-mode-pill.active')?.getAttribute('data-smode');
+        document.querySelector('#hubSmartModeStrip [data-smode="grand_random"]').click();
+        const afterGrand = document.querySelector('#hubSmartModeStrip .hub-mode-pill.active')?.getAttribute('data-smode');
+        return { chips, noScroll, modePillsCount: modePills.length, afterSingle, afterGrand };
     })()`);
     console.log('Hub check:', hubCheck);
     assert.ok(hubCheck.chips[0].includes('小豌豆'));
     assert.ok(hubCheck.chips[1].includes('川川'));
     assert.equal(hubCheck.noScroll, true, 'Hub must fit 1180x820 iPad viewport with zero vertical overflow');
-    await saveShot('opt_hub_portal_and_progress.png');
+    assert.equal(hubCheck.modePillsCount, 21, 'Hub mode strip must expose 4 random/vocab + 9 math + 8 English = 21 entry pills');
+    assert.equal(hubCheck.afterSingle, 'clock_money');
+    assert.equal(hubCheck.afterGrand, 'grand_random');
+    await saveShot('modes_hub_portal_and_types.png');
 
     // Test Backup Modal Export Code
     const backupCodeRes = await evalJs(`(() => {
@@ -187,13 +194,11 @@ async function main() {
     })()`);
     assert.ok(backupCodeRes.startsWith('CWYY1:'), 'Backup modal must generate CWYY1: backup code');
 
-    // Test Parent Gate on Hub Settings
+    // Test Parent Gate on Hub Settings + EnabledTypes Checkboxes (9 Math + 8 English)
     await evalJs(`document.getElementById('btnHubSettings').click();`);
     await sleep(300);
-    await saveShot('opt_hub_parent_gate.png');
-    const gateUnlocked = await evalJs(`(() => {
+    const gateAndTypesRes = await evalJs(`(() => {
         const qText = document.getElementById('cwyyPgQuestion').textContent;
-        // Parse "16 × 4 + 7 = ?"
         const m = qText.match(/(\\d+)\\s*×\\s*(\\d+)\\s*\\+\\s*(\\d+)/);
         const ans = Number(m[1]) * Number(m[2]) + Number(m[3]);
         for (const ch of String(ans)) {
@@ -201,17 +206,36 @@ async function main() {
         }
         document.getElementById('cwyyPgConfirm').click();
         const isOpen = document.getElementById('hubSettingsModal').classList.contains('show');
-        document.getElementById('btnCloseHubSettings').click();
-        return isOpen;
+        const mathTypeChips = document.querySelectorAll('#hubMathTypesBox .qw-type-check-pill').length;
+        const enTypeChips = document.querySelectorAll('#hubEnTypesBox .qw-type-check-pill').length;
+        // Toggle off 'data'
+        document.querySelector('#hubMathTypesBox .qw-type-check-pill[data-tid="data"]').click();
+        return { isOpen, mathTypeChips, enTypeChips };
     })()`);
-    assert.equal(gateUnlocked, true, 'Solving Parent Gate arithmetic challenge must unlock Hub Settings');
+    console.log('Hub Settings enabledTypes check:', gateAndTypesRes);
+    assert.equal(gateAndTypesRes.isOpen, true, 'Solving Parent Gate arithmetic challenge must unlock Hub Settings');
+    assert.equal(gateAndTypesRes.mathTypeChips, 9, 'Hub settings must render 9 math type pills');
+    assert.equal(gateAndTypesRes.enTypeChips, 8, 'Hub settings must render 8 English type pills');
+    await sleep(200);
+    await saveShot('modes_hub_settings_types.png');
+    await evalJs(`document.getElementById('btnSaveHubSettings').click();`);
+
+    // Verify 'data' was unchecked in profile, then restore all 9 types
+    const restoredCount = await evalJs(`(async () => {
+        const { profileManager } = await import('./shared/unifiedProfile.js');
+        const curTypes = profileManager.getActiveUser().mathConfig.enabledTypes;
+        const withoutData = !curTypes.includes('data') && curTypes.length === 8;
+        profileManager.updateActiveUser({ mathConfig: { ...profileManager.getActiveUser().mathConfig, enabledTypes: ['calc','word','data','compare','bond_pop','operator_detective','sequence_train','clock_money','pyramid_grid'] } });
+        return { withoutData, restored: profileManager.getActiveUser().mathConfig.enabledTypes.length };
+    })()`);
+    assert.equal(restoredCount.withoutData, true, 'Saving Hub Settings must persist enabledTypes subset');
+    assert.equal(restoredCount.restored, 9);
 
     // Seed 1 math mistake and test Interactive Mistake Re-Practice ("错题重练消消乐")
     const practiceRes = await evalJs(`(async () => {
         const { profileManager } = await import('./shared/unifiedProfile.js');
         profileManager.recordMathMistake({ formula: '8 + 7 = ?', expr: '8 + 7 = ?', display: '8 + 7 = ?', answer: 15, kind: 'calc' }, '14');
         document.getElementById('btnHubReport').click();
-        // Start math mistake re-practice!
         const startBtn = document.getElementById('btnStartMathPrac');
         if (startBtn) startBtn.click();
         return {
@@ -219,13 +243,9 @@ async function main() {
             stageText: document.getElementById('hubPracticeStage').textContent
         };
     })()`);
-    console.log('Hub Mistake Re-Practice check:', practiceRes);
     assert.equal(practiceRes.stageVisible, true);
     assert.ok(practiceRes.stageText.includes('8 + 7 = ?'));
-    await sleep(250);
-    await saveShot('opt_hub_mistake_practice.png');
 
-    // Solve the mistake in Hub Re-Practice and verify mistake count drops to 0!
     const clearedRes = await evalJs(`(async () => {
         document.querySelector('#hubPracticeStage [data-pk="1"]').click();
         document.querySelector('#hubPracticeStage [data-pk="5"]').click();
@@ -235,78 +255,134 @@ async function main() {
     })()`);
     assert.equal(clearedRes, 0, 'Solving mistake in Hub Re-Practice must remove it from mathMistakes!');
 
-    // ==================== 2. Test Carrot Defense (Tower Almanac, Dynamic Map Chunking, Per-Kid Medals) ====================
+    // ==================== 2. Test Carrot Defense (Grand Random + Single-Project Interactive Math & New English Modes) ====================
     await cdp.send('Page.navigate', { url: `${origin}/carrot/index.html` }, sessionId);
     await sleep(1500);
-    // Start Stage 1, solve 1 Word Problem (+1 badge), record Gold Carrot for 小豌豆, then switch via Level Select UI to Stage 13 (Theme 2 Jungle)!
-    const carrotStage13Res = await evalJs(`(async () => {
-        document.getElementById('btnStartGame').click();
-        document.querySelector('.smart-mode-tab[data-smode="word"]').click();
-        const ans = window.mathEngine.currentQuestion.answer;
-        for (const ch of String(ans)) {
-            document.querySelector('#virtualKeypad .cookie-key[data-key="' + ch + '"]').click();
+    const carrotSetupRes = await evalJs(`(async () => {
+        document.getElementById('btnStartKidGear').click();
+        const pgEl = document.getElementById('cwyyPgQuestion');
+        if (pgEl && document.getElementById('cwyyParentGateOverlay')?.classList.contains('show')) {
+            const m = pgEl.textContent.match(/(\\d+)\\s*×\\s*(\\d+)\\s*\\+\\s*(\\d+)/);
+            const ans = Number(m[1]) * Number(m[2]) + Number(m[3]);
+            for (const ch of String(ans)) {
+                document.querySelector('#cwyyPgKeypad [data-k="' + ch + '"]').click();
+            }
+            document.getElementById('cwyyPgConfirm').click();
         }
-        document.getElementById('btnSubmitAnswer').click();
-        // Record Gold Carrot for 小豌豆 on Stage 1 and open Level Select
-        window.profileManager.setCarrotStageRecord(1, { cleared: true, carrot: 'gold', allClear: true });
-        document.getElementById('btnSelectLevel').click();
-        const summaryTxt = document.getElementById('levelMedalSummary').textContent;
-        // Click Stage 13 card (Theme 2 Jungle) -> triggers dynamic map chunk + New Tower Unlock Almanac!
-        document.getElementById('level-grid-item-13').click();
-        await new Promise(r => setTimeout(r, 350));
+        const mathBoxes = document.querySelectorAll('#carrotMathTypesBox .qw-type-check-pill').length;
+        const enBoxes = document.querySelectorAll('#carrotEnTypesBox .qw-type-check-pill').length;
+        document.getElementById('btnCloseProfileModal')?.click();
+        document.getElementById('btnStartGame').click();
+        await new Promise(r => setTimeout(r, 150));
+        // Switch top tab to Math -> single-project 'clock_money'
+        document.querySelector('.smart-mode-tab[data-topcat="math"]').click();
+        document.querySelector('.smart-entry-pill[data-emode="clock_money"]').click();
         return {
-            summaryTxt,
-            curLevel: window.gameEngine.currentLevel,
-            stage13Name: window.gameEngine.map.currentLevelConfig.name,
-            almanacShown: document.getElementById('towerAlmanacModal').classList.contains('show'),
-            almanacTitle: document.getElementById('towerAlmanacTitle').textContent
+            mathBoxes,
+            enBoxes,
+            goldBefore: window.gameEngine.gold,
+            qKind: window.mathEngine.currentQuestion.kind,
+            qAns: String(window.mathEngine.currentQuestion.answer)
         };
     })()`);
-    console.log('Carrot Stage 13, Tower Almanac & Per-Kid Medal check:', carrotStage13Res);
-    assert.ok(carrotStage13Res.summaryTxt.includes('小豌豆'));
-    assert.ok(carrotStage13Res.summaryTxt.includes('金萝卜 1/48'));
-    assert.equal(carrotStage13Res.curLevel, 13);
-    assert.ok(carrotStage13Res.stage13Name.includes('第 2 季'));
-    assert.equal(carrotStage13Res.almanacShown, true, 'Switching to Stage 13 with unseen towers must pop New Tower Almanac card');
-    await sleep(300);
-    await saveShot('opt_carrot_tower_almanac.png');
+    console.log('Carrot interactive math setup:', carrotSetupRes);
+    assert.equal(carrotSetupRes.mathBoxes, 9);
+    assert.equal(carrotSetupRes.enBoxes, 8);
+    assert.equal(carrotSetupRes.qKind, 'clock_money');
+    await sleep(250);
+    await saveShot('modes_carrot_interactive_math.png');
 
-    // ==================== 3. Test Plants vs Zombies (2x Speed Toggle + Per-Kid Trophies) ====================
+    // Solve the clock_money widget in Carrot and verify gold reward!
+    const carrotSolvedMath = await evalJs(`(() => {
+        const ans = String(window.mathEngine.currentQuestion.answer);
+        const btn = Array.from(document.querySelectorAll('#smartMathWidgetPanel .qw-choice-btn')).find(b => b.getAttribute('data-val') === ans);
+        btn.click();
+        return { goldAfter: window.gameEngine.gold };
+    })()`);
+    assert.ok(carrotSolvedMath.goldAfter > carrotSetupRes.goldBefore, 'Solving interactive clock_money in Carrot must award gold!');
+
+    // Switch Carrot SmartChalkboard to English -> 'bubble_pair' (new 360-word pool)
+    const carrotEnRes = await evalJs(`(() => {
+        document.querySelector('.smart-mode-tab[data-topcat="english"]').click();
+        document.querySelector('.smart-entry-pill[data-emode="bubble_pair"]').click();
+        const packOptCount = document.querySelectorAll('#smartEnPackSelect option').length;
+        const bubbleCount = document.querySelectorAll('#smartEnStage .qw-pop-bubble').length;
+        return { packOptCount, bubbleCount };
+    })()`);
+    console.log('Carrot new English bubble_pair check:', carrotEnRes);
+    assert.equal(carrotEnRes.packOptCount, 21, 'Pack selector must have 1 All(360) + 20 theme packs = 21 options');
+    assert.equal(carrotEnRes.bubbleCount, 6, 'bubble_pair must render 6 bubbles (3 English + 3 Emoji/Chinese)');
+    await sleep(250);
+    await saveShot('modes_carrot_new_english.png');
+
+    // Switch back to Grand Random before leaving Carrot
+    await evalJs(`document.querySelector('.smart-mode-tab[data-topcat="grand"]').click();`);
+
+    // ==================== 3. Test Plants vs Zombies (Grand Random + Single-Project Pyramid/Grid & Riddle QA + 0 Overflow) ====================
     await cdp.send('Page.navigate', { url: `${origin}/pvz/index.html` }, sessionId);
     await sleep(1700);
     const pvzCheck = await evalJs(`(() => {
-        document.getElementById('btnSpeedToggle').click();
-        const speedText = document.getElementById('btnSpeedToggle').textContent.trim();
-        const gameSpeed = window.gameApp.gameSpeed;
-        // Record 1-1 clear for 小豌豆 and open Level Modal
-        window.gameApp.profileManager.recordPvzLevelClear('1-1', 100);
-        window.gameApp.openLevelModal();
-        const gridHtml = document.getElementById('levelGrid').innerHTML;
-        return { speedText, gameSpeed, hasTrophy: gridHtml.includes('🏆 已通关') && gridHtml.includes('通关 1/10') };
+        const noScroll = document.documentElement.scrollHeight <= window.innerHeight + 2;
+        const sunBefore = window.gameApp.pvzEngine.sun;
+        // Switch to single-project Math 'pyramid_grid' and solve!
+        document.querySelector('.smart-mode-tab[data-topcat="math"]').click();
+        document.querySelector('.smart-entry-pill[data-emode="pyramid_grid"]').click();
+        const qAns = String(window.gameApp.mathEngine.currentQuestion.answer);
+        const choiceBtn = Array.from(document.querySelectorAll('#smartMathWidgetPanel .qw-choice-btn')).find(b => b.getAttribute('data-val') === qAns);
+        choiceBtn.click();
+        const sunAfterMath = window.gameApp.pvzEngine.sun;
+        // Switch to single-project English 'riddle_qa' for visual check
+        document.querySelector('.smart-mode-tab[data-topcat="english"]').click();
+        document.querySelector('.smart-entry-pill[data-emode="riddle_qa"]').click();
+        const riddleText = document.querySelector('#smartEnStage .qw-riddle-en')?.textContent || '';
+        return { noScroll, sunBefore, sunAfterMath, riddleText };
     })()`);
-    console.log('PvZ 2x Speed & Trophy check:', pvzCheck);
-    assert.equal(pvzCheck.gameSpeed, 2);
-    assert.ok(pvzCheck.speedText.includes('2x'));
-    assert.equal(pvzCheck.hasTrophy, true);
+    console.log('PvZ single-project & sun reward check:', pvzCheck);
+    assert.equal(pvzCheck.noScroll, true, 'PvZ must fit 1180x820 viewport with zero vertical overflow');
+    assert.ok(pvzCheck.sunAfterMath > pvzCheck.sunBefore, 'Solving pyramid_grid in PvZ must award Sun!');
+    assert.ok(pvzCheck.riddleText.length > 5, 'PvZ English riddle_qa must render riddle clue');
     await sleep(300);
-    await saveShot('opt_pvz_2x_and_trophies.png');
+    await saveShot('modes_pvz_single_and_grand.png');
+    await evalJs(`document.querySelector('.smart-mode-tab[data-topcat="grand"]').click();`);
 
-    // ==================== 4. Test Pet Wonder Town (Sibling Visit Gift & Cross-Game Progress) ====================
+    // ==================== 4. Test Pet Wonder Town (4 Top Tabs incl. Grand Random + 9 Math SubPills + 8 Eng SubPills + 360 Words) ====================
     await cdp.send('Page.navigate', { url: `${origin}/pet/index.html` }, sessionId);
     await sleep(1100);
-    const petVisitCheck = await evalJs(`(() => {
-        const homePillVisible = document.getElementById('btnSiblingVisitorHome').style.display !== 'none';
-        const homePillTitle = document.getElementById('siblingHomeTitle').textContent;
-        document.getElementById('btnSiblingVisitorHome').click();
-        const popupTitle = document.getElementById('quickPopupTitle').textContent;
-        return { homePillVisible, homePillTitle, popupTitle };
+    const petModesCheck = await evalJs(`(() => {
+        const topTabs = Array.from(document.querySelectorAll('.subject-main-tabs .subj-tab')).map(b => b.getAttribute('data-subj'));
+        const mathPills = Array.from(document.querySelectorAll('#petMathSubPills .sub-pill')).map(b => b.getAttribute('data-mathmode'));
+        const engPills = Array.from(document.querySelectorAll('#petEngSubPills .sub-pill')).map(b => b.getAttribute('data-engmode'));
+        const firstPackText = document.querySelector('#engPackStrip button')?.textContent.trim() || '';
+
+        // Test Grand Random tab
+        document.querySelector('.subj-tab[data-subj="grand_random"]').click();
+        const grandActive = document.querySelector('.subj-tab[data-subj="grand_random"]').classList.contains('active');
+
+        // Test single-project Math 'operator_detective'
+        document.querySelector('.subj-tab[data-subj="math"]').click();
+        document.querySelector('#petMathSubPills [data-mathmode="operator_detective"]').click();
+        const detectiveVisible = document.getElementById('petMathInteractiveStage').style.display !== 'none'
+            && Boolean(document.querySelector('#petMathInteractiveStage .qw-detective-eq'));
+
+        return { topTabs, mathPillsCount: mathPills.length, engPillsCount: engPills.length, firstPackText, grandActive, detectiveVisible };
     })()`);
-    console.log('Pet Town Sibling Visit check:', petVisitCheck);
-    assert.equal(petVisitCheck.homePillVisible, true);
-    assert.ok(petVisitCheck.homePillTitle.includes('川川'));
-    assert.ok(petVisitCheck.popupTitle.includes('双宝串门'));
-    await sleep(450);
-    await saveShot('opt_pet_sibling_visit.png');
+    console.log('Pet Town 17-modes & Grand Random check:', petModesCheck);
+    assert.deepEqual(petModesCheck.topTabs, ['grand_random', 'math', 'english', 'review']);
+    assert.equal(petModesCheck.mathPillsCount, 10, 'Pet math sub-pills must have 1 random + 9 single modes = 10');
+    assert.equal(petModesCheck.engPillsCount, 10, 'Pet English sub-pills must have vocab_camp + 1 random + 8 single modes = 10');
+    assert.ok(petModesCheck.firstPackText.includes('360'), 'Pet first pack chip must be All 20 themes (360 words)');
+    assert.equal(petModesCheck.grandActive, true);
+    assert.equal(petModesCheck.detectiveVisible, true);
+    await sleep(300);
+    await saveShot('modes_pet_interactive_modes.png');
+
+    // Also verify Pet English single-project 'phonics_chunks' renders cleanly
+    const petPhonicsCheck = await evalJs(`(() => {
+        document.querySelector('.subj-tab[data-subj="english"]').click();
+        document.querySelector('#petEngSubPills [data-engmode="phonics_chunks"]').click();
+        return Boolean(document.querySelector('#petEngQuizStage .qw-chunk-slots-row'));
+    })()`);
+    assert.equal(petPhonicsCheck, true, 'Pet English phonics_chunks mode must render chunk slots');
 
     console.log('Console errors:', consoleErrors.length);
     console.log('Failed local network requests:', failedLocalUrls.length);

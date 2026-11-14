@@ -14,8 +14,8 @@
     <meta name="apple-mobile-web-app-title" content="萌宠店长">
     <link rel="manifest" href="site.webmanifest">
     <meta name="theme-color" content="#7c5cfc">
-    <link rel="stylesheet" href="css/style.css?v=20261113_opt_v1">
-    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261113_opt_v1">
+    <link rel="stylesheet" href="css/style.css?v=20261114_modes_v1">
+    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261114_modes_v1">
 </head>
 <body>
     <!-- 全屏飞行徽章与彩虹礼花粒子画布 -->
@@ -288,25 +288,25 @@
                     <span class="m-icon" id="mascotRightIcon">🐸</span>
                 </div>
 
-                <!-- 三大学科切换顶栏 -->
+                <!-- 四大出题入口切换顶栏：统一大随机 / 数学9项 / 英语8项+背词 / 错题双倍复习 -->
                 <div class="subject-main-tabs">
-                    <button class="subj-tab active" data-subj="math" type="button">🔢 数学·应用</button>
-                    <button class="subj-tab" data-subj="english" type="button">🔤 英语·背词</button>
+                    <button class="subj-tab active" data-subj="grand_random" type="button">🎲 大随机</button>
+                    <button class="subj-tab" data-subj="math" type="button">🔢 数学</button>
+                    <button class="subj-tab" data-subj="english" type="button">🔤 英语</button>
                     <button class="subj-tab" data-subj="review" type="button">
-                        🌟 双倍复习 <span class="rev-dot" id="reviewCountBadge">0</span>
+                        🌟 复习 <span class="rev-dot" id="reviewCountBadge">0</span>
                     </button>
                 </div>
 
-                <!-- ========== 面板 1：数学口算 + 乘除应用题 + 店长数据图表 ========== -->
+                <!-- ========== 面板 1：数学 9 大题型（随机 + 单项目直达 + 6大新互动组件） ========== -->
                 <div class="learn-body active" id="panelMath">
-                    <!-- 数学三小类切换胶囊 -->
-                    <div class="sub-mode-pills">
-                        <button class="sub-pill active" data-mathmode="calc" type="button">⚡ 心算口算</button>
-                        <button class="sub-pill" data-mathmode="word" type="button">📖 乘除应用题</button>
-                        <button class="sub-pill" data-mathmode="data" type="button">📊 销量数据图</button>
-                    </div>
+                    <!-- 数学随机 + 9小类单项目切换胶囊条 -->
+                    <div class="sub-mode-pills scrollable-pills" id="petMathSubPills"></div>
 
-                    <!-- 智慧小黑板题目展示区 -->
+                    <!-- 6大全新互动数学题型白底果冻舞台 (比大小/凑数消消乐/填符号/规律火车/钟表购物/数砖方格) -->
+                    <div class="pet-interactive-card" id="petMathInteractiveStage" style="display:none;"></div>
+
+                    <!-- 智慧小黑板题目展示区 (口算/应用题/数据图) -->
                     <div class="chalkboard-box" id="mathBoardBox">
                         <div class="cb-top-row">
                             <span class="cb-hint-tag" id="mathHintTag">🎯 20以内进退位加减</span>
@@ -333,7 +333,7 @@
                     </div>
 
                     <!-- 答案显示框与确认按钮 -->
-                    <div class="math-input-row">
+                    <div class="math-input-row" id="mathInputRow">
                         <div class="math-ans-display" id="mathAnsDisplay">
                             <span id="mathAnsText" class="placeholder">点下方数字输入</span>
                             <span id="mathUnitBadge" class="ans-unit-tag"></span>
@@ -360,23 +360,20 @@
                     </div>
                 </div>
 
-                <!-- ========== 面板 2：少儿英语【魔法背单词 + 听说拼写闯关】 ========== -->
+                <!-- ========== 面板 2：少儿英语【5词背诵 + 英语随机 + 8大单项目直达 · 20主题360词】 ========== -->
                 <div class="learn-body" id="panelEnglish" style="display:none;">
-                    <div class="sub-mode-pills">
-                        <button class="sub-pill active" data-engmode="vocab_camp" type="button">📖 魔法背单词(5词)</button>
-                        <button class="sub-pill" data-engmode="quick_quiz" type="button">🎯 听说闪电闯关</button>
-                    </div>
+                    <div class="sub-mode-pills scrollable-pills" id="petEngSubPills"></div>
 
-                    <!-- 主题词包快速选择条 -->
+                    <!-- 20大主题·360词快速选择条 -->
                     <div class="word-pack-strip" id="engPackStrip">
-                        <!-- JS 渲染 6 大场景主题词包胶囊 -->
+                        <!-- JS 渲染 全部360词 + 20大场景主题词包胶囊 -->
                     </div>
 
                     <!-- 英语模式 A：【魔法背单词】闪卡认记阶段 -->
                     <div class="eng-stage-wrap" id="engStudyWrap">
                         <div class="flashcard-3d" id="vocabFlashcard">
                             <div class="fc-progress-row">
-                                <span class="fc-pack-tag" id="fcPackTag">🐾 萌宠好伙伴</span>
+                                <span class="fc-pack-tag" id="fcPackTag">🌟 全部20主题·360词</span>
                                 <span class="fc-step-pill" id="fcStepPill">今日新词 1 / 5</span>
                             </div>
                             <div class="fc-big-emoji" id="fcEmoji">🐰</div>
@@ -401,27 +398,9 @@
                         </div>
                     </div>
 
-                    <!-- 英语模式 B：闯关检验 & 闪电答题区 (听音选图 / 看图选词 / 果冻字母拼写) -->
+                    <!-- 英语模式 B：8大趣味题型统一闯关舞台 -->
                     <div class="eng-stage-wrap" id="engQuizWrap" style="display:none;">
-                        <div class="eng-quiz-card">
-                            <div class="eq-header">
-                                <span class="cb-hint-tag" id="engQuizHint">🎧 听发音选图案</span>
-                                <span class="eq-progress-badge" id="engSessionProgress" style="display:none;">检验 1/9</span>
-                            </div>
-
-                            <div class="eq-prompt-area" id="engPromptArea">
-                                <!-- 喇叭按钮 / 图案提示 / 中文提示 -->
-                            </div>
-
-                            <!-- 选择题 2x2 大果冻网格 -->
-                            <div class="eq-options-grid" id="engOptionsGrid"></div>
-
-                            <!-- 字母果冻块拼写区 -->
-                            <div class="eq-spell-area" id="engSpellArea" style="display:none;">
-                                <div class="spell-slots-row" id="engSpellSlots"></div>
-                                <div class="spell-tiles-pool" id="engSpellTiles"></div>
-                            </div>
-                        </div>
+                        <div class="eng-quiz-card" id="petEngQuizStage"></div>
                         <div class="learn-feedback-bar" id="engFeedbackBar">🔊 点击喇叭可反复听纯正美式发音哦！</div>
                     </div>
                 </div>
@@ -516,15 +495,21 @@
                         <div id="mathPresetPane" style="display:none;">
                             <div class="preset-cards-stack" id="mathPresetCards"></div>
                         </div>
+
+                        <div class="s-label" style="margin-top:12px;">🎯 勾选启用上场的数学题型（大随机/数学随机从已勾选抽取，也可点小黑板直达单项）：</div>
+                        <div id="petMathTypesBox"></div>
                     </div>
 
                     <!-- 右：英语与背单词梯度设置 -->
                     <div class="setting-card">
-                        <h4>🔤 少儿英语与背单词梯度</h4>
-                        <div class="s-label">选择适合宝贝的英语闯关难度：</div>
+                        <h4>🔤 少儿英语与背单词梯度 (20大主题·360词)</h4>
+                        <div class="s-label">选择适合宝贝的英语闯关难度预设：</div>
                         <div class="preset-cards-stack" id="engLevelCards"></div>
 
-                        <div class="s-label" style="margin-top:12px;">默认词库范围：</div>
+                        <div class="s-label" style="margin-top:12px;">🎯 勾选启用上场的英语题型（共8种互动题型，可自由组合）：</div>
+                        <div id="petEnTypesBox"></div>
+
+                        <div class="s-label" style="margin-top:12px;">默认词库范围（支持全部360词洗牌防重或指定主题）：</div>
                         <div class="pill-radio-row" id="engDefaultPackPills"></div>
                     </div>
                 </div>
@@ -565,6 +550,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=20261113_opt_v1"></script>
+    <script type="module" src="js/main.js?v=20261114_modes_v1"></script>
 </body>
 </html>

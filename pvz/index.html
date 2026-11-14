@@ -24,8 +24,8 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=20261113_opt_v1">
-    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261113_opt_v1">
+    <link rel="stylesheet" href="css/style.css?v=20261114_modes_v1">
+    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261114_modes_v1">
 </head>
 <body>
 
@@ -358,10 +358,17 @@
                 </div>
             </div>
 
+            <!-- 勾选启用的数学题型（9种） -->
+            <div class="setting-block" style="margin-top:10px; border-top:1px dashed rgba(255,255,255,0.22); padding-top:10px;">
+                <div class="setting-title">🔢 勾选启用的数学题型（共 9 种，大随机/数学随机从中抽取）：</div>
+                <div id="pvzMathTypesBox"></div>
+            </div>
+
             <!-- 同步设置：英语学习与每日萌宠徽章上限 -->
             <div class="setting-block" style="margin-top:10px; border-top:1px dashed rgba(255,255,255,0.22); padding-top:10px;">
-                <div class="setting-title">🔤 英语学习模式与默认词包（三端实时互通）：</div>
+                <div class="setting-title">🔤 勾选启用的英语题型（共 8 种）与 20 大主题词包：</div>
                 <div class="ranges-grid" id="pvzEnLevelGrid" style="margin-bottom:8px;"></div>
+                <div id="pvzEnTypesBox" style="margin-bottom:8px;"></div>
                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <span style="font-size:13px; color:#f9e79f; font-weight:700;">默认主题词包：</span>
                     <select id="pvzEnPackSelect" class="pvz-en-pack-select"></select>
@@ -456,6 +463,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=20261113_opt_v1"></script>
+    <script type="module" src="js/main.js?v=20261114_modes_v1"></script>
 </body>
 </html>

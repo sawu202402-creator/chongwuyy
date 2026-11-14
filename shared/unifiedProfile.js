@@ -21,8 +21,32 @@ import {
     getPetById,
     getShopById
 } from '../pet/js/config.js';
+import { ALL_MATH_TYPE_IDS } from './mathEngine.js';
+import { ALL_ENGLISH_TYPE_IDS } from './englishEngine.js';
 
 export const STORAGE_KEY = 'chongwuyy_pet_town_profiles_v2';
+
+export function sanitizeMathEnabledTypes(list) {
+    if (Array.isArray(list)) {
+        const filtered = list.filter(id => ALL_MATH_TYPE_IDS.includes(id));
+        if (filtered.length > 0) return [...new Set(filtered)];
+    }
+    return [...ALL_MATH_TYPE_IDS];
+}
+
+export function sanitizeEnglishEnabledTypes(list) {
+    if (Array.isArray(list)) {
+        const filtered = list.filter(id => ALL_ENGLISH_TYPE_IDS.includes(id));
+        if (filtered.length > 0) return [...new Set(filtered)];
+    }
+    return [...ALL_ENGLISH_TYPE_IDS];
+}
+
+export function isValidSmartMode(mode) {
+    if (!mode || typeof mode !== 'string') return false;
+    if (['grand_random', 'math_random', 'english_random', 'english', 'vocab_camp'].includes(mode)) return true;
+    return ALL_MATH_TYPE_IDS.includes(mode) || ALL_ENGLISH_TYPE_IDS.includes(mode);
+}
 
 function todayDateKey() {
     const d = new Date();
@@ -94,7 +118,8 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
         allowCarryBorrow: true,
         allowFillBlank: true,
         includeWordProblems: false,
-        includeDataCharts: false
+        includeDataCharts: false,
+        enabledTypes: [...ALL_MATH_TYPE_IDS]
     };
     return {
         id,
@@ -122,7 +147,8 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
         difficulty: { ...mathConfig },
         englishConfig: {
             level: 'level2_match',
-            packId: 'all'
+            packId: 'all',
+            enabledTypes: [...ALL_ENGLISH_TYPE_IDS]
         },
         wordMastery: {},
         scoreRecords: [
@@ -155,7 +181,7 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
         carrotSeenTowers: [],
         pvzRecords: {},
         lastPvzLevel: '1-1',
-        preferredSmartMode: 'calc',
+        preferredSmartMode: 'grand_random',
         stats: {
             totalMathCorrect: 0,
             totalEnglishCorrect: 0,
@@ -273,7 +299,8 @@ export class UserProfileManager {
                     allowCarryBorrow: u.difficulty.allowCarryBorrow !== false,
                     allowFillBlank: u.difficulty.allowFillBlank !== false,
                     includeWordProblems: false,
-                    includeDataCharts: false
+                    includeDataCharts: false,
+                    enabledTypes: sanitizeMathEnabledTypes(u.difficulty.enabledTypes)
                 };
             } else if (!u.mathConfig) {
                 u.mathConfig = {
@@ -285,12 +312,16 @@ export class UserProfileManager {
                     allowCarryBorrow: true,
                     allowFillBlank: true,
                     includeWordProblems: false,
-                    includeDataCharts: false
+                    includeDataCharts: false,
+                    enabledTypes: [...ALL_MATH_TYPE_IDS]
                 };
             }
+            u.mathConfig.enabledTypes = sanitizeMathEnabledTypes(u.mathConfig.enabledTypes);
             // 双向对齐 mathConfig 与 difficulty (供 carrot 和 pvz 原生读取)
             u.difficulty = { ...u.mathConfig };
-            if (!u.englishConfig) u.englishConfig = { level: 'level2_match', packId: 'all' };
+            if (!u.englishConfig) u.englishConfig = { level: 'level2_match', packId: 'all', enabledTypes: [...ALL_ENGLISH_TYPE_IDS] };
+            u.englishConfig.enabledTypes = sanitizeEnglishEnabledTypes(u.englishConfig.enabledTypes);
+            if (!u.englishConfig.packId) u.englishConfig.packId = 'all';
             if (!u.wordMastery) u.wordMastery = {};
             if (!Array.isArray(u.scoreRecords)) u.scoreRecords = [];
             if (!Array.isArray(u.badgeLedger)) u.badgeLedger = [];
@@ -306,7 +337,7 @@ export class UserProfileManager {
             if (!Array.isArray(u.carrotSeenTowers)) u.carrotSeenTowers = [];
             if (!u.pvzRecords || typeof u.pvzRecords !== 'object') u.pvzRecords = {};
             if (typeof u.lastPvzLevel !== 'string' || !u.lastPvzLevel) u.lastPvzLevel = '1-1';
-            if (!['calc', 'word', 'data', 'english'].includes(u.preferredSmartMode)) u.preferredSmartMode = 'calc';
+            if (!isValidSmartMode(u.preferredSmartMode)) u.preferredSmartMode = 'grand_random';
             if (!Array.isArray(u.ownedAccessories)) u.ownedAccessories = ['none'];
             if (!Array.isArray(u.ownedDecors)) u.ownedDecors = [];
             if (!u.stats) u.stats = { totalMathCorrect: 0, totalEnglishCorrect: 0, totalWordsMastered: 0, bestCombo: 0 };
@@ -370,11 +401,19 @@ export class UserProfileManager {
             ops: mergedMath?.operations || ['add', 'sub']
         });
         if (mergedMath) {
-            newUser.mathConfig = { ...newUser.mathConfig, ...mergedMath };
+            newUser.mathConfig = {
+                ...newUser.mathConfig,
+                ...mergedMath,
+                enabledTypes: sanitizeMathEnabledTypes(mergedMath.enabledTypes || newUser.mathConfig.enabledTypes)
+            };
             newUser.difficulty = { ...newUser.mathConfig };
         }
         if (englishConfig) {
-            newUser.englishConfig = { ...newUser.englishConfig, ...englishConfig };
+            newUser.englishConfig = {
+                ...newUser.englishConfig,
+                ...englishConfig,
+                enabledTypes: sanitizeEnglishEnabledTypes(englishConfig.enabledTypes || newUser.englishConfig.enabledTypes)
+            };
         }
         this.data.users.push(newUser);
         this.data.activeUserId = id;
@@ -409,11 +448,14 @@ export class UserProfileManager {
                     merged.maxMultiplier = incomingMath.maxMultiplier || 12;
                 }
             }
+            merged.enabledTypes = sanitizeMathEnabledTypes(merged.enabledTypes);
             u.mathConfig = merged;
             u.difficulty = { ...u.mathConfig };
         }
         if (englishConfig) {
-            u.englishConfig = { ...u.englishConfig, ...englishConfig };
+            const mergedEn = { ...u.englishConfig, ...englishConfig };
+            mergedEn.enabledTypes = sanitizeEnglishEnabledTypes(mergedEn.enabledTypes);
+            u.englishConfig = mergedEn;
         }
         this.save();
         return u;
@@ -508,16 +550,17 @@ export class UserProfileManager {
         if (Array.isArray(roundRecord.mistakes)) {
             roundRecord.mistakes.forEach(m => {
                 const formulaStr = m.formula || m.expr;
-                if (!formulaStr) return;
+                if (!formulaStr || String(formulaStr).startsWith('[英语]') || m.kind === 'bond_pop') return;
                 if (!u.mistakes.some(x => (x.formula || x.expr) === formulaStr)) {
                     u.mistakes.unshift({ formula: formulaStr, expected: m.expected ?? m.answer, dateStr });
                 }
-                if (!u.mathMistakes.some(x => (x.formula || x.expr) === formulaStr)) {
+                const numAns = Number(m.expected ?? m.answer);
+                if (!m.isInteractiveWidget && Number.isInteger(numAns) && !u.mathMistakes.some(x => (x.formula || x.expr) === formulaStr)) {
                     u.mathMistakes.unshift({
-                        kind: 'calc',
+                        kind: m.kind || 'calc',
                         formula: formulaStr,
                         expr: formulaStr,
-                        answer: m.expected ?? m.answer,
+                        answer: numAns,
                         userAns: m.userAns ?? m.userAnswer,
                         hint: '实战错题回顾',
                         dateStr
@@ -627,7 +670,7 @@ export class UserProfileManager {
 
     setPreferredSmartMode(mode) {
         const u = this.getActiveUser();
-        if (!u || !['calc', 'word', 'data', 'english'].includes(mode)) return;
+        if (!u || !isValidSmartMode(mode)) return;
         u.preferredSmartMode = mode;
         this.save();
     }
@@ -1023,6 +1066,7 @@ export class UserProfileManager {
 
     // ==================== 错题本与英语生词/单词本管理 ====================
     recordMathMistake(question, userAns) {
+        if (!question || question.kind === 'bond_pop') return;
         const u = this.getActiveUser();
         const key = question.formula || question.expr || question.readText;
         if (!key) return;

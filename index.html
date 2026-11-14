@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>奇趣数英游乐园 · 三合一儿童学习大厅 (iPad版)</title>
-    <meta name="description" content="小豌豆与川川的专属三合一数英游乐园！奇妙萌宠店长 + 保卫兔蛙塔防 + 植物大战僵尸，统一档案、每日徽章上限、错题重练、乘除应用题、数据统计图与216词少儿英语！">
+    <meta name="description" content="小豌豆与川川的专属三合一数英游乐园！奇妙萌宠店长 + 保卫兔蛙塔防 + 植物大战僵尸，支持数英大随机与17种单项目直达、数学9大题型、英语8大题型与20主题360词洗牌防重！">
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
@@ -16,7 +16,8 @@
     <meta name="theme-color" content="#7c5cfc">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/hub.css?v=20261113_opt_v1">
+    <link rel="stylesheet" href="css/hub.css?v=20261114_modes_v1">
+    <link rel="stylesheet" href="shared/smartChalkboard.css?v=20261114_modes_v1">
 </head>
 <body>
     <div class="hub-app" id="hubApp">
@@ -26,7 +27,7 @@
                 <img src="apple-touch-icon.png" alt="Logo" class="hub-brand-logo" />
                 <div>
                     <div class="hub-brand-title">🎠 奇趣数英游乐园 · 三合一学习大厅</div>
-                    <div class="hub-brand-sub">双宝独立闯关奖杯 · 216词分级英语 · 错题重练 · 跨游互通！</div>
+                    <div class="hub-brand-sub">数英大随机 & 单项直达 · 数学9题型 + 英语8题型 · 360词洗牌防重！</div>
                 </div>
             </div>
 
@@ -101,6 +102,15 @@
             </div>
         </section>
 
+        <!-- ==================== 2B. 全局统一大随机 & 17大单项目快捷出题入口栏 ==================== -->
+        <section class="hub-mode-bar" aria-label="全局出题入口总控栏">
+            <span class="hub-mode-label">🎯 出题入口：</span>
+            <div class="hub-mode-strip" id="hubSmartModeStrip">
+                <!-- 由 js/hub.js 动态渲染：🎲数英大随机 | 🎲数学随机 | 🎲英语随机 | 📖5词背诵 | 9大数学单项 | 8大英语单项 -->
+            </div>
+            <button type="button" class="hub-mode-cfg-btn" id="btnHubQuickTypesCfg" title="勾选哪些题型参与随机抽取">☑️ 选上场题型</button>
+        </section>
+
         <!-- ==================== 3. 三合一核心游戏卡片舞台 ==================== -->
         <main class="hub-games-grid">
             <!-- 游戏 1：奇妙萌宠店长 -->
@@ -108,7 +118,7 @@
                 <div class="card-hero-art">
                     <img src="pet/assets/town/town_bg.jpg" alt="海滨小镇" class="card-bg-cover" />
                     <span class="card-ribbon-tag">🐾 电子萌宠养成 · 小镇开店</span>
-                    <span class="card-new-upgrade-pill">💌 双宝串门彩蛋</span>
+                    <span class="card-new-upgrade-pill">🎲 大随机·17题型</span>
                     <div class="card-characters-cluster">
                         <img src="pet/assets/pets/rabbit.png" alt="垂耳兔" class="hero-char-img" />
                         <img src="pet/assets/shops/supermarket_lv5.png" alt="阳光超市" class="hero-char-img secondary" />
@@ -120,10 +130,10 @@
                         <h2 class="card-game-title">奇妙萌宠店长：数英星语镇</h2>
                         <p class="card-game-desc">用各游戏赚来的徽章投喂垂耳兔、小青蛙与神兽，升至 Lv.5 毕业去海滨小镇开甜品店，小豌豆与川川还能互相串门送礼！</p>
                         <div class="card-subjects-row">
-                            <span class="subj-badge subj-calc">⚡ 心算口算</span>
-                            <span class="subj-badge subj-word">📖 乘除应用题</span>
-                            <span class="subj-badge subj-data">📊 数据统计图</span>
-                            <span class="subj-badge subj-en">🔤 12主题背单词</span>
+                            <span class="subj-badge subj-calc">🎲 数英大随机</span>
+                            <span class="subj-badge subj-word">🔢 9种数学互动</span>
+                            <span class="subj-badge subj-data">🔤 8种英语闯关</span>
+                            <span class="subj-badge subj-en">📚 20主题360词</span>
                         </div>
                     </div>
                     <div>
@@ -151,12 +161,12 @@
                 <div class="card-body">
                     <div>
                         <h2 class="card-game-title">保卫兔子与青蛙！奇趣塔防</h2>
-                        <p class="card-game-desc">48关简洁秒选 + 新炮塔解锁图鉴！小黑板全通口算、乘除应用题、图表与216词英语，每位宝贝独立记录金萝卜与全清奖章！</p>
+                        <p class="card-game-desc">48关简洁秒选 + 新炮塔图鉴！小黑板全通大随机、天平比大小、钟表钱币、消消乐与360词英语，每位宝贝独立记录金萝卜！</p>
                         <div class="card-subjects-row">
-                            <span class="subj-badge subj-calc">⚡ 弱点破盾口算</span>
-                            <span class="subj-badge subj-word">📖 乘除应用(1.5倍G)</span>
-                            <span class="subj-badge subj-data">📊 数据图表</span>
-                            <span class="subj-badge subj-en">🔤 背单词得金币</span>
+                            <span class="subj-badge subj-calc">⚖️ 比大小/凑数</span>
+                            <span class="subj-badge subj-word">🕒 钟表钱币/数砖</span>
+                            <span class="subj-badge subj-data">🫧 单词消消乐</span>
+                            <span class="subj-badge subj-en">🚂 连词成句/猜谜</span>
                         </div>
                     </div>
                     <div>
@@ -184,12 +194,12 @@
                 <div class="card-body">
                     <div>
                         <h2 class="card-game-title">植物大战僵尸：数英大作战</h2>
-                        <p class="card-game-desc">白天、黑夜、泳池、浓雾、屋顶50关通关奖杯 + 2x二倍速爽快种花！右侧黑板答数英召唤大阳光与全屏雷击大招！</p>
+                        <p class="card-game-desc">白天、黑夜、泳池、浓雾、屋顶50关通关奖杯 + 2x二倍速爽快种花！支持数英大随机或任意单项直达召唤阳光与全屏雷击！</p>
                         <div class="card-subjects-row">
-                            <span class="subj-badge subj-calc">⚡ 阳光口算</span>
-                            <span class="subj-badge subj-word">📖 应用题破铁桶</span>
-                            <span class="subj-badge subj-data">📊 数据图表</span>
-                            <span class="subj-badge subj-en">🔤 英语召唤大招</span>
+                            <span class="subj-badge subj-calc">🎲 大随机爆阳光</span>
+                            <span class="subj-badge subj-word">🔍 填符号/找规律</span>
+                            <span class="subj-badge subj-data">🔤 拼读积木/填空</span>
+                            <span class="subj-badge subj-en">⚡ 连击全屏雷电</span>
                         </div>
                     </div>
                     <div>
@@ -208,7 +218,7 @@
     <div class="hub-modal-overlay" id="hubSettingsModal">
         <div class="hub-modal-card">
             <div class="hub-modal-header">
-                <div class="hub-modal-title">⚙️ 家长管理中心 · 数英难度与每日上限设置</div>
+                <div class="hub-modal-title">⚙️ 家长管理中心 · 数英题型定制与难度设置</div>
                 <button type="button" class="hub-close-btn" id="btnCloseHubSettings">✕</button>
             </div>
 
@@ -229,7 +239,7 @@
             </div>
 
             <div class="hub-form-section">
-                <div class="hub-sec-label">3. 数学口算与应用题难度配置（完整同步进退位与凑数填空开关）：</div>
+                <div class="hub-sec-label">3. 数学难度与上场题型多选（共 9 种趣味题型，大随机/数学随机从已勾选抽取）：</div>
                 <div class="hub-pill-row" id="hubMathPresetRow" style="margin-bottom:8px;"></div>
                 <div class="hub-pill-row" id="hubMathOpsRow" style="margin-bottom:8px;">
                     <button type="button" class="hub-opt-pill" data-op="add">➕ 加法</button>
@@ -239,12 +249,14 @@
                 </div>
                 <div class="hub-pill-row" id="hubMathRangeRow" style="margin-bottom:8px;"></div>
                 <div class="hub-pill-row" id="hubMathMultRow" style="margin-bottom:8px;"></div>
-                <div class="hub-pill-row" id="hubMathExtraRow"></div>
+                <div class="hub-pill-row" id="hubMathExtraRow" style="margin-bottom:8px;"></div>
+                <div id="hubMathTypesBox"></div>
             </div>
 
             <div class="hub-form-section">
-                <div class="hub-sec-label">4. 少儿英语默认题型与主题词包（12大主题·216核心词）：</div>
+                <div class="hub-sec-label">4. 少儿英语上场题型多选与默认词库（共 8 种互动题型 · 20大主题360词洗牌防重）：</div>
                 <div class="hub-pill-row" id="hubEnLevelRow" style="margin-bottom:8px;"></div>
+                <div id="hubEnTypesBox" style="margin-bottom:8px;"></div>
                 <div class="hub-pill-row" id="hubEnPackRow"></div>
             </div>
 
@@ -317,7 +329,7 @@
         </div>
     </div>
 
-    <script type="module" src="js/hub.js?v=20261113_opt_v1"></script>
+    <script type="module" src="js/hub.js?v=20261114_modes_v1"></script>
     <script>
         if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
             window.addEventListener('load', () => {

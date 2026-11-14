@@ -1,9 +1,26 @@
 /**
  * shared/smartChalkboard.js - 保卫兔蛙(/carrot/) 与 植物大战僵尸(/pvz/) 通用多学科智慧小黑板控制器
- * 支持：⚡ 心算口算 | 📖 乘除与两步应用题 | 📊 数据统计图表 | 🔤 少儿英语（闪电闯关 + 5词背诵营）
- * 并实时打通【小豌豆 / 川川】全局萌宠徽章、每日30枚防沉迷上限、盲盒券与错题/生词本！
+ * 升级版支持：
+ * 1. 🎲 统一数英大随机入口（按小朋友各自勾选启用的数学9题型 + 英语8题型智能穿插）
+ * 2. 🔢 数学单科随机 & 全部 9 个单项目独立直达入口
+ * 3. 🔤 英语单科随机 & 全部 8 个单项目独立直达入口 + 📖 5词魔法背诵营（20主题·360词洗牌防重）
+ * 4. 实时打通【小豌豆 / 川川】全局萌宠徽章、每日防沉迷上限、盲盒券与错题/生词本！
  */
-import { WORD_PACKS, EnglishEngine, englishEngine } from './englishEngine.js';
+import {
+    WORD_PACKS,
+    ENGLISH_QUESTION_TYPES,
+    ALL_ENGLISH_TYPE_IDS,
+    EnglishEngine,
+    englishEngine
+} from './englishEngine.js';
+import {
+    MATH_QUESTION_TYPES,
+    ALL_MATH_TYPE_IDS
+} from './mathEngine.js';
+import {
+    renderMathInteractiveWidget,
+    renderEnglishQuizWidget
+} from './questionWidgets.js';
 import { sharedSpeech } from './audioTTS.js';
 
 export class SmartChalkboard {
@@ -12,7 +29,7 @@ export class SmartChalkboard {
      * @param {'carrot'|'pvz'} opts.hostType - 宿主游戏类型
      * @param {import('./mathEngine.js').MathEngine} opts.mathEngine - 共享数学引擎实例
      * @param {import('./unifiedProfile.js').UserProfileManager} opts.profileManager - 统一档案实例
-     * @param {(battleRes: any, meta: { isEnglish: boolean, wordObj?: any, isCampFinish?: boolean, badgeSuffix?: string }) => void} opts.onEnglishBattleResult - 英语答题触发宿主战场奖励回调
+     * @param {(battleRes: any, meta: any) => void} opts.onEnglishBattleResult - 互动题/英语题触发宿主战场奖励回调
      * @param {() => void} [opts.onSoundResume] - 唤醒 WebAudio 回调
      */
     constructor(opts) {
@@ -36,12 +53,17 @@ export class SmartChalkboard {
             });
         }
 
-        this.mode = 'calc'; // 'calc' | 'word' | 'data' | 'english'
-        this.enSubMode = 'quiz'; // 'quiz' | 'vocab'
+        // entryMode: 'grand_random' | 'math_random' | 'english_random' | 'vocab_camp' | any math type id | any english type id
+        this.entryMode = 'grand_random';
+        this.mode = 'grand_random';
+        this._grandActiveSubject = 'math'; // 在 grand_random 下当前这道题属于 'math' 还是 'english'
+        this._grandStreakSubject = '';
+        this._grandStreakCount = 0;
+
         this.selectedPackId = 'all';
         this.showVisualTip = false;
-        this.spellSlotsState = []; // 拼写题已填槽位 [{ idx, char, tileId }]
         this._enLock = false;
+        this._numericKeypadVisible = true;
 
         this.mountDOM();
         this.syncFromActiveProfile();
@@ -92,25 +114,41 @@ export class SmartChalkboard {
 
         if (!this.cardEl || !this.bbInnerEl) return;
 
-        // 2. 在小黑板上方注入 4 学科切换条 [⚡ 口算 | 📖 应用 | 📊 图表 | 🔤 英语]
+        // 2. 注入一级大入口切换栏 [🎲 大随机 | 🔢 数学(9) | 🔤 英语(8)]
         const tabsWrap = document.createElement('div');
         tabsWrap.className = 'smart-mode-tabs';
         tabsWrap.id = 'smartModeTabs';
         tabsWrap.innerHTML = `
-            <button type="button" class="smart-mode-tab active" data-smode="calc">⚡ 口算</button>
-            <button type="button" class="smart-mode-tab" data-smode="word">📖 应用</button>
-            <button type="button" class="smart-mode-tab" data-smode="data">📊 图表</button>
-            <button type="button" class="smart-mode-tab" data-smode="english">🔤 英语</button>
+            <button type="button" class="smart-mode-tab active" data-topcat="grand">🎲 大随机</button>
+            <button type="button" class="smart-mode-tab" data-topcat="math">🔢 数学</button>
+            <button type="button" class="smart-mode-tab" data-topcat="english">🔤 英语</button>
         `;
         this.cardEl.insertBefore(tabsWrap, this.bbInnerEl);
         this.tabsWrap = tabsWrap;
+
+        // 2B. 注入单行横向滚动【单项目直达胶囊条】
+        const subStrip = document.createElement('div');
+        subStrip.className = 'smart-sub-entry-strip';
+        subStrip.id = 'smartSubEntryStrip';
+        this.cardEl.insertBefore(subStrip, this.bbInnerEl);
+        this.subStripEl = subStrip;
 
         tabsWrap.addEventListener('click', (e) => {
             const btn = e.target.closest('.smart-mode-tab');
             if (!btn) return;
             this.onSoundResume();
-            const targetMode = btn.getAttribute('data-smode');
-            this.switchMode(targetMode);
+            const cat = btn.getAttribute('data-topcat');
+            if (cat === 'grand') this.switchMode('grand_random');
+            else if (cat === 'math') this.switchMode('math_random');
+            else if (cat === 'english') this.switchMode('english_random');
+        });
+
+        subStrip.addEventListener('click', (e) => {
+            const pill = e.target.closest('.smart-entry-pill');
+            if (!pill) return;
+            this.onSoundResume();
+            const emode = pill.getAttribute('data-emode');
+            if (emode) this.switchMode(emode);
         });
 
         // 3. 在答案框中注入应用题/图表题单位徽章
@@ -123,22 +161,27 @@ export class SmartChalkboard {
             this.unitBadgeEl = unitEl;
         }
 
-        // 4. 注入少儿英语（闪电闯关 + 5词背诵营）面板
+        // 4. 注入互动数学舞台 (#smartMathWidgetPanel)
+        const mathWidgetPanel = document.createElement('div');
+        mathWidgetPanel.className = 'smart-english-panel';
+        mathWidgetPanel.id = 'smartMathWidgetPanel';
+        this.bbInnerEl.insertAdjacentElement('afterend', mathWidgetPanel);
+        this.mathWidgetPanelEl = mathWidgetPanel;
+
+        // 5. 注入少儿英语（8题型闪电闯关 + 5词背诵营 + 20主题词包切换）面板
         const enPanel = document.createElement('div');
         enPanel.className = 'smart-english-panel';
         enPanel.id = 'smartEnglishPanel';
 
+        const totalWordsCount = WORD_PACKS.reduce((s, p) => s + p.words.length, 0);
         const packOptionsHtml = [
-            `<option value="all">📚 全部词库 (${WORD_PACKS.reduce((s, p) => s + p.words.length, 0)})</option>`,
+            `<option value="all">🌟 全部20主题 (${totalWordsCount}词)</option>`,
             ...WORD_PACKS.map(p => `<option value="${p.id}">${p.icon} ${p.name}</option>`)
         ].join('');
 
         enPanel.innerHTML = `
             <div class="smart-en-top-row">
-                <div class="smart-en-subtabs">
-                    <button type="button" class="smart-en-subbtn active" data-ensub="quiz">🎯 闪电闯关</button>
-                    <button type="button" class="smart-en-subbtn" data-ensub="vocab">📖 背单词</button>
-                </div>
+                <span class="qw-mode-tag" id="smartEnModeLabel">🔤 英语闯关</span>
                 <select class="smart-en-pack-select" id="smartEnPackSelect" title="选择英语主题词包">
                     ${packOptionsHtml}
                 </select>
@@ -146,18 +189,11 @@ export class SmartChalkboard {
             <div id="smartEnStage"></div>
         `;
 
-        this.bbInnerEl.insertAdjacentElement('afterend', enPanel);
+        mathWidgetPanel.insertAdjacentElement('afterend', enPanel);
         this.enPanelEl = enPanel;
         this.enStageEl = enPanel.querySelector('#smartEnStage');
+        this.enModeLabelEl = enPanel.querySelector('#smartEnModeLabel');
         this.enPackSelectEl = enPanel.querySelector('#smartEnPackSelect');
-
-        enPanel.querySelector('.smart-en-subtabs').addEventListener('click', (e) => {
-            const subBtn = e.target.closest('.smart-en-subbtn');
-            if (!subBtn) return;
-            this.onSoundResume();
-            const sub = subBtn.getAttribute('data-ensub');
-            this.switchEnglishSubMode(sub);
-        });
 
         this.enPackSelectEl.addEventListener('change', () => {
             this.selectedPackId = this.enPackSelectEl.value;
@@ -168,11 +204,11 @@ export class SmartChalkboard {
                     englishConfig: { ...(active.englishConfig || {}), packId: this.selectedPackId }
                 });
             }
-            if (this.enSubMode === 'vocab') {
-                const packForCamp = this.selectedPackId === 'all' ? 'pack_animals' : this.selectedPackId;
-                englishEngine.startVocabStudySession(packForCamp, active?.wordMastery || {});
+            if (this.entryMode === 'vocab_camp') {
+                englishEngine.startVocabStudySession(this.selectedPackId, active?.wordMastery || {});
             } else {
-                englishEngine.nextQuickQuestion();
+                const forced = ALL_ENGLISH_TYPE_IDS.includes(this.entryMode) ? this.entryMode : 'random';
+                englishEngine.nextQuickQuestion(null, forced);
             }
             this.renderEnglishStage(true);
         });
@@ -181,20 +217,65 @@ export class SmartChalkboard {
     syncFromActiveProfile() {
         const user = this.profileManager.getActiveUser();
         if (!user) return;
+        if (this.mathEngine && user.mathConfig) {
+            this.mathEngine.setConfig(user.mathConfig);
+        }
         const enCfg = user.englishConfig || { level: 'level2_match', packId: 'all' };
         this.selectedPackId = enCfg.packId || 'all';
         englishEngine.setConfig({
             level: enCfg.level || 'level2_match',
-            packId: this.selectedPackId
+            packId: this.selectedPackId,
+            enabledTypes: enCfg.enabledTypes
         });
         if (this.enPackSelectEl) {
             this.enPackSelectEl.value = this.selectedPackId;
         }
         this.updateTopBadgePill();
-        this._syncBottomDiffTag();
-        if (user.preferredSmartMode && user.preferredSmartMode !== this.mode) {
-            this.switchMode(user.preferredSmartMode, false);
+        const pref = user.preferredSmartMode || 'grand_random';
+        this.switchMode(pref, false);
+    }
+
+    _getTopCategory(mode = this.entryMode) {
+        if (mode === 'grand_random') return 'grand';
+        if (mode === 'english' || mode === 'english_random' || mode === 'vocab_camp' || ALL_ENGLISH_TYPE_IDS.includes(mode)) {
+            return 'english';
         }
+        return 'math';
+    }
+
+    _renderSubEntryStrip() {
+        if (!this.subStripEl) return;
+        const u = this.profileManager.getActiveUser();
+        const mathCount = u?.mathConfig?.enabledTypes?.length || ALL_MATH_TYPE_IDS.length;
+        const enCount = u?.englishConfig?.enabledTypes?.length || ALL_ENGLISH_TYPE_IDS.length;
+        const topCat = this._getTopCategory();
+
+        let pills = [];
+        if (topCat === 'grand') {
+            pills = [
+                { id: 'grand_random', label: `🎲 数英大随机(数${mathCount}+英${enCount})` },
+                { id: 'math_random', label: '🔢 切数学随机' },
+                { id: 'english_random', label: '🔤 切英语随机' },
+                { id: 'vocab_camp', label: '📖 5词背诵' }
+            ];
+        } else if (topCat === 'math') {
+            pills = [
+                { id: 'math_random', label: `🎲 数学随机(${mathCount}项)` },
+                ...MATH_QUESTION_TYPES.map(t => ({ id: t.id, label: t.shortName }))
+            ];
+        } else {
+            pills = [
+                { id: 'english_random', label: `🎲 英语随机(${enCount}项)` },
+                { id: 'vocab_camp', label: '📖 5词背诵' },
+                ...ENGLISH_QUESTION_TYPES.map(t => ({ id: t.id, label: t.shortName }))
+            ];
+        }
+
+        this.subStripEl.innerHTML = pills.map(p => `
+            <button type="button" class="smart-entry-pill ${this.entryMode === p.id ? 'active' : ''}" data-emode="${p.id}">
+                ${p.label}
+            </button>
+        `).join('');
     }
 
     _syncBottomDiffTag() {
@@ -202,7 +283,10 @@ export class SmartChalkboard {
         if (!diffEl) return;
         const u = this.profileManager.getActiveUser();
         if (!u) return;
-        if (this.mode === 'english') {
+        const topCat = this._getTopCategory();
+        if (topCat === 'grand') {
+            diffEl.textContent = `🎲 大随机(数${u.mathConfig?.enabledTypes?.length || 9}+英${u.englishConfig?.enabledTypes?.length || 8})`;
+        } else if (topCat === 'english') {
             diffEl.textContent = EnglishEngine.formatSummary(u.englishConfig);
         } else if (this.mathEngine && typeof this.mathEngine.getDifficultySummary === 'function') {
             diffEl.textContent = this.mathEngine.getDifficultySummary();
@@ -224,111 +308,165 @@ export class SmartChalkboard {
         }
     }
 
+    /**
+     * 供宿主键盘事件判断是否屏蔽数字键盘快捷输入：仅当显示数字输入框时才放行键盘数字输入
+     */
     isEnglishActive() {
-        return this.mode === 'english';
+        return !this._numericKeypadVisible;
     }
 
-    switchMode(newMode, persistPref = true) {
-        if (!['calc', 'word', 'data', 'english'].includes(newMode)) return;
+    _rollGrandNextSubject() {
+        if (this._grandStreakCount >= 2) {
+            const next = this._grandStreakSubject === 'math' ? 'english' : 'math';
+            this._grandStreakSubject = next;
+            this._grandStreakCount = 1;
+            return next;
+        }
+        const next = Math.random() < 0.54 ? 'math' : 'english';
+        if (next === this._grandStreakSubject) {
+            this._grandStreakCount += 1;
+        } else {
+            this._grandStreakSubject = next;
+            this._grandStreakCount = 1;
+        }
+        return next;
+    }
+
+    _prepareNextGrandQuestion(autoSpeak = false) {
+        this._grandActiveSubject = this._rollGrandNextSubject();
+        if (this._grandActiveSubject === 'english') {
+            englishEngine.nextQuickQuestion(null, 'random');
+            this.renderEnglishStage(autoSpeak);
+        } else {
+            this.mathEngine.setCategoryFilter('random');
+            this.mathEngine.nextQuestion();
+            this._renderCurrentMathView();
+        }
+    }
+
+    switchMode(rawMode, persistPref = true) {
+        let newMode = rawMode || 'grand_random';
+        if (newMode === 'english') newMode = 'english_random';
+        if (newMode === 'math') newMode = 'math_random';
+
+        const isValid = ['grand_random', 'math_random', 'english_random', 'vocab_camp'].includes(newMode) ||
+            ALL_MATH_TYPE_IDS.includes(newMode) ||
+            ALL_ENGLISH_TYPE_IDS.includes(newMode);
+        if (!isValid) newMode = 'grand_random';
+
+        this.entryMode = newMode;
         this.mode = newMode;
         this.showVisualTip = false;
+
         if (persistPref && typeof this.profileManager.setPreferredSmartMode === 'function') {
             this.profileManager.setPreferredSmartMode(newMode);
         }
-        this._syncBottomDiffTag();
 
+        const topCat = this._getTopCategory(newMode);
         if (this.tabsWrap) {
             this.tabsWrap.querySelectorAll('.smart-mode-tab').forEach(btn => {
-                btn.classList.toggle('active', btn.getAttribute('data-smode') === newMode);
+                btn.classList.toggle('active', btn.getAttribute('data-topcat') === topCat);
             });
         }
+        this._renderSubEntryStrip();
+        this._syncBottomDiffTag();
 
-        if (this.cardEl) {
-            this.cardEl.classList.toggle('compact-rich-mode', newMode !== 'calc');
+        if (newMode === 'grand_random') {
+            this._prepareNextGrandQuestion(false);
+            return;
         }
 
-        if (newMode === 'english') {
-            if (this.bbInnerEl) this.bbInnerEl.style.display = 'none';
-            if (this.answerBoxEl) this.answerBoxEl.style.display = 'none';
-            if (this.keypadEl) this.keypadEl.style.display = 'none';
-            if (this.enPanelEl) this.enPanelEl.classList.add('active');
-
-            if (this.enSubMode === 'vocab') {
+        if (topCat === 'english') {
+            const u = this.profileManager.getActiveUser();
+            if (newMode === 'vocab_camp') {
                 if (!englishEngine.studySession) {
-                    const u = this.profileManager.getActiveUser();
-                    const packForCamp = this.selectedPackId === 'all' ? 'pack_animals' : this.selectedPackId;
-                    englishEngine.startVocabStudySession(packForCamp, u?.wordMastery || {});
+                    englishEngine.startVocabStudySession(this.selectedPackId, u?.wordMastery || {});
                 }
-            } else if (!englishEngine.currentQuiz) {
-                englishEngine.nextQuickQuestion();
+            } else {
+                const forced = ALL_ENGLISH_TYPE_IDS.includes(newMode) ? newMode : 'random';
+                englishEngine.nextQuickQuestion(null, forced);
             }
             this.renderEnglishStage(true);
             return;
         }
 
-        // 数学三模式 (calc / word / data)
-        if (this.enPanelEl) this.enPanelEl.classList.remove('active');
-        if (this.bbInnerEl) this.bbInnerEl.style.display = '';
-        if (this.answerBoxEl) this.answerBoxEl.style.display = '';
-        if (this.keypadEl) this.keypadEl.style.display = '';
-
-        this.mathEngine.setCategoryFilter(newMode);
+        // 数学模式 ('math_random' 或 9 个具体题型 ID)
+        const targetMathSub = newMode === 'math_random' ? 'random' : newMode;
+        this.mathEngine.setCategoryFilter(targetMathSub);
         const curQ = this.mathEngine.currentQuestion;
-        if (!curQ || curQ.kind !== newMode || curQ.isShieldNuke) {
+        if (!curQ || (targetMathSub !== 'random' && curQ.kind !== targetMathSub) || curQ.isShieldNuke || curQ.isShieldTarget) {
             this.mathEngine.nextQuestion();
         }
-        this.renderMathQuestion();
+        this._renderCurrentMathView();
     }
 
-    switchEnglishSubMode(subMode) {
-        this.enSubMode = subMode === 'vocab' ? 'vocab' : 'quiz';
-        if (this.enPanelEl) {
-            this.enPanelEl.querySelectorAll('.smart-en-subbtn').forEach(b => {
-                b.classList.toggle('active', b.getAttribute('data-ensub') === this.enSubMode);
-            });
+    _setPanelVisibility({ showNumericMath = false, showInteractiveMath = false, showEnglish = false }) {
+        this._numericKeypadVisible = Boolean(showNumericMath);
+        if (this.bbInnerEl) this.bbInnerEl.style.display = showNumericMath ? '' : 'none';
+        if (this.answerBoxEl) this.answerBoxEl.style.display = showNumericMath ? '' : 'none';
+        if (this.keypadEl) this.keypadEl.style.display = showNumericMath ? '' : 'none';
+        if (this.mathWidgetPanelEl) this.mathWidgetPanelEl.classList.toggle('active', Boolean(showInteractiveMath));
+        if (this.enPanelEl) this.enPanelEl.classList.toggle('active', Boolean(showEnglish));
+        if (this.cardEl) {
+            const curQ = this.mathEngine?.currentQuestion;
+            const isPureCalc = showNumericMath && (!curQ || curQ.kind === 'calc');
+            this.cardEl.classList.toggle('compact-rich-mode', !isPureCalc);
         }
-        const u = this.profileManager.getActiveUser();
-        if (this.enSubMode === 'vocab') {
-            const packForCamp = this.selectedPackId === 'all' ? 'pack_animals' : this.selectedPackId;
-            englishEngine.startVocabStudySession(packForCamp, u?.wordMastery || {});
-        } else {
-            englishEngine.nextQuickQuestion();
-        }
-        this.renderEnglishStage(true);
     }
 
     /**
-     * 当宿主游戏外部刷新小黑板（例如点击了数盾怪兽加载专属算式，或答完一题后刷新）时调用
+     * 当宿主游戏外部刷新小黑板（例如点击了数盾怪兽加载专属算式，或数字键盘答完一题后刷新）时调用
      */
     renderMathQuestion() {
         const q = this.mathEngine.currentQuestion;
-        if (!q) return;
 
-        // 若玩家在战场上点击了数盾怪兽，强制切回 ⚡ 口算 视图展示破盾算式
-        if ((q.isShieldNuke || q.isShieldTarget) && this.mode !== 'calc') {
-            this.mode = 'calc';
-            if (this.tabsWrap) {
-                this.tabsWrap.querySelectorAll('.smart-mode-tab').forEach(btn => {
-                    btn.classList.toggle('active', btn.getAttribute('data-smode') === 'calc');
-                });
-            }
-            if (this.enPanelEl) this.enPanelEl.classList.remove('active');
-            if (this.bbInnerEl) this.bbInnerEl.style.display = '';
-            if (this.answerBoxEl) this.answerBoxEl.style.display = '';
-            if (this.keypadEl) this.keypadEl.style.display = '';
-            if (this.cardEl) this.cardEl.classList.remove('compact-rich-mode');
+        // 1. 战场破盾算式最高优先级：临时展示数字口算面板，不覆盖玩家的 entryMode 偏好！
+        if (q && (q.isShieldNuke || q.isShieldTarget)) {
+            this._renderNumericMathDOM(q);
+            return;
         }
 
-        if (this.mode === 'english') {
+        // 2. 若玩家处于【🎲 大随机】，刚答完一道数字数学题后推进下一题（可能抽中英语或互动数学）
+        if (this.entryMode === 'grand_random') {
+            this._prepareNextGrandQuestion(true);
+            return;
+        }
+
+        // 3. 若玩家处于英语分支，保持英语视图
+        if (this._getTopCategory() === 'english') {
             this.renderEnglishStage(false);
             return;
         }
 
+        // 4. 数学分支（数学随机 或 单项目）
+        this._renderCurrentMathView();
+    }
+
+    _renderCurrentMathView() {
+        const q = this.mathEngine.currentQuestion;
+        if (!q) return;
+
+        if (q.isInteractiveWidget && !q.isShieldNuke && !q.isShieldTarget) {
+            this._setPanelVisibility({ showInteractiveMath: true });
+            renderMathInteractiveWidget(this.mathWidgetPanelEl, q, {
+                theme: 'dark',
+                onTapSound: () => this.onSoundResume(),
+                onEvaluate: (isCorrect, userAnsLabel) => {
+                    this._handleInteractiveMathAnswer(isCorrect, userAnsLabel);
+                }
+            });
+            return;
+        }
+
+        this._renderNumericMathDOM(q);
+    }
+
+    _renderNumericMathDOM(q) {
+        this._setPanelVisibility({ showNumericMath: true });
         this.showVisualTip = false;
         if (this.answerInputEl) {
             this.answerInputEl.value = '';
         }
-
         if (!this.formulaEl || !this.hintEl) return;
 
         if (q.kind === 'word') {
@@ -358,8 +496,33 @@ export class SmartChalkboard {
             }
             const label = this.hostType === 'carrot' ? (q.expr || q.formula) : (q.formula || q.expr);
             this.formulaEl.textContent = label;
-            this.hintEl.textContent = q.hint ? (q.hint.startsWith('🎯') || q.hint.startsWith('⚡') ? q.hint : `🎯 ${q.hint}`) : '🎯 口算速算挑战';
+            this.hintEl.textContent = q.hint
+                ? (q.hint.startsWith('🎯') || q.hint.startsWith('⚡') || q.hint.startsWith('🔄') ? q.hint : `🎯 ${q.hint}`)
+                : '🎯 口算速算挑战';
         }
+    }
+
+    _handleInteractiveMathAnswer(isCorrect, userAnsLabel) {
+        const res = this.mathEngine.evaluateInteractiveAttempt(isCorrect, userAnsLabel, false);
+        const badgeSuffix = this.recordMathProgress(res);
+
+        // 复用宿主战场奖励通道（发放塔防金币/暴击 或 植物大战僵尸阳光/破盾）
+        this.onEnglishBattleResult(res, {
+            isEnglish: false,
+            isInteractiveMath: true,
+            question: res.question,
+            badgeSuffix
+        });
+
+        const delayMs = isCorrect ? 520 : 1100;
+        setTimeout(() => {
+            if (this.entryMode === 'grand_random') {
+                this._prepareNextGrandQuestion(true);
+            } else {
+                this.mathEngine.nextQuestion();
+                this._renderCurrentMathView();
+            }
+        }, delayMs);
     }
 
     _renderWordProblemHtml(q) {
@@ -445,8 +608,7 @@ export class SmartChalkboard {
     }
 
     /**
-     * 将宿主游戏（保卫兔蛙 / 植物大战僵尸）的数学作答结果同步写入统一徽章系统与错题本
-     * @returns {string} 附加在反馈区的徽章奖励提示后缀
+     * 将宿主游戏的数学作答结果同步写入统一徽章系统与错题本
      */
     recordMathProgress(res) {
         const isCorrect = Boolean(res && (res.correct || res.isCorrect));
@@ -457,9 +619,10 @@ export class SmartChalkboard {
                 this.profileManager.resolveMathMistake(q);
             }
             const gameTag = this.hostType === 'carrot' ? '兔蛙塔防' : '植物战僵尸';
-            const kindTag = q?.kind === 'word' ? '应用题' : (q?.kind === 'data' ? '数据图' : '心算');
+            const typeMeta = MATH_QUESTION_TYPES.find(t => t.id === q?.kind);
+            const kindTag = typeMeta ? typeMeta.shortName.replace(/^[^\s]+\s*/, '') : '心算';
             const prog = this.profileManager.awardLearningProgress({
-                title: `⚔️ [${gameTag}·${kindTag}] 答对 ${q?.expr || q?.formula || '算式'}`,
+                title: `⚔️ [${gameTag}·${kindTag}] 答对 ${q?.expr || q?.formula || '题目'}`,
                 subjectTag: `${gameTag}·${kindTag}`,
                 badges: res.badgeEarned || 0,
                 stars: res.starEarned || 0,
@@ -483,18 +646,19 @@ export class SmartChalkboard {
         }
     }
 
-    // ==================== 少儿英语渲染与交互闭环 ====================
+    // ==================== 少儿英语渲染与交互闭环 (8大题型 + 5词背诵营) ====================
 
     renderEnglishStage(autoSpeak = false) {
         if (!this.enStageEl) return;
+        this._setPanelVisibility({ showEnglish: true });
         this._enLock = false;
 
-        if (this.enSubMode === 'vocab') {
+        if (this.entryMode === 'vocab_camp') {
+            if (this.enModeLabelEl) this.enModeLabelEl.textContent = '📖 5词背诵营';
             const sess = englishEngine.studySession;
             if (!sess) {
                 const u = this.profileManager.getActiveUser();
-                const packForCamp = this.selectedPackId === 'all' ? 'pack_animals' : this.selectedPackId;
-                englishEngine.startVocabStudySession(packForCamp, u?.wordMastery || {});
+                englishEngine.startVocabStudySession(this.selectedPackId, u?.wordMastery || {});
             }
             const curSess = englishEngine.studySession;
             if (curSess.phase === 'study') {
@@ -503,12 +667,21 @@ export class SmartChalkboard {
                 const q = curSess.quizQueue[curSess.quizIdx];
                 this._renderEnglishQuizCard(q, autoSpeak, `🔥 背词检验 (${curSess.quizIdx + 1}/${curSess.quizQueue.length})`);
             }
-        } else {
-            if (!englishEngine.currentQuiz) {
-                englishEngine.nextQuickQuestion();
-            }
-            this._renderEnglishQuizCard(englishEngine.currentQuiz, autoSpeak, '⚡ 英语闪电闯关');
+            return;
         }
+
+        const forced = ALL_ENGLISH_TYPE_IDS.includes(this.entryMode) ? this.entryMode : 'random';
+        if (!englishEngine.currentQuiz || (forced !== 'random' && englishEngine.currentQuiz.mode !== forced)) {
+            englishEngine.nextQuickQuestion(null, forced);
+        }
+        const curQuiz = englishEngine.currentQuiz;
+        const tMeta = ENGLISH_QUESTION_TYPES.find(t => t.id === curQuiz?.mode);
+        if (this.enModeLabelEl) {
+            this.enModeLabelEl.textContent = this.entryMode === 'grand_random'
+                ? `🎲 大随机 · ${tMeta ? tMeta.shortName : '英语'}`
+                : (tMeta ? tMeta.name : '⚡ 英语闪电闯关');
+        }
+        this._renderEnglishQuizCard(curQuiz, autoSpeak, tMeta ? tMeta.name : '⚡ 英语闯关');
     }
 
     _renderVocabStudyCard(sess, autoSpeak) {
@@ -573,164 +746,16 @@ export class SmartChalkboard {
 
     _renderEnglishQuizCard(q, autoSpeak, badgeTitle) {
         if (!q) return;
-        const w = q.wordObj;
-
-        if (q.mode === 'listen_pic' || q.mode === 'match_word') {
-            const isListen = q.mode === 'listen_pic';
-            const promptHtml = isListen
-                ? `
-                    <div class="smart-en-emoji">🎧</div>
-                    <div class="smart-en-zh" style="color:#ffeaa7;">听发音选出正确的图案</div>
-                `
-                : `
-                    <div class="smart-en-emoji">${w.icon}</div>
-                    <div class="smart-en-zh">${w.zh}</div>
-                `;
-
-            const optsHtml = q.options.map(opt => {
-                if (isListen) {
-                    return `
-                        <button type="button" class="smart-en-opt-btn" data-opt-id="${opt.id}">
-                            <span class="smart-en-opt-icon">${opt.icon}</span>
-                            <span class="smart-en-opt-sub">${opt.zh}</span>
-                        </button>
-                    `;
-                }
-                return `
-                    <button type="button" class="smart-en-opt-btn" data-opt-id="${opt.id}">
-                        <span class="smart-en-opt-word">${opt.word}</span>
-                        <span class="smart-en-opt-sub">${opt.phonicsHtml}</span>
-                    </button>
-                `;
-            }).join('');
-
-            this.enStageEl.innerHTML = `
-                <div class="smart-en-card">
-                    <div class="smart-en-progress">${badgeTitle}</div>
-                    ${promptHtml}
-                    <div class="smart-en-audio-row">
-                        <button type="button" class="smart-mini-btn" id="btnEnQuizSpeak">🔊 再听一遍</button>
-                        <button type="button" class="smart-mini-btn" id="btnEnQuizSlow">🐢 慢速</button>
-                    </div>
-                </div>
-                <div class="smart-en-options-grid" style="margin-top:6px;">
-                    ${optsHtml}
-                </div>
-            `;
-
-            if (autoSpeak) {
-                sharedSpeech.speakEnglish(q.speakText || w.word, false);
-            }
-
-            this.enStageEl.querySelector('#btnEnQuizSpeak')?.addEventListener('click', () => {
-                sharedSpeech.speakEnglish(q.speakText || w.word, false);
-            });
-            this.enStageEl.querySelector('#btnEnQuizSlow')?.addEventListener('click', () => {
-                sharedSpeech.speakEnglish(q.speakText || w.word, true, w.phonics);
-            });
-
-            this.enStageEl.querySelectorAll('.smart-en-opt-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    if (this._enLock) return;
-                    this.onSoundResume();
-                    const pickedId = btn.getAttribute('data-opt-id');
-                    const isCorrect = pickedId === q.answerId;
-                    btn.classList.add(isCorrect ? 'correct' : 'wrong');
-                    if (!isCorrect) {
-                        this.enStageEl.querySelector(`.smart-en-opt-btn[data-opt-id="${q.answerId}"]`)?.classList.add('correct');
-                    }
-                    this._handleEnglishAnswer(isCorrect, w, pickedId);
-                });
-            });
-            return;
-        }
-
-        // 拼写填空模式 spell_word
-        this.spellSlotsState = q.missingIndices.map(idx => ({ idx, char: '', tileId: null }));
-        this._renderSpellQuizDOM(q, badgeTitle);
-        if (autoSpeak) {
-            sharedSpeech.speakEnglish(q.speakText || w.word, false);
-        }
-    }
-
-    _renderSpellQuizDOM(q, badgeTitle) {
-        const w = q.wordObj;
-        const slotsHtml = q.chars.map((ch, idx) => {
-            const slotObj = this.spellSlotsState.find(s => s.idx === idx);
-            if (!slotObj) {
-                return `<span class="smart-spell-slot">${ch}</span>`;
-            }
-            if (slotObj.char) {
-                return `<span class="smart-spell-slot missing filled" data-slot-idx="${idx}" title="点击退回字母">${slotObj.char}</span>`;
-            }
-            return `<span class="smart-spell-slot missing" data-slot-idx="${idx}">_</span>`;
-        }).join('');
-
-        const usedTileIds = new Set(this.spellSlotsState.map(s => s.tileId).filter(Boolean));
-        const tilesHtml = q.tiles.map(t => `
-            <button type="button" class="smart-letter-tile ${usedTileIds.has(t.tileId) ? 'used' : ''}" data-tile-id="${t.tileId}" data-char="${t.char}">
-                ${t.char}
-            </button>
-        `).join('');
-
-        this.enStageEl.innerHTML = `
-            <div class="smart-en-card">
-                <div class="smart-en-progress">${badgeTitle}</div>
-                <div class="smart-en-emoji">${w.icon}</div>
-                <div class="smart-en-zh">${w.zh}</div>
-                <div class="smart-spell-slots">${slotsHtml}</div>
-                <div class="smart-en-audio-row">
-                    <button type="button" class="smart-mini-btn" id="btnEnQuizSpeak">🔊 听单词</button>
-                    <button type="button" class="smart-mini-btn" id="btnEnSpellClear">🔄 重拼</button>
-                </div>
-            </div>
-            <div class="smart-spell-tiles" style="margin-top:6px;">
-                ${tilesHtml}
-            </div>
-        `;
-
-        this.enStageEl.querySelector('#btnEnQuizSpeak')?.addEventListener('click', () => {
-            sharedSpeech.speakEnglish(w.word, false);
-        });
-        this.enStageEl.querySelector('#btnEnSpellClear')?.addEventListener('click', () => {
-            if (this._enLock) return;
-            this.spellSlotsState.forEach(s => { s.char = ''; s.tileId = null; });
-            this._renderSpellQuizDOM(q, badgeTitle);
-        });
-
-        this.enStageEl.querySelectorAll('.smart-spell-slot.filled').forEach(slotEl => {
-            slotEl.addEventListener('click', () => {
+        renderEnglishQuizWidget(this.enStageEl, q, {
+            badgeTitle,
+            autoSpeak,
+            theme: 'dark',
+            onTapSound: () => this.onSoundResume(),
+            speakFn: (txt, slow, ph) => sharedSpeech.speakEnglish(txt, slow, ph),
+            onEvaluate: (isCorrect, userAns) => {
                 if (this._enLock) return;
-                const sIdx = Number(slotEl.getAttribute('data-slot-idx'));
-                const found = this.spellSlotsState.find(s => s.idx === sIdx);
-                if (found) {
-                    found.char = '';
-                    found.tileId = null;
-                    this._renderSpellQuizDOM(q, badgeTitle);
-                }
-            });
-        });
-
-        this.enStageEl.querySelectorAll('.smart-letter-tile').forEach(tileBtn => {
-            tileBtn.addEventListener('click', () => {
-                if (this._enLock) return;
-                this.onSoundResume();
-                const emptySlot = this.spellSlotsState.find(s => !s.char);
-                if (!emptySlot) return;
-                emptySlot.char = tileBtn.getAttribute('data-char');
-                emptySlot.tileId = tileBtn.getAttribute('data-tile-id');
-                this._renderSpellQuizDOM(q, badgeTitle);
-
-                // 检查是否全部填满
-                if (this.spellSlotsState.every(s => Boolean(s.char))) {
-                    const assembled = q.chars.map((origCh, i) => {
-                        const st = this.spellSlotsState.find(s => s.idx === i);
-                        return st ? st.char : origCh;
-                    }).join('').toLowerCase();
-                    const isCorrect = assembled === q.expectedWord;
-                    this._handleEnglishAnswer(isCorrect, w, assembled);
-                }
-            });
+                this._handleEnglishAnswer(isCorrect, q.wordObj, userAns);
+            }
         });
     }
 
@@ -738,7 +763,7 @@ export class SmartChalkboard {
         this._enLock = true;
         sharedSpeech.speakEnglish(wordObj.word, false);
 
-        const isVocabMode = this.enSubMode === 'vocab' && Boolean(englishEngine.studySession);
+        const isVocabMode = this.entryMode === 'vocab_camp' && Boolean(englishEngine.studySession);
         let isCampFinish = false;
 
         if (isVocabMode) {
@@ -749,10 +774,8 @@ export class SmartChalkboard {
             }
         }
 
-        // 1. 更新英语词库熟练度 & 错词本
         this.profileManager.updateWordProgress(wordObj, isCorrect, isCampFinish ? 2 : 1);
 
-        // 2. 同步写入战场连击与金币/阳光/破盾结算
         const isReviewWord = !isVocabMode && Boolean(englishEngine.currentQuiz?.isReview);
         const evalRes = englishEngine.evaluateResult(isCorrect, wordObj, isReviewWord);
         const battleRes = this.mathEngine.recordEnglishBattleAttempt({
@@ -762,7 +785,6 @@ export class SmartChalkboard {
             isVocabCampFinish: isCampFinish
         });
 
-        // 3. 发放全局萌宠徽章/星星进度
         let badgeSuffix = '';
         if (isCorrect) {
             const gameTag = this.hostType === 'carrot' ? '兔蛙塔防' : '植物战僵尸';
@@ -793,7 +815,6 @@ export class SmartChalkboard {
             }
         }
 
-        // 4. 触发宿主游戏(保卫兔蛙金币天击 / 植物大战僵尸阳光大招)
         this.onEnglishBattleResult(battleRes, {
             isEnglish: true,
             wordObj,
@@ -801,22 +822,25 @@ export class SmartChalkboard {
             badgeSuffix
         });
 
-        // 5. 推进下一题
         const delayMs = isCorrect ? (isCampFinish ? 1100 : 520) : 1150;
         setTimeout(() => {
+            if (this.entryMode === 'grand_random') {
+                this._prepareNextGrandQuestion(true);
+                return;
+            }
             if (isVocabMode && englishEngine.studySession) {
                 const sess = englishEngine.studySession;
                 if (isCampFinish) {
                     const u = this.profileManager.getActiveUser();
-                    const packForCamp = this.selectedPackId === 'all' ? 'pack_animals' : this.selectedPackId;
-                    englishEngine.startVocabStudySession(packForCamp, u?.wordMastery || {});
+                    englishEngine.startVocabStudySession(this.selectedPackId, u?.wordMastery || {});
                     this.renderEnglishStage(true);
                 } else {
                     sess.quizIdx++;
                     this.renderEnglishStage(true);
                 }
             } else {
-                englishEngine.nextQuickQuestion();
+                const forced = ALL_ENGLISH_TYPE_IDS.includes(this.entryMode) ? this.entryMode : 'random';
+                englishEngine.nextQuickQuestion(null, forced);
                 this.renderEnglishStage(true);
             }
         }, delayMs);

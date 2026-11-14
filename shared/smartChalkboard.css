@@ -521,3 +521,792 @@
     white-space: nowrap;
     flex-shrink: 0;
 }
+
+/* ==================== 升级：单行横向子项目直达条 (大随机 + 单项目入口) ==================== */
+.smart-sub-entry-strip {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 5px;
+    overflow-x: auto;
+    padding: 2px 1px 4px 1px;
+    margin-bottom: 5px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+.smart-sub-entry-strip::-webkit-scrollbar {
+    display: none;
+}
+.smart-entry-pill {
+    flex-shrink: 0;
+    border: 2px solid #7d5736;
+    border-radius: 999px;
+    background: #fff6e5;
+    color: #5d4037;
+    font-size: 11.5px;
+    font-weight: 900;
+    padding: 3px 9px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.14s ease;
+}
+.smart-entry-pill.active {
+    background: linear-gradient(180deg, #ff9f43 0%, #ee5253 100%);
+    border-color: #4e342e;
+    color: #fff;
+    box-shadow: 0 2px 0 #4e342e;
+}
+.smart-mode-btn[data-smode="grand_random"].active {
+    background: linear-gradient(135deg, #ff9f43 0%, #a55eea 100%);
+    color: #fff;
+}
+
+/* ==================== 共享互动题型舞台 (qw-*) 支持深色黑板与浅色萌宠双主题 ==================== */
+.qw-stage-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    width: 100%;
+    text-align: left;
+}
+
+.qw-top-tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+
+.qw-mode-tag {
+    font-size: 11.5px;
+    font-weight: 900;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255, 234, 167, 0.22);
+    color: #ffeaa7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.qw-theme-light .qw-mode-tag {
+    background: #efeaff;
+    color: #5c3dc4;
+}
+
+.qw-tool-btns {
+    display: flex;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.qw-mini-btn {
+    border: 1.5px solid rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
+    border-radius: 999px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.qw-mini-btn.tip {
+    border-color: #ffeaa7;
+    color: #ffeaa7;
+}
+.qw-theme-light .qw-mini-btn {
+    background: #fff;
+    border-color: #dcd3fa;
+    color: #4f359b;
+}
+.qw-theme-light .qw-mini-btn.tip {
+    background: #fff8df;
+    border-color: #f6b93b;
+    color: #b76e00;
+}
+
+.qw-tip-drawer {
+    padding: 6px 9px;
+    border-radius: 9px;
+    font-size: 12px;
+    font-weight: 800;
+    background: rgba(46, 213, 115, 0.2);
+    border: 1.5px dashed #55efc4;
+    color: #dff9fb;
+}
+.qw-theme-light .qw-tip-drawer {
+    background: #edfff6;
+    border-color: #00b894;
+    color: #00796b;
+}
+
+/* 1. 天平比大小 */
+.qw-balance-card {
+    background: rgba(0, 0, 0, 0.24);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-radius: 13px;
+    padding: 10px 8px 8px;
+    text-align: center;
+}
+.qw-theme-light .qw-balance-card {
+    background: linear-gradient(180deg, #faf7ff 0%, #f1ecff 100%);
+    border-color: #dcd3fa;
+}
+.qw-balance-beam {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: transform 0.22s ease;
+}
+.qw-balance-beam.tilt-left { transform: rotate(-3deg); }
+.qw-balance-beam.tilt-right { transform: rotate(3deg); }
+.qw-pan {
+    flex: 1;
+    background: #fff;
+    color: #2d3436;
+    border: 2.5px solid #f39c12;
+    border-radius: 12px;
+    padding: 9px 6px;
+    font-size: 18px;
+    font-weight: 900;
+    box-shadow: 0 3px 0 rgba(243, 156, 18, 0.45);
+}
+.qw-fulcrum {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #ffeaa7, #fdcb6e);
+    border: 2.5px solid #d35400;
+    color: #d35400;
+    font-size: 20px;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.qw-sub-caption {
+    margin-top: 6px;
+    font-size: 11.5px;
+    font-weight: 800;
+    color: #dfe6e9;
+}
+.qw-theme-light .qw-sub-caption {
+    color: #6c5ce7;
+}
+
+/* 通用选项按钮组 */
+.qw-choice-row {
+    display: grid;
+    gap: 7px;
+}
+.qw-choice-row.cols-2 { grid-template-columns: repeat(2, 1fr); }
+.qw-choice-row.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.qw-choice-row.cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+.qw-choice-btn {
+    background: linear-gradient(180deg, #ffffff 0%, #f5f6fa 100%);
+    border: 2.5px solid #4e342e;
+    border-radius: 12px;
+    padding: 8px 6px;
+    min-height: 46px;
+    color: #2d3436;
+    font-family: inherit;
+    font-size: 17px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #4e342e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.1s ease, background 0.12s ease;
+}
+.qw-theme-light .qw-choice-btn {
+    border-color: #cfc3f8;
+    box-shadow: 0 3px 0 #d5caf8;
+    color: #3a2a6a;
+}
+.qw-choice-btn:active {
+    transform: translateY(2px);
+}
+.qw-choice-btn.sym {
+    font-size: 21px;
+    line-height: 1.05;
+}
+.qw-sym-sub {
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #636e72;
+    margin-top: 2px;
+}
+.qw-choice-btn.correct {
+    background: #b8ffda !important;
+    border-color: #00b894 !important;
+    color: #00695c !important;
+}
+.qw-choice-btn.wrong {
+    background: #ffd6d6 !important;
+    border-color: #d63031 !important;
+    color: #b71c1c !important;
+}
+
+/* 2. 凑数消消乐 & 英语单词配对消消乐 */
+.qw-bond-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 10px;
+    border-radius: 10px;
+    background: rgba(255, 234, 167, 0.2);
+    border: 1.5px solid rgba(255, 234, 167, 0.45);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+}
+.qw-theme-light .qw-bond-banner {
+    background: #f3eeff;
+    border-color: #d9cefc;
+    color: #4f359b;
+}
+.qw-bond-prog {
+    background: #00b894;
+    color: #fff;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 900;
+}
+.qw-bubble-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 7px;
+}
+.qw-pop-bubble {
+    min-height: 54px;
+    border-radius: 16px;
+    border: 2.5px solid #0984e3;
+    background: radial-gradient(circle at 30% 25%, #ffffff 0%, #dff2ff 75%, #b9e2ff 100%);
+    color: #0652dd;
+    font-family: inherit;
+    font-size: 18px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #0984e3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 5px;
+    transition: transform 0.14s ease, opacity 0.2s ease;
+}
+.qw-pop-bubble.pair-zh {
+    border-color: #00b894;
+    background: radial-gradient(circle at 30% 25%, #ffffff 0%, #e3fff6 80%);
+    color: #00796b;
+    box-shadow: 0 3px 0 #00b894;
+}
+.qw-pop-bubble.selected {
+    border-color: #e17055;
+    background: linear-gradient(180deg, #ffeaa7 0%, #fdcb6e 100%);
+    color: #d35400;
+    box-shadow: 0 3px 0 #d35400;
+    transform: scale(1.04);
+}
+.qw-pop-bubble.popped {
+    opacity: 0.16;
+    transform: scale(0.84);
+    pointer-events: none;
+}
+.qw-pop-bubble.wrong {
+    background: #ffd6d6;
+    border-color: #d63031;
+    color: #d63031;
+}
+.qw-pair-en {
+    font-size: 15px;
+    font-weight: 900;
+    word-break: break-word;
+}
+.qw-pair-zh {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 12px;
+    line-height: 1.15;
+}
+.qw-pair-zh span:first-child {
+    font-size: 20px;
+}
+
+/* 3. 符号小侦探 */
+.qw-detective-eq {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 8px;
+    border-radius: 13px;
+    background: rgba(0, 0, 0, 0.24);
+    border: 2px solid rgba(255, 255, 255, 0.22);
+}
+.qw-theme-light .qw-detective-eq {
+    background: #f6f2ff;
+    border-color: #dcd3fa;
+}
+.qw-eq-num {
+    font-size: 26px;
+    font-weight: 900;
+    color: #fff;
+}
+.qw-theme-light .qw-eq-num {
+    color: #3a2a6a;
+}
+.qw-eq-num.res {
+    color: #55efc4;
+}
+.qw-theme-light .qw-eq-num.res {
+    color: #009688;
+}
+.qw-eq-sign {
+    font-size: 24px;
+    font-weight: 900;
+    color: #ffeaa7;
+}
+.qw-theme-light .qw-eq-sign {
+    color: #7c5cfc;
+}
+.qw-eq-hole {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: 2.5px dashed #ff9f43;
+    background: #fff9e6;
+    color: #d35400;
+    font-size: 22px;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 4. 规律小火车 */
+.qw-train-track {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 6px;
+    border-radius: 13px;
+    background: rgba(0, 0, 0, 0.24);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    overflow-x: auto;
+}
+.qw-theme-light .qw-train-track {
+    background: #f6f2ff;
+    border-color: #dcd3fa;
+}
+.qw-locomotive {
+    font-size: 26px;
+    flex-shrink: 0;
+}
+.qw-cars-strip {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+.qw-train-car {
+    min-width: 38px;
+    height: 38px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: linear-gradient(180deg, #74b9ff 0%, #0984e3 100%);
+    border: 2px solid #fff;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.qw-train-car.blank {
+    background: linear-gradient(180deg, #ffeaa7 0%, #fdcb6e 100%);
+    border: 2.5px dashed #d35400;
+    color: #d35400;
+    font-size: 19px;
+}
+.qw-car-link {
+    color: #ffeaa7;
+    font-size: 11px;
+    font-weight: 900;
+}
+.qw-theme-light .qw-car-link {
+    color: #8c7ae6;
+}
+
+/* 5. 钟表与购物找零 */
+.qw-clock-money-box,
+.qw-pyr-grid-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 13px;
+    background: rgba(0, 0, 0, 0.24);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+.qw-Clock-money-box.money,
+.qw-clock-money-box.money {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+}
+.qw-theme-light .qw-clock-money-box,
+.qw-theme-light .qw-pyr-grid-box {
+    background: #f8f5ff;
+    border-color: #dcd3fa;
+}
+.qw-clock-wrap {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.qw-cm-prompt {
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.4;
+    color: #fff;
+}
+.qw-theme-light .qw-cm-prompt {
+    color: #3a2a6a;
+}
+.qw-cm-prompt strong {
+    color: #ffeaa7;
+}
+.qw-theme-light .qw-cm-prompt strong {
+    color: #e67e22;
+}
+.qw-money-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    align-items: center;
+}
+.qw-price-tag {
+    background: #fff;
+    color: #2d3436;
+    border: 2px solid #fdcb6e;
+    border-radius: 999px;
+    padding: 2px 9px;
+    font-size: 12px;
+    font-weight: 900;
+}
+.qw-price-tag strong {
+    color: #d63031;
+}
+.qw-paid-bill {
+    background: linear-gradient(135deg, #55efc4 0%, #00b894 100%);
+    color: #004d40;
+    border-radius: 8px;
+    padding: 2px 9px;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+/* 6. 数砖金字塔与彩色方格 */
+.qw-pyramid-tower {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+}
+.qw-pyr-row {
+    display: flex;
+    gap: 3px;
+}
+.qw-pyr-brick {
+    min-width: 36px;
+    height: 27px;
+    padding: 0 5px;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #ffeaa7 0%, #f6b93b 100%);
+    border: 2px solid #b76e00;
+    color: #4e342e;
+    font-size: 13.5px;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.qw-pyr-brick.target {
+    background: linear-gradient(180deg, #ff7675 0%, #d63031 100%);
+    border-color: #fff;
+    color: #fff;
+    font-size: 15px;
+}
+.qw-pyr-brick.helper {
+    background: rgba(255, 255, 255, 0.8);
+    color: #636e72;
+    border-style: dashed;
+}
+
+.qw-unit-grid {
+    display: grid;
+    gap: 1px;
+    background: #b2bec3;
+    border: 2px solid #636e72;
+    padding: 2px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+.qw-grid-cell {
+    width: 20px;
+    height: 20px;
+    background: #ffffff;
+}
+.qw-grid-cell.filled {
+    background: linear-gradient(135deg, #55efc4 0%, #00cec9 100%);
+    box-shadow: inset 0 0 0 1.5px #00796b;
+}
+
+/* ==================== 英语 8 题型共享卡片样式 ==================== */
+.qw-en-card {
+    background: rgba(0, 0, 0, 0.25);
+    border: 2px solid rgba(255, 255, 255, 0.22);
+    border-radius: 13px;
+    padding: 8px 10px;
+    color: #fff;
+}
+.qw-theme-light .qw-en-card {
+    background: linear-gradient(180deg, #faf7ff 0%, #f1ebff 100%);
+    border-color: #dcd3fa;
+    color: #3a2a6a;
+}
+.qw-en-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 800;
+    color: #ffeaa7;
+    margin-bottom: 5px;
+}
+.qw-theme-light .qw-en-top {
+    color: #6c5ce7;
+}
+.qw-en-voice-row,
+.qw-en-hero-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.qw-en-big-emoji {
+    font-size: 36px;
+    line-height: 1;
+}
+.qw-en-hero-zh {
+    font-size: 16px;
+    font-weight: 900;
+}
+.qw-voice-btn {
+    border: 2px solid #0984e3;
+    background: linear-gradient(180deg, #74b9ff 0%, #0984e3 100%);
+    color: #fff;
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+}
+.qw-voice-btn.primary {
+    padding: 8px 14px;
+    font-size: 13px;
+}
+.qw-voice-btn.slow {
+    border-color: #e67e22;
+    background: linear-gradient(180deg, #fdcb6e 0%, #e67e22 100%);
+    color: #4e342e;
+}
+.qw-en-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 7px;
+}
+.qw-en-opt {
+    background: #fff;
+    border: 2.5px solid #4e342e;
+    border-radius: 12px;
+    padding: 7px 6px;
+    min-height: 54px;
+    color: #2d3436;
+    font-family: inherit;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #4e342e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.qw-theme-light .qw-en-opt {
+    border-color: #cfc3f8;
+    box-shadow: 0 3px 0 #d5caf8;
+}
+.qw-en-opt.correct {
+    background: #b8ffda !important;
+    border-color: #00b894 !important;
+}
+.qw-en-opt.wrong {
+    background: #ffd6d6 !important;
+    border-color: #d63031 !important;
+}
+.qw-en-opt-emoji { font-size: 24px; line-height: 1.1; }
+.qw-en-opt-word { font-size: 15.5px; font-weight: 900; color: #2d3436; }
+.qw-en-opt-sub { font-size: 11px; color: #636e72; font-weight: 800; margin-top: 2px; }
+
+.qw-cloze-en,
+.qw-riddle-en {
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1.35;
+    text-align: center;
+    margin: 4px 0 2px;
+}
+.qw-cloze-zh {
+    font-size: 11.5px;
+    font-weight: 800;
+    text-align: center;
+    opacity: 0.88;
+}
+
+.qw-chunk-slots-row,
+.qw-wo-track {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+.qw-chunk-slot,
+.qw-wo-slot {
+    min-width: 38px;
+    height: 32px;
+    padding: 0 8px;
+    border-radius: 8px;
+    border: 2px dashed #ff9f43;
+    background: rgba(255, 255, 255, 0.9);
+    color: #d35400;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+}
+.qw-chunk-slot.filled,
+.qw-wo-slot.filled {
+    border-style: solid;
+    background: #ffeaa7;
+    color: #2d3436;
+}
+.qw-chunk-dash {
+    font-weight: 900;
+    opacity: 0.7;
+}
+.qw-chunk-pool {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+}
+.qw-chunk-tile,
+.qw-wo-chip {
+    border-radius: 10px;
+    border: 2.5px solid #4e342e;
+    background: linear-gradient(180deg, #ffffff 0%, #f1f2f6 100%);
+    box-shadow: 0 3px 0 #4e342e;
+    padding: 6px 11px;
+    font-size: 15px;
+    font-weight: 900;
+    color: #2d3436;
+    cursor: pointer;
+}
+.qw-theme-light .qw-chunk-tile,
+.qw-theme-light .qw-wo-chip {
+    border-color: #c5b6f6;
+    box-shadow: 0 3px 0 #d5caf8;
+}
+.qw-chunk-tile.used,
+.qw-wo-chip.used {
+    opacity: 0.28;
+    pointer-events: none;
+}
+
+/* ==================== 家长设置弹窗：可勾选启用题型多选胶囊面板 ==================== */
+.qw-type-selector-wrap {
+    margin-top: 6px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(124, 92, 252, 0.06);
+    border: 1.5px dashed rgba(124, 92, 252, 0.28);
+}
+.qw-type-quick-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+.qw-type-count {
+    font-size: 12px;
+    font-weight: 800;
+    color: #57606f;
+}
+.qw-type-count strong {
+    color: #e67e22;
+}
+.qw-type-quick-btns {
+    display: flex;
+    gap: 5px;
+}
+.qw-tiny-act {
+    border: 1.5px solid #a29bfe;
+    background: #fff;
+    color: #5f27cd;
+    border-radius: 999px;
+    padding: 2px 9px;
+    font-size: 11px;
+    font-weight: 900;
+    cursor: pointer;
+}
+.qw-type-pills-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.qw-type-check-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 2px solid #dfe4ea;
+    background: #fff;
+    color: #57606f;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.14s ease;
+}
+.qw-type-check-pill.active {
+    border-color: #00b894;
+    background: #e8fff8;
+    color: #00695c;
+}
+.qw-chk-mark {
+    font-size: 12px;
+}
+

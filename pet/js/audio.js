@@ -80,9 +80,9 @@ class SoundAndSpeechEngine {
     }
 
     // 英语地道朗读 (共享 iPadOS 解锁与自然音色引擎，支持常速与慢速自然拼读跟读)
-    speakEnglish(text, slow = false) {
+    speakEnglish(text, slow = false, phonics = '') {
         if (this.muted || !text) return;
-        sharedSpeech.speakEnglish(text, slow);
+        sharedSpeech.speakEnglish(text, slow, phonics);
     }
 
     // 中文应用题温柔语音读题

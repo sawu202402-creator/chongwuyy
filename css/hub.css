@@ -26,8 +26,100 @@ html, body {
     max-width: 1380px;
     height: 100dvh;
     margin: 0 auto;
-    padding: 12px 18px 14px;
-    gap: 11px;
+    padding: 9px 16px 11px;
+    gap: 8px;
+}
+
+/* ==================== 2B. 出题模式总控快捷栏（统一大随机 + 单项目直达） ==================== */
+.hub-mode-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 2px solid #dcd3fa;
+    border-radius: 18px;
+    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.08);
+    flex-shrink: 0;
+    min-width: 0;
+}
+
+.hub-mode-label {
+    font-size: 12.5px;
+    font-weight: 900;
+    color: #5b3ce6;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.hub-mode-strip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    overflow-x: auto;
+    flex: 1;
+    min-width: 0;
+    scrollbar-width: none;
+    padding: 1px 2px;
+}
+
+.hub-mode-strip::-webkit-scrollbar {
+    display: none;
+}
+
+.hub-mode-pill {
+    flex: 0 0 auto;
+    border: 2px solid #e2daf8;
+    background: #faf8ff;
+    color: #4b3d73;
+    border-radius: 999px;
+    padding: 4px 11px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.14s ease;
+}
+
+.hub-mode-pill:hover {
+    background: #f0ebff;
+    border-color: #b7a5f7;
+}
+
+.hub-mode-pill.active {
+    background: linear-gradient(135deg, #6c5ce7 0%, #8e44ad 100%);
+    color: #ffffff;
+    border-color: #4834d4;
+    box-shadow: 0 3px 8px rgba(108, 92, 231, 0.32);
+}
+
+.hub-mode-pill.grand.active {
+    background: linear-gradient(135deg, #ff6b81 0%, #a55eea 100%);
+    border-color: #eb3b5a;
+    box-shadow: 0 3px 9px rgba(235, 59, 90, 0.34);
+}
+
+.hub-mode-divider {
+    width: 1.5px;
+    height: 16px;
+    background: #dcd3fa;
+    flex-shrink: 0;
+    margin: 0 2px;
+}
+
+.hub-mode-cfg-btn {
+    flex: 0 0 auto;
+    border: 2px solid #f39c12;
+    background: #fff9e6;
+    color: #b76e00;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-family: inherit;
+    font-size: 11.5px;
+    font-weight: 900;
+    cursor: pointer;
+    white-space: nowrap;
 }
 
 /* ==================== 1. 顶栏导航 ==================== */
@@ -332,8 +424,8 @@ html, body {
 /* 顶部插画横幅 */
 .card-hero-art {
     position: relative;
-    height: 44%;
-    min-height: 150px;
+    height: 41%;
+    min-height: 128px;
     overflow: hidden;
     display: flex;
     align-items: center;
