@@ -480,19 +480,26 @@ const umbRes = pm.unlockOrEquipAccessory('lotus_umbrella');
 assert.equal(umbRes.ok, true);
 assert.equal(pm.getActiveUser().pets.frog.accessory, 'lotus_umbrella');
 
-// 7. Verify 12 Distinct Pet Voice Profiles & Town Shop Daily Patrol Bonus
-assert.equal(Object.keys(PET_VOICE_PROFILES).length, 12, 'Must define distinct voice profiles for all 12 pets');
+// 7. Verify 12 Distinct Neural Pet Voice Packs (200 MP3s) & Town Shop Daily Patrol Bonus
+assert.equal(Object.keys(PET_VOICE_PROFILES).length, 12, 'Must define distinct neural voice profiles for all 12 pets');
+let verifiedMp3Count = 0;
 for (const pet of PETS_CATALOG) {
     const vp = getPetVoiceProfile(pet.id);
-    assert.ok(vp.pitch >= 0.4 && vp.pitch <= 1.8, `Invalid pitch for ${pet.id}`);
-    assert.ok(vp.rate >= 0.7 && vp.rate <= 1.35, `Invalid rate for ${pet.id}`);
+    assert.ok(vp.zhActor && vp.enActor, `Missing neural voice actor for ${pet.id}`);
+    assert.ok(vp.pitch >= 0.90 && vp.pitch <= 1.15, `Fallback pitch must stay in natural non-robotic range for ${pet.id}`);
+    assert.ok(vp.rate >= 0.90 && vp.rate <= 1.10, `Fallback rate must stay in natural non-robotic range for ${pet.id}`);
+    assert.ok(Array.isArray(vp.clips) && vp.clips.length >= 16, `Pet ${pet.id} must have >=16 neural voice clips`);
+    for (const clipKey of vp.clips) {
+        const mp3Path = path.join(ROOT, 'pet/assets/voices', pet.id, `${clipKey}.mp3`);
+        assert.ok(fs.existsSync(mp3Path), `Missing neural voice MP3: ${mp3Path}`);
+        const stat = fs.statSync(mp3Path);
+        assert.ok(stat.size > 2000, `Neural voice MP3 too small (${stat.size}B): ${mp3Path}`);
+        verifiedMp3Count++;
+    }
 }
-assert.ok(getPetVoiceProfile('tiger').pitch <= 0.52, 'Tiger must have deep bass voice');
-assert.ok(getPetVoiceProfile('frog').pitch <= 0.75, 'Frog must have resonant low-mid voice');
-assert.ok(getPetVoiceProfile('rabbit').pitch >= 1.50, 'Rabbit must have sweet high voice');
-assert.equal(getPetVoiceProfile('tiger').preferAltVoice, true);
-assert.equal(getPetVoiceProfile('frog').preferAltVoice, true);
-assert.equal(getPetVoiceProfile('rabbit').preferAltVoice, false);
+assert.equal(verifiedMp3Count, 200, `Expected 200 mastered neural pet voice MP3 clips, verified ${verifiedMp3Count}`);
+assert.notEqual(getPetVoiceProfile('frog').zhActor, getPetVoiceProfile('rabbit').zhActor, 'Frog and Rabbit must use distinct neural voice actors');
+assert.notEqual(getPetVoiceProfile('panda').zhActor, getPetVoiceProfile('tiger').zhActor, 'Panda and Tiger must use distinct neural voice actors');
 
 pm.setActiveUser(kid1.id);
 pm.pairShopAndManager('sweetshop', 'frog', 'plot_2');

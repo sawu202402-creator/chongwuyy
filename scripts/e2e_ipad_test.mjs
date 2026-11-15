@@ -683,24 +683,24 @@ async function main() {
         window.__petTownApp.closeModal('modalQuickPopup');
         window.__petTownApp.renderAll();
 
-        // Spy on speechSynthesis.speak to verify distinct voice pitch/rate per pet!
-        const spokenUtterances = [];
+        // Spy on speechSynthesis.speak to ensure robotic OS TTS is NOT used when real neural MP3 plays!
+        let roboticTtsCalls = 0;
         const origSpeak = window.speechSynthesis.speak.bind(window.speechSynthesis);
-        window.speechSynthesis.speak = (utt) => {
-            spokenUtterances.push({ text: utt.text, pitch: Number(utt.pitch.toFixed(2)), rate: Number(utt.rate.toFixed(2)), lang: utt.lang });
+        window.speechSynthesis.speak = () => {
+            roboticTtsCalls++;
         };
 
-        // 1) Tap Frog on stage -> wait 420ms for delayed speakPetCharacter
+        // 1) Tap Frog on stage -> wait 260ms for WebAudio neural MP3 buffer playback
         document.getElementById('heroDioramaStage').click();
-        await new Promise(r => setTimeout(r, 440));
-        const frogUtt = spokenUtterances[spokenUtterances.length - 1];
+        await new Promise(r => setTimeout(r, 260));
+        const frogVoice = window.__petSoundEngine?.lastPlayedVoiceInfo ? { ...window.__petSoundEngine.lastPlayedVoiceInfo } : null;
 
-        // 2) Switch to Rabbit -> tap Rabbit on stage -> wait 420ms
+        // 2) Switch to Rabbit -> tap Rabbit on stage -> wait 260ms
         profileManager.selectOrUnlockPet('rabbit');
         window.__petTownApp.renderAll();
         document.getElementById('heroDioramaStage').click();
-        await new Promise(r => setTimeout(r, 440));
-        const rabbitUtt = spokenUtterances[spokenUtterances.length - 1];
+        await new Promise(r => setTimeout(r, 260));
+        const rabbitVoice = window.__petSoundEngine?.lastPlayedVoiceInfo ? { ...window.__petSoundEngine.lastPlayedVoiceInfo } : null;
 
         // Restore Frog Lv.5 for screenshot & test #btnFreeTreatLv5!
         profileManager.selectOrUnlockPet('frog');
@@ -710,6 +710,8 @@ async function main() {
         const badgesBeforeFree = profileManager.getActiveUser().badges;
         freeTreatBtn.click();
         const eatingRig = document.getElementById('heroPetActorRig').classList.contains('anim-eating');
+        await new Promise(r => setTimeout(r, 380));
+        const feedVoice = window.__petSoundEngine?.lastPlayedVoiceInfo ? { ...window.__petSoundEngine.lastPlayedVoiceInfo } : null;
         const badgesAfterFree = profileManager.getActiveUser().badges;
 
         // 3) Test Town Map daily patrol bubble & +2⭐ claim!
@@ -734,8 +736,10 @@ async function main() {
         const noScrollFinal = document.documentElement.scrollHeight <= window.innerHeight + 2;
 
         return {
-            frogUtt,
-            rabbitUtt,
+            frogVoice,
+            rabbitVoice,
+            feedVoice,
+            roboticTtsCalls,
             freeTreatVisible,
             eatingRig,
             freeCostZero: badgesBeforeFree === badgesAfterFree,
@@ -746,10 +750,13 @@ async function main() {
             noScrollFinal
         };
     })()`);
-    console.log('Distinct Pet Voices, Lv.5 Free Treat, Town Patrol & Report Check:', optVerifyRes);
-    assert.ok(optVerifyRes.frogUtt && optVerifyRes.rabbitUtt, 'Both Frog and Rabbit taps must speak via character TTS');
-    assert.notEqual(optVerifyRes.frogUtt.pitch, optVerifyRes.rabbitUtt.pitch, 'Frog and Rabbit MUST have distinct TTS pitches');
-    assert.ok(optVerifyRes.frogUtt.pitch <= 0.78 && optVerifyRes.rabbitUtt.pitch >= 1.50, 'Frog pitch (~0.72) vs Rabbit pitch (~1.56) verified');
+    console.log('Neural Pet Voices, Lv.5 Free Treat, Town Patrol & Report Check:', optVerifyRes);
+    assert.ok(optVerifyRes.frogVoice && optVerifyRes.rabbitVoice, 'Both Frog and Rabbit taps must play neural voice clips');
+    assert.equal(optVerifyRes.frogVoice.mode, 'neural-mp3', 'Frog must play decoded WebAudio neural MP3');
+    assert.equal(optVerifyRes.rabbitVoice.mode, 'neural-mp3', 'Rabbit must play decoded WebAudio neural MP3');
+    assert.equal(optVerifyRes.feedVoice?.mode, 'neural-mp3', 'Feeding must play decoded WebAudio neural MP3');
+    assert.notEqual(optVerifyRes.frogVoice.actor, optVerifyRes.rabbitVoice.actor, 'Frog and Rabbit must use distinct neural voice actors');
+    assert.equal(optVerifyRes.roboticTtsCalls, 0, 'Pet interactions must NOT fall back to robotic OS speechSynthesis');
     assert.equal(optVerifyRes.freeTreatVisible, true, 'Lv.5 pet must show 🍓 解馋喂 button');
     assert.equal(optVerifyRes.eatingRig, true, 'Clicking 解馋喂 must play eating animation');
     assert.equal(optVerifyRes.freeCostZero, true, 'Lv.5 解馋喂 must cost 0 badges');

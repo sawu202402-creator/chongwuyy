@@ -1009,6 +1009,7 @@ class PetWonderTownApp {
         const cx = (evt && evt.clientX) || window.innerWidth * 0.52;
         const cy = (evt && evt.clientY) || window.innerHeight * 0.62;
         soundEngine.speakAsPet(visitor.petMeta.id, {
+            clipKey: 'visit',
             zhText: `嗨！我是${visitor.siblingName}养的${visitor.petMeta.name}，来找你一起玩啦！`,
             enText: visitor.petMeta.enGreeting || 'Hello friend!',
             preferEnglish: false
@@ -1158,6 +1159,7 @@ class PetWonderTownApp {
 
         if (!isShopMode) {
             const petMeta = getPetById(u.activePetId);
+            soundEngine.preloadPetVoices(petMeta.id);
             const pState = u.pets[u.activePetId] || { level: 1, exp: 0, accessory: 'none', displayStage: null };
             const effectiveStage = profileManager.getEffectivePetStage(u.activePetId, u);
             const stageStyle = getStageStyleMeta(effectiveStage);
@@ -1237,7 +1239,7 @@ class PetWonderTownApp {
                         }
                         profileManager.setPetDisplayStage(petMeta.id, s);
                         const stageLine = petMeta.talkLines[s - 1] || petMeta.talkLines[0];
-                        soundEngine.speakAsPet(petMeta.id, { zhText: stageLine, withCry: true });
+                        soundEngine.speakAsPet(petMeta.id, { clipKey: `stage_${s}`, zhText: stageLine, withCry: true });
                         this.setHeroSpeech(`✨ 已切换 Lv.${s}【${petMeta.stageTitles[s - 1]}】样式：${stageLine}`, 5500);
                         this.renderHeroHomeView();
                         this.triggerPetRigAnimation('anim-stage-transform');
@@ -1491,10 +1493,10 @@ class PetWonderTownApp {
                 const greetLine = pet.talkLines[effSt - 1] || pet.talkLines[0];
                 if (res.action === 'unlocked') {
                     soundEngine.playLevelUp();
-                    soundEngine.speakAsPet(pet.id, { zhText: greetLine, enText: pet.enGreeting, withCry: false });
+                    soundEngine.speakAsPet(pet.id, { clipKey: `stage_${effSt}`, zhText: greetLine, enText: pet.enGreeting, withCry: false });
                     this.fx.spawnBurst(window.innerWidth * 0.35, window.innerHeight * 0.45, 35);
                 } else {
-                    soundEngine.speakAsPet(pet.id, { zhText: greetLine, enText: pet.enGreeting, withCry: true });
+                    soundEngine.speakAsPet(pet.id, { clipKey: `stage_${effSt}`, zhText: greetLine, enText: pet.enGreeting, withCry: true });
                 }
                 this.setHeroSpeech(greetLine, 5500);
                 this.renderAll();
@@ -1632,7 +1634,7 @@ class PetWonderTownApp {
                     if (patrolRes.ok) {
                         soundEngine.playCoinChime();
                         const shopLine = mgrPet.shopLines?.[0] || `欢迎巡视${shopTitle}，今日营业大丰收啦！`;
-                        soundEngine.speakAsPet(mgrPet.id, { zhText: shopLine, withCry: false });
+                        soundEngine.speakAsPet(mgrPet.id, { clipKey: 'shop_0', zhText: shopLine, withCry: false });
                         const cx = evt?.clientX || window.innerWidth * 0.35;
                         const cy = evt?.clientY || window.innerHeight * 0.45;
                         this.fx.spawnBurst(cx, cy, 34);
@@ -2504,13 +2506,16 @@ class PetWonderTownApp {
             const shopLines = petMeta.shopLines?.length
                 ? petMeta.shopLines
                 : [`${petMeta.emoji} 欢迎光临${petMeta.name}的${shopMeta.name}！今日生意超红火！`];
-            const shopSpeech = shopLines[step % shopLines.length];
+            const sIdx = step % shopLines.length;
+            const shopSpeech = shopLines[sIdx];
+            const useEnShop = step % 3 === 2;
             soundEngine.playCoinChime();
             soundEngine.speakAsPet(petMeta.id, {
+                clipKey: useEnShop ? 'en_0' : `shop_${sIdx}`,
                 zhText: shopSpeech,
                 enText: petMeta.enGreeting,
-                preferEnglish: step % 3 === 2,
-                withCry: true
+                preferEnglish: useEnShop,
+                withCry: false
             });
             this.setHeroSpeech(shopSpeech, 5800);
             this.triggerPetRigAnimation('anim-cheer-jump');
@@ -2536,16 +2541,23 @@ class PetWonderTownApp {
 
         const enList = petMeta.enInteractPhrases?.length ? petMeta.enInteractPhrases : [petMeta.enGreeting];
         const zhList = petMeta.interactLines?.length ? petMeta.interactLines : petMeta.talkLines;
-        let speechText = zhList[step % zhList.length];
-        if ((petMeta.id === 'frog' || petMeta.id === 'prince_frog') && String(pState.accessory || '').startsWith('lotus_') && step % 3 === 0) {
+        const zhIdx = step % zhList.length;
+        const enIdx = step % enList.length;
+        const useEn = step % 3 === 2;
+        const isLotusSpecial = (petMeta.id === 'frog' || petMeta.id === 'prince_frog')
+            && String(pState.accessory || '').startsWith('lotus_')
+            && step % 3 === 0;
+        let speechText = zhList[zhIdx];
+        if (isLotusSpecial) {
             const accObj = getAccessoryById(pState.accessory);
             speechText = `呱呱～我头上的【${accObj.name}】还挂着晶莹小露珠呢，是不是超清凉帅气呀！🌿🐸`;
         }
 
         soundEngine.speakAsPet(petMeta.id, {
+            clipKey: isLotusSpecial ? 'lotus' : (useEn ? `en_${enIdx}` : `tap_${zhIdx}`),
             zhText: speechText,
-            enText: enList[step % enList.length],
-            preferEnglish: step % 3 === 2,
+            enText: enList[enIdx],
+            preferEnglish: useEn,
             withCry: true
         });
 
@@ -2578,9 +2590,10 @@ class PetWonderTownApp {
         const feedLines = petMeta.feedLines?.length
             ? petMeta.feedLines
             : [`😋 啊呜一口吃掉${petMeta.foodName}，好美味呀！`];
-        const yummyLine = feedLines[fStep % feedLines.length];
+        const fIdx = fStep % feedLines.length;
+        const yummyLine = feedLines[fIdx];
 
-        soundEngine.playEatSound(petMeta.id, yummyLine);
+        soundEngine.playEatSound(petMeta.id, yummyLine, `feed_${fIdx}`);
         this.triggerPetRigAnimation('anim-eating');
         this.setHeroSpeech(yummyLine, 6000);
 
@@ -2726,7 +2739,7 @@ class PetWonderTownApp {
                     return;
                 }
                 const stageLine = petMeta.talkLines[targetStage - 1] || petMeta.talkLines[0];
-                soundEngine.speakAsPet(petMeta.id, { zhText: stageLine, withCry: true });
+                soundEngine.speakAsPet(petMeta.id, { clipKey: `stage_${targetStage}`, zhText: stageLine, withCry: true });
                 this.setHeroSpeech(`✨ 切换为 Lv.${targetStage}【${petMeta.stageTitles[targetStage - 1]}】样式：${stageLine}`, 5800);
                 this.closeModal('modalQuickPopup');
                 this.renderAll();
@@ -2745,13 +2758,18 @@ class PetWonderTownApp {
                     return;
                 }
                 let outfitLine = '';
-                if (accId.startsWith('lotus_') && (petMeta.id === 'frog' || petMeta.id === 'prince_frog')) {
+                const isLotusAcc = accId.startsWith('lotus_') && (petMeta.id === 'frog' || petMeta.id === 'prince_frog');
+                if (isLotusAcc) {
                     outfitLine = `呱呱！戴上【${res.accMeta.name}】清清凉凉带露珠，简直为本蛙量身定做！🌿🐸`;
                 } else if (accId !== 'none') {
                     outfitLine = `${petMeta.voiceTag || petMeta.emoji} 哇！新戴上的【${res.accMeta.name}】好看吗？陪你继续闯关啰！✨`;
                 }
                 if (outfitLine) {
-                    soundEngine.speakAsPet(petMeta.id, { zhText: outfitLine, withCry: true });
+                    soundEngine.speakAsPet(petMeta.id, {
+                        clipKey: isLotusAcc ? 'lotus' : 'outfit',
+                        zhText: outfitLine,
+                        withCry: true
+                    });
                     this.setHeroSpeech(outfitLine, 6000);
                 } else {
                     soundEngine.playPetVoice(petMeta.id);
@@ -3665,5 +3683,6 @@ class PetWonderTownApp {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+    window.__petSoundEngine = soundEngine;
     window.__petTownApp = new PetWonderTownApp();
 });

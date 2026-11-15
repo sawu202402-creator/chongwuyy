@@ -914,19 +914,21 @@ export const TOWN_PLOTS = [
     { id: 'plot_11', label: '环岛铁道南湾', left: 41, top: 82 }
 ];
 
+const BASE_CLIPS = ['stage_1', 'stage_2', 'stage_3', 'stage_4', 'stage_5', 'tap_0', 'tap_1', 'tap_2', 'feed_0', 'feed_1', 'shop_0', 'outfit', 'visit', 'en_0', 'en_1', 'en_2'];
+
 export const PET_VOICE_PROFILES = {
-    rabbit:       { pitch: 1.56, rate: 1.08, preferAltVoice: false, label: '甜萌高音小兔声' },
-    frog:         { pitch: 0.72, rate: 1.08, preferAltVoice: true,  label: '清脆元气蛙少年音' },
-    shiba:        { pitch: 1.22, rate: 1.18, preferAltVoice: false, label: '欢快快嘴修勾音' },
-    panda:        { pitch: 0.58, rate: 0.78, preferAltVoice: true,  label: '憨厚慢悠悠团子音' },
-    tiger:        { pitch: 0.48, rate: 0.90, preferAltVoice: true,  label: '霸气威武小虎王音' },
-    unicorn:      { pitch: 1.40, rate: 0.92, preferAltVoice: false, label: '空灵温柔仙驹音' },
-    succulent:    { pitch: 1.68, rate: 1.04, preferAltVoice: false, label: '脆生生嫩芽精灵音' },
-    pixiu:        { pitch: 0.88, rate: 1.06, preferAltVoice: true,  label: '喜庆洪亮招财瑞兽音' },
-    astro_rabbit: { pitch: 1.34, rate: 1.15, preferAltVoice: false, label: '轻快星际领航电波音' },
-    prince_frog:  { pitch: 0.66, rate: 0.88, preferAltVoice: true,  label: '优雅绅士王子蛙低音' },
-    star_dragon:  { pitch: 0.54, rate: 0.84, preferAltVoice: true,  label: '深邃悠远星海龙吟音' },
-    mecha_cat:    { pitch: 1.48, rate: 1.22, preferAltVoice: false, label: '俏皮高速赛博电子喵音' }
+    rabbit:       { zhActor: 'zh-CN-XiaoyiNeural',   enActor: 'en-US-AnaNeural',    pitch: 1.08, rate: 1.02, preferAltVoice: false, clips: [...BASE_CLIPS, 'tap_3', 'feed_2', 'shop_1'], label: '灵动甜萌小兔真童声' },
+    frog:         { zhActor: 'zh-CN-YunxiaNeural',   enActor: 'en-GB-MaisieNeural', pitch: 1.02, rate: 1.03, preferAltVoice: true,  clips: [...BASE_CLIPS, 'tap_3', 'feed_2', 'shop_1', 'lotus'], label: '清脆元气小蛙正太童声' },
+    shiba:        { zhActor: 'zh-CN-YunxiaNeural',   enActor: 'en-US-AnaNeural',    pitch: 1.06, rate: 1.05, preferAltVoice: false, clips: BASE_CLIPS, label: '欢快阳光小柴童声' },
+    panda:        { zhActor: 'zh-TW-HsiaoChenNeural',enActor: 'en-GB-MaisieNeural', pitch: 0.98, rate: 0.94, preferAltVoice: false, clips: BASE_CLIPS, label: '软糯慢悠悠团子甜声' },
+    tiger:        { zhActor: 'zh-CN-YunxiNeural',    enActor: 'en-US-GuyNeural',    pitch: 0.95, rate: 1.01, preferAltVoice: true,  clips: BASE_CLIPS, label: '自信帅气少年小虎音' },
+    unicorn:      { zhActor: 'zh-CN-XiaoxiaoNeural', enActor: 'en-US-JennyNeural',  pitch: 1.05, rate: 0.98, preferAltVoice: false, clips: BASE_CLIPS, label: '温柔梦幻云朵姐姐音' },
+    succulent:    { zhActor: 'zh-TW-HsiaoYuNeural',  enActor: 'en-US-AnaNeural',    pitch: 1.08, rate: 1.00, preferAltVoice: false, clips: BASE_CLIPS, label: '清甜水灵森系精灵音' },
+    pixiu:        { zhActor: 'zh-CN-XiaoyiNeural',   enActor: 'en-US-AriaNeural',   pitch: 1.05, rate: 1.04, preferAltVoice: false, clips: BASE_CLIPS, label: '喜庆欢快招财福宝音' },
+    astro_rabbit: { zhActor: 'zh-CN-XiaoyiNeural',   enActor: 'en-US-AriaNeural',   pitch: 1.07, rate: 1.03, preferAltVoice: false, clips: BASE_CLIPS, label: '元气星际领航少女音' },
+    prince_frog:  { zhActor: 'zh-CN-YunxiNeural',    enActor: 'en-GB-RyanNeural',   pitch: 0.98, rate: 0.97, preferAltVoice: true,  clips: [...BASE_CLIPS, 'lotus'], label: '优雅童话王子蛙少年音' },
+    star_dragon:  { zhActor: 'zh-CN-YunxiNeural',    enActor: 'en-GB-RyanNeural',   pitch: 0.94, rate: 0.96, preferAltVoice: true,  clips: BASE_CLIPS, label: '温润守护星海幻龙音' },
+    mecha_cat:    { zhActor: 'zh-CN-XiaoyiNeural',   enActor: 'en-GB-MaisieNeural', pitch: 1.10, rate: 1.05, preferAltVoice: false, clips: BASE_CLIPS, label: '俏皮甜萌猫咪少女音' }
 };
 
 export function getPetVoiceProfile(petId) {

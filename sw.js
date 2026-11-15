@@ -6,7 +6,7 @@
  * 3. PNG / JPG / GIF / SVG / ICO 静态美术资源采用 Stale-While-Revalidate（二次秒开）。
  */
 
-const CACHE_VERSION = 'chongwuyy-v20261114-opt1';
+const CACHE_VERSION = 'chongwuyy-v20261115-nv1';
 const PRECACHE_URLS = [
     './',
     './index.html',
@@ -56,7 +56,7 @@ self.addEventListener('fetch', (event) => {
     // 仅托管同源静态文件，外部请求不拦截
     if (url.origin !== self.location.origin) return;
 
-    const isAsset = /\.(png|jpe?g|gif|webp|svg|ico|woff2?)$/i.test(url.pathname);
+    const isAsset = /\.(png|jpe?g|gif|webp|svg|ico|woff2?|mp3|ogg|wav)$/i.test(url.pathname) && !req.headers.has('range');
 
     if (isAsset) {
         event.respondWith(
@@ -64,7 +64,7 @@ self.addEventListener('fetch', (event) => {
                 const cached = await cache.match(req);
                 const fetchPromise = fetch(req)
                     .then((res) => {
-                        if (res && res.ok) {
+                        if (res && res.status === 200) {
                             cache.put(req, res.clone()).catch(() => {});
                         }
                         return res;

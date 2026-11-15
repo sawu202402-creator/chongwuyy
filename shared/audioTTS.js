@@ -201,11 +201,12 @@ class SharedSpeechHelper {
         if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
         this.cancelAllSpeech();
 
-        // 剥离 Emoji 图标、HTML 标签与装饰符，避免语音引擎生硬朗读“青蛙脸/闪光”
+        // 剥离 Emoji 图标、HTML 标签、颜文字与装饰符，避免语音引擎生硬朗读符号名称
         const cleanText = String(text)
             .replace(/<[^>]+>/g, '')
+            .replace(/\^_\^/g, '')
             .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]/gu, '')
-            .replace(/[✦✧★☆♪♫]/g, '')
+            .replace(/[✦✧★☆♪♫【】]/g, '')
             .trim();
         if (!cleanText) return;
 
@@ -221,8 +222,9 @@ class SharedSpeechHelper {
                     ? (preferAltVoice ? (this.zhAltDeepVoice || this.zhVoice) : this.zhVoice)
                     : (preferAltVoice ? (this.enAltDeepVoice || this.enVoice) : this.enVoice);
                 if (chosenVoice) utter.voice = chosenVoice;
-                utter.pitch = Math.max(0.2, Math.min(2.0, Number(pitch) || 1.0));
-                utter.rate = Math.max(0.55, Math.min(1.5, Number(rate) || 1.0));
+                // 限制在自然人声音高/语速舒适区，彻底杜绝极端拉伸导致的金属机械电子音
+                utter.pitch = Math.max(0.92, Math.min(1.12, Number(pitch) || 1.02));
+                utter.rate = Math.max(0.92, Math.min(1.06, Number(rate) || 0.98));
                 utter.volume = 1.0;
                 window.speechSynthesis.speak(utter);
             } catch (e) {}
