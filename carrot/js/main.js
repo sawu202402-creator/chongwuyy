@@ -275,29 +275,64 @@ class ScoreRecordsManager {
             });
         }
 
-        const history = currentKid.history || [];
+        const rawHistory = currentKid.history || [];
+        const activeUser = this.profileMgr.getActiveUser();
+        const hasLiveRound = Boolean(
+            activeUser &&
+            currentKid.id === activeUser.id &&
+            typeof gameEngine !== 'undefined' &&
+            gameEngine &&
+            !gameEngine._roundRecorded &&
+            typeof mathEngine !== 'undefined' &&
+            mathEngine &&
+            mathEngine.totalAttempted > 0
+        );
 
-        // 2. 统计宏观数据
+        const history = hasLiveRound
+            ? [
+                {
+                    id: 'live_current_round',
+                    levelId: gameEngine.map?.currentLevelConfig?.id || gameEngine.currentLevel || 1,
+                    levelName: gameEngine.map?.currentLevelConfig?.name || `第 ${gameEngine.currentLevel || 1} 关`,
+                    result: 'IN_PROGRESS',
+                    dateStr: '🟢 本局进行中 · 实时计入',
+                    stats: {
+                        totalAttempted: mathEngine.totalAttempted,
+                        correctCount: mathEngine.correctCount,
+                        wrongCount: Math.max(0, mathEngine.totalAttempted - mathEngine.correctCount),
+                        accuracy: Math.round((mathEngine.correctCount / mathEngine.totalAttempted) * 100),
+                        maxCombo: mathEngine.maxCombo || 0
+                    },
+                    questions: Array.isArray(mathEngine.roundQuestions) ? [...mathEngine.roundQuestions] : []
+                },
+                ...rawHistory
+            ]
+            : rawHistory;
+
+        // 2. 统计宏观数据（融合本局实时进度 + 全平台累计做题数）
         const totalSessions = history.length;
         let totalQuestions = 0;
         let totalCorrect = 0;
-        let maxStreak = 0;
+        let maxStreak = currentKid.stats?.bestCombo || 0;
         const allMistakes = [];
+        const seenMistakeExprs = new Set();
 
         history.forEach(round => {
             const st = round.stats || {};
-            const qAttempted = st.totalAttempted || 0;
-            const qCorrect = st.correctCount || 0;
+            const qAttempted = st.totalAttempted ?? round.total ?? 0;
+            const qCorrect = st.correctCount ?? round.correct ?? 0;
             totalQuestions += qAttempted;
             totalCorrect += qCorrect;
-            if ((st.maxCombo || 0) > maxStreak) {
-                maxStreak = st.maxCombo;
+            if ((st.maxCombo || round.maxCombo || 0) > maxStreak) {
+                maxStreak = st.maxCombo || round.maxCombo || 0;
             }
 
             // 收集错题
             if (round.questions && round.questions.length > 0) {
                 round.questions.forEach(q => {
                     if (!q.isCorrect) {
+                        const exprKey = q.expr || q.formula || '';
+                        if (exprKey) seenMistakeExprs.add(exprKey);
                         allMistakes.push({
                             ...q,
                             levelName: round.levelName || `第 ${round.levelId} 关`,
@@ -308,7 +343,30 @@ class ScoreRecordsManager {
             }
         });
 
-        const overallAccuracy = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 100;
+        (currentKid.mathMistakes || []).forEach(m => {
+            const exprKey = m.expr || m.formula || '';
+            if (exprKey && !seenMistakeExprs.has(exprKey)) {
+                seenMistakeExprs.add(exprKey);
+                allMistakes.push({
+                    expr: exprKey,
+                    answer: m.answer ?? m.expected,
+                    userAnswer: m.userAns ?? m.userAnswer,
+                    isCorrect: false,
+                    levelName: '全平台错题本',
+                    dateStr: m.dateStr || ''
+                });
+            }
+        });
+
+        const qs = typeof this.profileMgr.getQuestionStats === 'function'
+            ? this.profileMgr.getQuestionStats(currentKid)
+            : null;
+        if (qs) {
+            totalQuestions = Math.max(totalQuestions, qs.totalAttempted);
+            totalCorrect = Math.max(totalCorrect, qs.totalCorrect);
+        }
+
+        const overallAccuracy = totalQuestions > 0 ? Math.min(100, Math.round((totalCorrect / totalQuestions) * 100)) : 100;
 
         if (recMetricSessions) recMetricSessions.textContent = totalSessions;
         if (recMetricQuestions) recMetricQuestions.textContent = totalQuestions;
@@ -344,6 +402,12 @@ class ScoreRecordsManager {
         history.forEach((round, index) => {
             const st = round.stats || {};
             const isVic = round.result === 'VICTORY';
+            const isLive = round.result === 'IN_PROGRESS';
+            const isPractice = round.result === 'PRACTICE';
+            const badgeClass = (isVic || isLive || isPractice) ? 'victory' : 'defeat';
+            const badgeLabel = isLive
+                ? '🟢 本局进行中'
+                : (isPractice ? '📝 随堂练习' : (isVic ? '🎉 胜利通关' : '🛡️ 守卫力竭'));
             const card = document.createElement('div');
             card.className = 'history-record-card';
 
@@ -355,8 +419,8 @@ class ScoreRecordsManager {
                     <div class="record-level-tag">
                         <span>🗺️</span>
                         <span>${round.levelName || `第 ${round.levelId} 关`}</span>
-                        <span class="record-result-badge ${isVic ? 'victory' : 'defeat'}">
-                            ${isVic ? '🎉 胜利通关' : '🛡️ 守卫力竭'}
+                        <span class="record-result-badge ${badgeClass}">
+                            ${badgeLabel}
                         </span>
                     </div>
                     <div class="record-time-text">${round.dateStr || ''}</div>
@@ -458,11 +522,48 @@ let activeSlotForBubble = null; // 当前正在弹出建塔气泡的基座
 const mathEngine = new MathEngine(initialUser.difficulty);
 const gameEngine = new GameEngine(canvas, mathEngine, onGameStateChange);
 const mapEditor = new MapEditor(gameEngine);
+// 将尚未结算但已做过题的对局自动归档入战报（防止切换关卡/重开/回大厅导致本局做题数丢失）
+function flushActiveRoundIfNeeded(resultType = 'PRACTICE') {
+    if (!gameEngine || gameEngine._roundRecorded || !mathEngine || mathEngine.totalAttempted <= 0) {
+        return;
+    }
+    gameEngine._roundRecorded = true;
+    const total = mathEngine.totalAttempted;
+    const correct = mathEngine.correctCount;
+    const accuracy = total > 0 ? Math.round((correct / total) * 100) : 100;
+    const activeKid = profileManager.getActiveUser();
+    profileManager.recordGameRound({
+        id: 'rec_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+        userId: activeKid ? activeKid.id : 'user_default',
+        userName: activeKid ? activeKid.name : '小勇士',
+        userAvatar: activeKid ? activeKid.avatar : '🐰',
+        timestamp: Date.now(),
+        dateStr: new Date().toLocaleString('zh-CN', { hour12: false }),
+        levelId: gameEngine.map?.currentLevelConfig?.id || gameEngine.currentLevel || 1,
+        levelName: gameEngine.map?.currentLevelConfig?.name || `第 ${gameEngine.currentLevel || 1} 关`,
+        result: resultType,
+        waveReached: gameEngine.wave || 1,
+        maxWaves: gameEngine.maxWaves || 10,
+        stats: {
+            totalAttempted: total,
+            correctCount: correct,
+            wrongCount: Math.max(0, total - correct),
+            accuracy,
+            maxCombo: mathEngine.maxCombo || 0,
+            scoreEarned: correct * 10
+        },
+        questions: (mathEngine.roundQuestions && mathEngine.roundQuestions.length > 0)
+            ? JSON.parse(JSON.stringify(mathEngine.roundQuestions))
+            : []
+    });
+}
+
 const smartBoard = new SmartChalkboard({
     hostType: 'carrot',
     mathEngine,
     profileManager,
     onSoundResume: () => sound.resumeContext(),
+    onBeforeExit: () => flushActiveRoundIfNeeded('PRACTICE'),
     shouldConfirmExit: () => Boolean(
         gameEngine &&
         (gameEngine.state === 'WAVE_RUNNING' || gameEngine.state === 'PREP') &&
@@ -698,8 +799,8 @@ function updateBubbleCostState() {
 }
 
 // 刷新右侧数学/应用题/图表/英语题目卡片
-function updateQuestionUI() {
-    smartBoard.renderMathQuestion();
+function updateQuestionUI(options = {}) {
+    smartBoard.renderMathQuestion(options);
 }
 
 // 触发萌宠助教互动
@@ -757,7 +858,7 @@ function handleAnswerSubmit() {
         triggerMascotReaction('wrong');
     }
 
-    updateQuestionUI();
+    updateQuestionUI({ advanceGrand: Boolean(res.correct) });
 }
 
 // 监听游戏状态变更
@@ -1450,6 +1551,7 @@ function checkNewTowerAlmanacForStage(lvl) {
 // 关卡切换调度函数 (支持 1 ~ 48 全关卡按需分片秒载)
 async function switchLevel(lvl, checkNewTowers = false, persistToProfile = true) {
     sound.resumeContext();
+    flushActiveRoundIfNeeded('PRACTICE');
     await ensureStageConfigLoaded(lvl);
     if (persistToProfile) {
         profileManager.setLastCarrotStage(lvl);
@@ -1906,6 +2008,12 @@ function saveUserProfileModal() {
         enabledTypes: modalEditEnTypes
     };
 
+    const prevActiveId = profileManager.getActiveUser()?.id;
+    if (isNew || (editingUserId && editingUserId !== prevActiveId)) {
+        flushActiveRoundIfNeeded('PRACTICE');
+        if (mathEngine && mathEngine.resetRoundStats) mathEngine.resetRoundStats();
+    }
+
     if (isNew) {
         const created = profileManager.addUser({
             name,
@@ -2043,6 +2151,7 @@ diffCards.forEach(card => {
 btnStartGame.addEventListener('click', async () => {
     sound.resumeContext();
     startModal.classList.remove('show');
+    flushActiveRoundIfNeeded('PRACTICE');
     const user = profileManager.getActiveUser();
     mathEngine.setDifficulty(user.difficulty);
     syncUserProfileUI();
@@ -2082,8 +2191,12 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 window.addEventListener('pagehide', () => {
+    flushActiveRoundIfNeeded('PRACTICE');
     if (sound) sound.pauseAll();
     if (gameEngine) gameEngine.stopLoop();
+});
+window.addEventListener('beforeunload', () => {
+    flushActiveRoundIfNeeded('PRACTICE');
 });
 window.addEventListener('pageshow', (e) => {
     if (e.persisted) {

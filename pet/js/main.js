@@ -772,6 +772,8 @@ class PetWonderTownApp {
         this.mathSubMode = 'random';         // 'random' | 9大数学题型ID之一
         this.mathInputStr = '';
         this._numericKeypadActive = true;
+        this._mathTransitionLock = false;
+        this._lastRenderedTodayQ = null;
         this.engSubMode = 'english_random';  // 'vocab_camp' | 'english_random' | 英语题型ID
         this.courseSubMode = 'course_all';   // 'course_all' | 'course_phonics' | 'course_sight' | 'course_qa' | 'course_readcard'
         this.activeWordPackId = 'all';       // 默认开启全部20主题·360词洗牌防重
@@ -1065,6 +1067,21 @@ class PetWonderTownApp {
             dailyBox.classList.toggle('capped', daily.isCapped);
             dailyIcon.textContent = daily.isCapped ? '🌟' : '⏳';
             dailyVal.textContent = `${daily.earned}/${daily.cap}`;
+        }
+
+        const qCountEl = document.getElementById('petLiveQuestionCount');
+        if (qCountEl && typeof profileManager.getQuestionStats === 'function') {
+            const qs = profileManager.getQuestionStats(u);
+            qCountEl.textContent = `📝 ${qs.todayAttempted}题`;
+            qCountEl.title = `今日已做 ${qs.todayAttempted} 题（答对 ${qs.todayCorrect} 题）｜全平台累计已做 ${qs.totalAttempted} 题`;
+            if (this._lastRenderedTodayQ !== null && qs.todayAttempted > this._lastRenderedTodayQ) {
+                qCountEl.classList.remove('q-bump');
+                void qCountEl.offsetWidth;
+                qCountEl.classList.add('q-bump');
+                clearTimeout(this._qBumpTimer);
+                this._qBumpTimer = setTimeout(() => qCountEl.classList.remove('q-bump'), 280);
+            }
+            this._lastRenderedTodayQ = qs.todayAttempted;
         }
     }
 
@@ -1828,6 +1845,7 @@ class PetWonderTownApp {
             clearTimeout(this._wrongMathTimer);
             this._wrongMathTimer = null;
         }
+        this._mathTransitionLock = false;
         const q = forcedQ || mathEngine.currentQuestion || mathEngine.nextQuestion();
         this.mathInputStr = '';
         this.updateMathInputView();
@@ -1962,7 +1980,9 @@ class PetWonderTownApp {
             return true;
         } else {
             soundEngine.playWrong();
+            profileManager.recordQuestionAttempt({ isMath: true, isCorrect: false, combo: 0 });
             profileManager.recordMathMistake(res.question, res.userAns);
+            this.renderTopHud();
             this.updateReviewCountBadge();
             this.triggerPetAnswerReaction(false, 0);
             fb.textContent = `💪 差一点点（正确答案是 ${res.expected}），${res.question.visualTip || '下一题加油！'}`;
@@ -1971,6 +1991,8 @@ class PetWonderTownApp {
     }
 
     handleInteractiveMathEvaluated(isCorrect, userAnsLabel = '') {
+        if (this._mathTransitionLock) return;
+        this._mathTransitionLock = true;
         const res = mathEngine.evaluateInteractiveAttempt(isCorrect, userAnsLabel, false);
         const stageEl = document.getElementById('petMathInteractiveStage');
         const ok = this._processMathAttemptResult(res, stageEl);
@@ -1978,6 +2000,7 @@ class PetWonderTownApp {
         if (this._wrongMathTimer) clearTimeout(this._wrongMathTimer);
         this._wrongMathTimer = setTimeout(() => {
             this._wrongMathTimer = null;
+            this._mathTransitionLock = false;
             if (this.activeSubject === 'grand_random') {
                 this.drawNextGrandRandomQuestion(true);
             } else {
@@ -1989,7 +2012,7 @@ class PetWonderTownApp {
     }
 
     handleMathSubmit() {
-        if (!this.mathInputStr) return;
+        if (this._mathTransitionLock || !this.mathInputStr) return;
         const res = mathEngine.checkAnswer(this.mathInputStr);
         const ok = this._processMathAttemptResult(res, document.getElementById('btnSubmitMath'));
 
@@ -1997,10 +2020,12 @@ class PetWonderTownApp {
             if (this.activeSubject === 'grand_random') {
                 this.drawNextGrandRandomQuestion(true);
             } else {
+                mathEngine.nextQuestion();
                 this.renderCurrentMathQuestion();
                 if (this.activeSubject === 'review') this.renderReviewPanel();
             }
         } else {
+            this._mathTransitionLock = true;
             this.mathInputStr = '';
             this.updateMathInputView();
             if (res.question.visualTip) {
@@ -2011,6 +2036,7 @@ class PetWonderTownApp {
             if (this._wrongMathTimer) clearTimeout(this._wrongMathTimer);
             this._wrongMathTimer = setTimeout(() => {
                 this._wrongMathTimer = null;
+                this._mathTransitionLock = false;
                 if (this.activeSubject === 'grand_random') {
                     this.drawNextGrandRandomQuestion(true);
                 } else {
@@ -2278,7 +2304,9 @@ class PetWonderTownApp {
                 ? (q.expectedSentence || q.answerEn || q.wordObj.ttsWord || q.wordObj.word)
                 : q.wordObj.word;
             soundEngine.speakEnglish(wrongSpeak, true, isCourseQ ? '' : q.wordObj.phonics);
+            profileManager.recordQuestionAttempt({ isMath: false, isCorrect: false, combo: 0 });
             profileManager.updateWordProgress(q.wordObj, false, 0);
+            this.renderTopHud();
             const sess = englishEngine.studySession;
             let retryNote = '已收入双倍复习本！';
             if (this.engSubMode === 'vocab_camp' && sess && sess.phase === 'quiz') {
@@ -2335,7 +2363,8 @@ class PetWonderTownApp {
                     gotTicket: isFirstCampToday,
                     isVocabCampFinish: true,
                     combo: englishEngine.combo,
-                    isMath: false
+                    isMath: false,
+                    countAsQuestion: false
                 });
                 this.fx.spawnBurst(window.innerWidth * 0.5, window.innerHeight * 0.45, 45);
                 this.renderAll();
@@ -3039,9 +3068,15 @@ class PetWonderTownApp {
 
         const masteredCount = Object.values(u.wordMastery || {}).filter(v => v >= 1).length;
         const unlearnedCount = ALL_WORDS.length - masteredCount;
+        const qs = profileManager.getQuestionStats ? profileManager.getQuestionStats(u) : {
+            todayAttempted: 0,
+            totalAttempted: (u.stats?.totalMathCorrect || 0) + (u.stats?.totalEnglishCorrect || 0),
+            totalCorrect: (u.stats?.totalMathCorrect || 0) + (u.stats?.totalEnglishCorrect || 0)
+        };
         document.getElementById('reportStatsStrip').innerHTML = `
-            <div class="rep-stat-box"><strong>${u.stats?.totalMathCorrect || 0}</strong><span>数学答对总数</span></div>
-            <div class="rep-stat-box"><strong>${u.stats?.totalEnglishCorrect || 0}</strong><span>英语闯关答对</span></div>
+            <div class="rep-stat-box"><strong>${qs.todayAttempted} / ${qs.totalAttempted}</strong><span>今日 / 累计做题</span></div>
+            <div class="rep-stat-box"><strong>${u.stats?.totalMathCorrect || 0} / ${qs.totalMathAttempted ?? (u.stats?.totalMathCorrect || 0)}</strong><span>数学答对/总做</span></div>
+            <div class="rep-stat-box"><strong>${u.stats?.totalEnglishCorrect || 0} / ${qs.totalEnglishAttempted ?? (u.stats?.totalEnglishCorrect || 0)}</strong><span>英语答对/总做</span></div>
             <div class="rep-stat-box"><strong>${masteredCount} / ${ALL_WORDS.length}</strong><span>点亮英语单词</span></div>
             <div class="rep-stat-box"><strong>🔥 x${u.stats?.bestCombo || 0}</strong><span>最高连对纪录</span></div>
         `;
@@ -3527,6 +3562,7 @@ class PetWonderTownApp {
 
         // 果冻数字键盘点击与物理键盘支持
         document.getElementById('mathKeypad').onclick = (e) => {
+            if (this._mathTransitionLock) return;
             const btn = e.target.closest('.jelly-key');
             if (!btn) return;
             soundEngine.playTap();
@@ -3545,7 +3581,7 @@ class PetWonderTownApp {
 
         window.addEventListener('keydown', (e) => {
             if (document.getElementById('modalProfile').style.display !== 'none') return;
-            if (!this._numericKeypadActive) return;
+            if (!this._numericKeypadActive || this._mathTransitionLock) return;
             if (document.getElementById('panelMath').style.display === 'none') return;
             if (e.key >= '0' && e.key <= '9') {
                 if (this.mathInputStr.length < 5) {

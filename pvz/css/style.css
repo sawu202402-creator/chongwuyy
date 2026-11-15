@@ -757,11 +757,29 @@ body {
     to { transform: translateY(-3px) scale(1.05); }
 }
 
-/* 叶子保护伞规格 */
+/* 叶子保护伞规格与撑伞弹飞反馈动画 */
 .plant-entity.plant-umbrellaleaf .plant-gif {
     width: 92px !important;
     height: 88px !important;
     object-fit: contain;
+    transform-origin: center bottom;
+}
+
+.plant-entity.plant-umbrellaleaf.umbrella-bouncing {
+    z-index: 26 !important;
+}
+
+.plant-entity.plant-umbrellaleaf.umbrella-bouncing .plant-gif {
+    animation: umbrellaCanopyPop 0.56s cubic-bezier(0.22, 1.35, 0.36, 1) both;
+    filter: drop-shadow(0 0 12px rgba(46, 204, 113, 0.85));
+}
+
+@keyframes umbrellaCanopyPop {
+    0%   { transform: scale(0.86, 0.72); }
+    28%  { transform: scale(1.48, 1.38) translateY(-8px); }
+    58%  { transform: scale(1.18, 0.94) translateY(-2px); }
+    82%  { transform: scale(1.06, 1.05); }
+    100% { transform: scale(1, 1); }
 }
 
 /* 模仿者分身黑白默剧滤镜 (还原原版 PVZ1 银灰复古色调) */
@@ -964,6 +982,16 @@ body {
 .zombie-entity.zombie-bungee .zombie-gif {
     width: 166px;
     height: 180px;
+}
+
+.zombie-entity.zombie-bungee.bungee-bounced .zombie-gif {
+    animation: bungeeSpringFlung 0.34s ease-in-out infinite alternate;
+    filter: drop-shadow(0 6px 10px rgba(46, 204, 113, 0.55));
+}
+
+@keyframes bungeeSpringFlung {
+    0%   { transform: scale(1.12, 0.84) rotate(-13deg); }
+    100% { transform: scale(0.92, 1.12) rotate(13deg); }
 }
 
 .zombie-entity.zombie-pogo {

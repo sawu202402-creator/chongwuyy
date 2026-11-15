@@ -1,9 +1,9 @@
 /**
  * zombies.js - 原版 1:1 僵尸实体系统与 DOM 60fps 动态 GIF 动画层 (完整支持第 1~5 大关全兵种与屋顶斜坡)
  */
-import { GAME_CONFIG } from './config.js?v=20261113_v2';
-import { soundEngine } from './audio.js?v=20261113_v2';
-import { FloatingText, LobbedProjectile, ExplosionEffect, HitSplat } from './projectiles.js?v=20261113_v2';
+import { GAME_CONFIG } from './config.js?v=20261115_umbrella_v1';
+import { soundEngine } from './audio.js?v=20261115_umbrella_v1';
+import { FloatingText, LobbedProjectile, ExplosionEffect, HitSplat } from './projectiles.js?v=20261115_umbrella_v1';
 
 export class Zombie {
     constructor(type = 'normal', row = 2, startX = 900, entityLayer = null) {
@@ -90,6 +90,8 @@ export class Zombie {
         this.bungeeOffsetY = this.type === 'bungee' ? -360 : 0;
         this.bungeeRenderOffsetY = this.bungeeOffsetY;
         this.bungeeTargetPlant = null;
+        this.bungeeTargetCol = null;
+        this.bungeeBounced = false;
 
         // 投石车僵尸篮球弹药
         this.basketballs = this.config.basketballs || 8;
@@ -619,6 +621,70 @@ export class Zombie {
         return candidates[0];
     }
 
+    tryBungeeUmbrellaBounce(engine) {
+        if (!engine || !engine.plants || this.type !== 'bungee' || this.isDead || this.isDying) return false;
+        const cellW = engine.cellW || this.cellW || 80;
+        const startX = engine.gridStartX ?? 40;
+        const liveTarget = (this.bungeeTargetPlant && !this.bungeeTargetPlant.isDead) ? this.bungeeTargetPlant : null;
+        const targetCol = Number.isInteger(this.bungeeTargetCol)
+            ? this.bungeeTargetCol
+            : (liveTarget
+                ? liveTarget.col
+                : Math.round((this.x - startX - cellW / 2) / cellW));
+
+        let umbrella = null;
+        if (typeof engine.findProtectingUmbrella === 'function') {
+            umbrella = engine.findProtectingUmbrella(this.row, targetCol, this.x, liveTarget, true);
+        } else {
+            const inRange = (u) => (
+                !u.isDead && !u.isAsleep &&
+                Math.abs(u.row - this.row) <= 1 &&
+                (
+                    Math.abs(u.col - targetCol) <= 1 ||
+                    (liveTarget && liveTarget.isDoubleWide && Math.abs(u.col - (targetCol + 1)) <= 1) ||
+                    Math.abs(u.x - this.x) <= cellW * 1.65
+                )
+            );
+            umbrella = engine.plants.find(u => u.type === 'umbrellaleaf' && inRange(u)) || null;
+            if (!umbrella) {
+                const morphing = engine.plants.find(u => u.type === 'imitater' && u.copiedType === 'umbrellaleaf' && inRange(u));
+                if (morphing && typeof morphing.update === 'function') {
+                    morphing.morphTimer = 0;
+                    morphing.update(0.01, engine);
+                    umbrella = engine.plants.find(u => u.type === 'umbrellaleaf' && inRange(u)) || null;
+                }
+            }
+        }
+
+        if (!umbrella) return false;
+
+        if (typeof umbrella.triggerBounce === 'function') {
+            umbrella.triggerBounce(engine, this.x, this.y);
+        }
+        // 巨叶强力弹飞时解除黄油与冰冻定身，立即高速弹射回云端
+        if (this.butterTimer > 0) {
+            this.butterTimer = 0;
+            if (this.domButter) this.domButter.style.display = 'none';
+        }
+        if (this.freezeTimer > 0) {
+            this.freezeTimer = 0;
+            if (this.domElement) this.domElement.classList.remove('frozen');
+        }
+        this.bungeeTargetPlant = null;
+        this.bungeeBounced = true;
+        this.bungeePhase = 'ascending';
+        this.bungeeRenderOffsetY = this.bungeeOffsetY;
+        this.setAnim(this.config.walkAnims[0]);
+        if (this.domElement) {
+            this.domElement.classList.add('bungee-bounced');
+        }
+        if (engine.floatingTexts) {
+            engine.floatingTexts.push(new FloatingText(umbrella.x, umbrella.y - 46, '☂️ 保护伞弹飞蹦极!', '#2ecc71', 21));
+        }
+        this.updateDOMPosition(engine, this.bungeeRenderOffsetY);
+        return true;
+    }
+
     update(dt, engine) {
         if (this.isDead) return;
         this.age += dt;
@@ -699,16 +765,22 @@ export class Zombie {
 
         // 蹦极僵尸首帧锁定地面格子与红白靶心坐标 (即使随后被寒冰菇极冻，也已具备准确靶心位置)
         if (this.type === 'bungee' && this.bungeePhase === 'init' && engine && !this.isDying) {
+            const cellW = engine.cellW || this.cellW || 80;
+            const startX = engine.gridStartX ?? 40;
             const rowPlants = engine.plants.filter(p => p.row === this.row && !p.isDead && !p.isFlat);
             if (rowPlants.length > 0) {
                 const mainPlants = rowPlants.filter(p => !p.isPot && p.type !== 'lilypad' && !p.isPumpkin);
                 const pool = mainPlants.length > 0 ? mainPlants : rowPlants;
                 const chosen = pool[Math.floor(Math.random() * pool.length)];
                 this.bungeeTargetPlant = chosen;
-                this.x = chosen.x;
+                this.bungeeTargetCol = chosen.col;
+                this.x = chosen.isDoubleWide
+                    ? (startX + chosen.col * cellW + cellW / 2)
+                    : chosen.x;
             } else {
                 const randCol = 1 + Math.floor(Math.random() * 4);
-                this.x = (engine.gridStartX || 40) + randCol * this.cellW + this.cellW / 2;
+                this.bungeeTargetCol = randCol;
+                this.x = startX + randCol * cellW + cellW / 2;
             }
             const slopeY = (typeof engine.getSurfaceOffsetY === 'function') ? engine.getSurfaceOffsetY(this.x) : 0;
             this.y = this.gridStartY + this.row * this.cellH + this.cellH / 2 + slopeY;
@@ -719,6 +791,17 @@ export class Zombie {
             soundEngine.playGroan();
             if (engine.floatingTexts) {
                 engine.floatingTexts.push(new FloatingText(this.x, this.y - 46, '🎯 蹦极锁定!', '#e67e22', 20));
+            }
+        }
+
+        // 叶子保护伞最高优先弹射：即便蹦极僵尸已被玉米投手糊上黄油或被寒冰菇冰冻，只要进入伞盖高度 (>= -95px) 或悬停/抓捕态，立即弹飞！
+        if (this.type === 'bungee' && engine && !this.isDying && (
+            this.bungeePhase === 'hanging' ||
+            this.bungeePhase === 'grabbing' ||
+            (this.bungeePhase === 'descending' && this.bungeeOffsetY >= -95)
+        )) {
+            if (this.tryBungeeUmbrellaBounce(engine)) {
+                return;
             }
         }
 
@@ -764,30 +847,6 @@ export class Zombie {
             const effDt = this.isSlowed ? dt * 0.5 : dt;
             this.bungeeAge = (this.bungeeAge || 0) + effDt;
 
-            const tryUmbrellaBounce = () => {
-                const targetCol = this.bungeeTargetPlant
-                    ? this.bungeeTargetPlant.col
-                    : Math.round((this.x - (engine.gridStartX || 40) - this.cellW / 2) / this.cellW);
-                const umbrella = engine.plants.find(u =>
-                    !u.isDead && u.type === 'umbrellaleaf' &&
-                    Math.abs(u.row - this.row) <= 1 &&
-                    (Math.abs(u.col - targetCol) <= 1 || (this.bungeeTargetPlant && this.bungeeTargetPlant.isDoubleWide && Math.abs(u.col - (targetCol + 1)) <= 1))
-                );
-                if (!umbrella) return false;
-                if (typeof umbrella.triggerBounce === 'function') {
-                    umbrella.triggerBounce(engine);
-                }
-                this.bungeeTargetPlant = null;
-                this.bungeePhase = 'ascending';
-                this.bungeeRenderOffsetY = this.bungeeOffsetY;
-                this.setAnim(this.config.walkAnims[0]);
-                if (engine.floatingTexts) {
-                    engine.floatingTexts.push(new FloatingText(umbrella.x, umbrella.y - 44, '☂️ 保护伞弹飞蹦极!', '#2ecc71', 20));
-                }
-                this.updateDOMPosition(engine, this.bungeeRenderOffsetY);
-                return true;
-            };
-
             if (this.bungeePhase === 'targeting') {
                 this.bungeeTimer -= effDt;
                 this.bungeeRenderOffsetY = this.bungeeOffsetY;
@@ -799,7 +858,7 @@ export class Zombie {
                 this.setAnim(this.config.walkAnims[0]);
                 this.bungeeOffsetY = Math.min(0, this.bungeeOffsetY + 180 * effDt);
                 this.bungeeRenderOffsetY = this.bungeeOffsetY;
-                if (this.bungeeOffsetY >= -28 && tryUmbrellaBounce()) {
+                if (this.bungeeOffsetY >= -95 && this.tryBungeeUmbrellaBounce(engine)) {
                     return;
                 }
                 if (this.bungeeOffsetY >= 0) {
@@ -809,7 +868,7 @@ export class Zombie {
                     this.bungeeTimer = 3.0; // 原版 PHASE_BUNGEE_AT_BOTTOM 300cs (3.0秒) 悬停破绽期
                 }
             } else if (this.bungeePhase === 'hanging') {
-                if (tryUmbrellaBounce()) {
+                if (this.tryBungeeUmbrellaBounce(engine)) {
                     return;
                 }
                 this.bungeeTimer -= effDt;
@@ -822,15 +881,22 @@ export class Zombie {
                     this.setAnim(this.config.grabAnim || 'assets/zombies/bungee_grab.gif');
                 }
             } else if (this.bungeePhase === 'grabbing') {
-                if (tryUmbrellaBounce()) {
+                if (this.tryBungeeUmbrellaBounce(engine)) {
                     return;
                 }
                 this.bungeeTimer -= effDt;
                 this.bungeeRenderOffsetY = 0;
                 if (this.bungeeTimer <= 0) {
-                    const targetCol = this.bungeeTargetPlant
-                        ? this.bungeeTargetPlant.col
-                        : Math.round((this.x - (engine.gridStartX || 40) - this.cellW / 2) / this.cellW);
+                    if (this.tryBungeeUmbrellaBounce(engine)) {
+                        return;
+                    }
+                    const cellW = engine.cellW || this.cellW || 80;
+                    const startX = engine.gridStartX ?? 40;
+                    const targetCol = Number.isInteger(this.bungeeTargetCol)
+                        ? this.bungeeTargetCol
+                        : (this.bungeeTargetPlant
+                            ? this.bungeeTargetPlant.col
+                            : Math.round((this.x - startX - cellW / 2) / cellW));
                     const cellPlants = engine.plants.filter(
                         p => !p.isDead && !p.isFlat && p.row === this.row && (p.col === targetCol || (p.isDoubleWide && p.col + 1 === targetCol))
                     );
@@ -848,7 +914,9 @@ export class Zombie {
                     this.setAnim(this.config.walkAnims[0]);
                 }
             } else if (this.bungeePhase === 'ascending') {
-                this.bungeeOffsetY -= 240 * effDt;
+                const ascendSpeed = this.bungeeBounced ? 560 : 240;
+                const stepDt = this.bungeeBounced ? dt : effDt;
+                this.bungeeOffsetY -= ascendSpeed * stepDt;
                 this.bungeeRenderOffsetY = this.bungeeOffsetY;
                 if (this.bungeeOffsetY <= -360) {
                     this.destroy();

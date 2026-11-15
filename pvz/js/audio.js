@@ -479,6 +479,41 @@ class SoundEngine {
         });
     }
 
+    // 叶子保护伞清脆弹性弹簧音 (Boing-Sproing!)
+    playBoing() {
+        if (this.muted || !this.throttle('boing', 90)) return;
+        if (!this.ensureContext()) return;
+        const now = this.ctx.currentTime;
+
+        const osc1 = this.ctx.createOscillator();
+        const gain1 = this.ctx.createGain();
+        osc1.type = 'triangle';
+        osc1.frequency.setValueAtTime(185, now);
+        osc1.frequency.exponentialRampToValueAtTime(640, now + 0.11);
+        osc1.frequency.exponentialRampToValueAtTime(410, now + 0.19);
+        osc1.frequency.exponentialRampToValueAtTime(860, now + 0.30);
+        gain1.gain.setValueAtTime(0.42, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.32);
+        osc1.connect(gain1);
+        gain1.connect(this.ctx.destination);
+        this._bindAutoCleanup(osc1, gain1);
+        osc1.start(now);
+        osc1.stop(now + 0.33);
+
+        const osc2 = this.ctx.createOscillator();
+        const gain2 = this.ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(370, now + 0.03);
+        osc2.frequency.exponentialRampToValueAtTime(1120, now + 0.24);
+        gain2.gain.setValueAtTime(0.24, now + 0.03);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
+        osc2.connect(gain2);
+        gain2.connect(this.ctx.destination);
+        this._bindAutoCleanup(osc2, gain2);
+        osc2.start(now + 0.03);
+        osc2.stop(now + 0.27);
+    }
+
     // 关卡失败温馨重试音
     playLose() {
         if (this.muted) return;

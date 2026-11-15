@@ -2,14 +2,14 @@
  * main.js - 游戏全局协调控制器、事件总线与主循环
  * 深度融合原版 1:1 植物大战僵尸战场与儿童趣味心算学习引擎
  */
-import { GAME_CONFIG, AVATAR_LIST, DIFFICULTY_PRESETS } from './config.js?v=20261113_v2';
-import { assetsLoader } from './assetsLoader.js?v=20261113_v2';
-import { soundEngine } from './audio.js?v=20261113_v2';
+import { GAME_CONFIG, AVATAR_LIST, DIFFICULTY_PRESETS } from './config.js?v=20261115_umbrella_v1';
+import { assetsLoader } from './assetsLoader.js?v=20261115_umbrella_v1';
+import { soundEngine } from './audio.js?v=20261115_umbrella_v1';
 import { mathEngine, MATH_QUESTION_TYPES, ALL_MATH_TYPE_IDS } from './mathEngine.js?v=20261114_modes_v1';
 import { profileManager } from './profileManager.js?v=20261113_3in1_v1';
-import { PvzEngine } from './pvzEngine.js?v=20261113_v2';
-import { createPlant } from './plants.js?v=20261113_v2';
-import { Zombie } from './zombies.js?v=20261113_v2';
+import { PvzEngine } from './pvzEngine.js?v=20261115_umbrella_v1';
+import { createPlant } from './plants.js?v=20261115_umbrella_v1';
+import { Zombie } from './zombies.js?v=20261115_umbrella_v1';
 import { SmartChalkboard } from '../../shared/smartChalkboard.js';
 import { sharedSpeech } from '../../shared/audioTTS.js';
 import { ENGLISH_LEVELS, WORD_PACKS, ALL_WORDS, ENGLISH_QUESTION_TYPES, ALL_ENGLISH_TYPE_IDS } from '../../shared/englishEngine.js';
@@ -168,10 +168,12 @@ class GameApp {
             btnSelectLevelFromDefeat: document.getElementById('btnSelectLevelFromDefeat')
         };
 
+        this._roundRecorded = false;
         this.smartBoard = new SmartChalkboard({
             hostType: 'pvz',
             mathEngine: this.mathEngine,
             profileManager: this.profileManager,
+            onBeforeExit: () => this.flushCurrentRoundIfNeeded('PRACTICE'),
             shouldConfirmExit: () => Boolean(
                 this.pvzEngine &&
                 !this.pvzEngine.isGameOver &&
@@ -250,7 +252,7 @@ class GameApp {
 
         const zTypes = new Set(['normal', 'flag']);
         if (conf.isEndless) {
-            ['conehead', 'buckethead', 'polevault', 'newspaper', 'football', 'zomboni', 'pogo', 'catapult', 'gargantuar', 'imp'].forEach(t => zTypes.add(t));
+            ['conehead', 'buckethead', 'polevault', 'newspaper', 'football', 'dancing', 'zomboni', 'pogo', 'bungee', 'ladder', 'catapult', 'gargantuar', 'imp', 'balloon', 'digger', 'jackinthebox'].forEach(t => zTypes.add(t));
             if (Array.isArray(conf.waterRows) && conf.waterRows.length > 0) {
                 ['ducky', 'snorkel', 'dolphin'].forEach(t => zTypes.add(t));
             }
@@ -268,6 +270,12 @@ class GameApp {
     async init() {
         this.updateProfileUI();
         this.fitToScreen();
+        window.addEventListener('pagehide', () => {
+            this.flushCurrentRoundIfNeeded('PRACTICE');
+        });
+        window.addEventListener('beforeunload', () => {
+            this.flushCurrentRoundIfNeeded('PRACTICE');
+        });
         window.addEventListener('pageshow', (e) => {
             if (e.persisted) {
                 profileManager.data = profileManager.load();
@@ -1144,12 +1152,19 @@ class GameApp {
             btn.className = `btn-jelly-pill ${(!isNew && u.id === targetUser.id) ? 'active' : ''}`;
             btn.innerHTML = `<span>${u.avatar}</span> <span>${u.name}</span>`;
             btn.addEventListener('click', () => {
+                if (u.id !== profileManager.getActiveUser()?.id) {
+                    this.flushCurrentRoundIfNeeded('PRACTICE');
+                    mathEngine.resetRoundStats();
+                    this._roundRecorded = false;
+                }
                 this.editingKidId = u.id;
                 profileManager.setActiveUser(u.id);
                 this.updateProfileUI();
                 const targetLvl = u.lastPvzLevel || '1-1';
                 if (this.pvzEngine && this.pvzEngine.waveIndex < 1 && GAME_CONFIG.levels[targetLvl] && this.pvzEngine.levelId !== targetLvl) {
                     this.loadNewLevel(targetLvl, { skipConfirm: true });
+                } else {
+                    this.syncQuestionToBlackboard();
                 }
                 this.renderProfileModalForm();
             });
@@ -1433,28 +1448,82 @@ class GameApp {
             this.dom.recordsKidSelector.appendChild(btn);
         });
 
-        // 2. 渲染历史答题战报
-        const history = user.history || [];
+        // 2. 渲染全平台累计做题概览 + 历史答题战报（实时包含本局进行中做题数）
+        const rawHistory = user.history || [];
+        const activeUser = profileManager.getActiveUser();
+        const hasLiveRound = Boolean(
+            activeUser &&
+            user.id === activeUser.id &&
+            !this._roundRecorded &&
+            mathEngine &&
+            mathEngine.totalAttempted > 0
+        );
+        const history = hasLiveRound
+            ? [
+                {
+                    levelId: `${this.pvzEngine?.levelId || '1-1'} · 🟢本局进行中`,
+                    date: '实时计入',
+                    total: mathEngine.totalAttempted,
+                    correct: mathEngine.correctCount,
+                    accuracy: Math.round((mathEngine.correctCount / mathEngine.totalAttempted) * 100),
+                    maxCombo: mathEngine.maxCombo || 0
+                },
+                ...rawHistory
+            ]
+            : rawHistory;
+
+        const qs = profileManager.getQuestionStats ? profileManager.getQuestionStats(user) : {
+            todayAttempted: 0,
+            totalAttempted: 0,
+            totalCorrect: 0
+        };
+        let histTotal = 0;
+        let histCorrect = 0;
+        let maxStreak = user.stats?.bestCombo || 0;
+        history.forEach(h => {
+            histTotal += (h.total ?? h.stats?.totalAttempted ?? 0);
+            histCorrect += (h.correct ?? h.stats?.correctCount ?? 0);
+            if ((h.maxCombo ?? h.stats?.maxCombo ?? 0) > maxStreak) {
+                maxStreak = h.maxCombo ?? h.stats?.maxCombo ?? 0;
+            }
+        });
+        const mergedTotal = Math.max(histTotal, qs.totalAttempted);
+        const mergedCorrect = Math.max(histCorrect, qs.totalCorrect);
+
         this.dom.historyListBox.innerHTML = '';
+        const summaryBanner = document.createElement('div');
+        summaryBanner.style.cssText = 'display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:10px; padding:10px; border-radius:10px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.16); text-align:center;';
+        summaryBanner.innerHTML = `
+            <div><div style="font-size:18px;font-weight:900;color:#55efc4;">${qs.todayAttempted}</div><div style="font-size:11.5px;color:#dfe6e9;">今日做题</div></div>
+            <div><div style="font-size:18px;font-weight:900;color:#ffeaa7;">${mergedTotal}</div><div style="font-size:11.5px;color:#dfe6e9;">累计做题</div></div>
+            <div><div style="font-size:18px;font-weight:900;color:#74b9ff;">${mergedCorrect}</div><div style="font-size:11.5px;color:#dfe6e9;">累计答对</div></div>
+            <div><div style="font-size:18px;font-weight:900;color:#f1c40f;">🔥 x${maxStreak}</div><div style="font-size:11.5px;color:#dfe6e9;">最高连击</div></div>
+        `;
+        this.dom.historyListBox.appendChild(summaryBanner);
+
         if (history.length === 0) {
-            this.dom.historyListBox.innerHTML = `
-                <div style="text-align:center; padding:35px 20px; color:#bdc3c7; font-size:15px;">
-                    🌱 ${user.name} 还没有出战记录哦，快去后院草坪答题打僵尸吧！
-                </div>
-            `;
+            const emptyDiv = document.createElement('div');
+            emptyDiv.style.cssText = 'text-align:center; padding:26px 20px; color:#bdc3c7; font-size:15px;';
+            emptyDiv.innerText = `🌱 ${user.name} 还没有对局战报记录哦，快去后院草坪答题打僵尸吧！`;
+            this.dom.historyListBox.appendChild(emptyDiv);
         } else {
             history.forEach(h => {
+                const hTotal = h.total ?? h.stats?.totalAttempted ?? 0;
+                const hCorrect = h.correct ?? h.stats?.correctCount ?? 0;
+                const hAcc = h.accuracy ?? h.stats?.accuracy ?? (hTotal > 0 ? Math.round((hCorrect / hTotal) * 100) : 100);
+                const hCombo = h.maxCombo ?? h.stats?.maxCombo ?? 0;
+                const resultSuffix = h.result === 'PRACTICE' ? ' · 📝随堂练习' : '';
                 const item = document.createElement('div');
                 item.className = 'history-item';
                 item.innerHTML = `
                     <div class="history-item-header">
-                        <span class="history-level-tag">🗺️ 关卡 ${h.levelId}</span>
-                        <span class="history-date">${h.date}</span>
+                        <span class="history-level-tag">🗺️ 关卡 ${h.levelId}${resultSuffix}</span>
+                        <span class="history-date">${h.date || h.dateStr || ''}</span>
                     </div>
                     <div class="history-stats-grid">
-                        <div class="h-stat-pill">答题：<strong>${h.correct}/${h.total}</strong></div>
-                        <div class="h-stat-pill">正确率：<strong style="color:${h.accuracy >= 80 ? '#2ecc71' : '#e67e22'}">${h.accuracy}%</strong></div>
-                        <div class="h-stat-pill">最高连击：<strong style="color:#f1c40f">🔥 x${h.maxCombo}</strong></div>
+                        <div class="h-stat-pill">答题：<strong>${hCorrect}/${hTotal}</strong></div>
+                        <div class="h-stat-pill">正确率：<strong style="color:${hAcc >= 80 ? '#2ecc71' : '#e67e22'}">${hAcc}%</strong></div>
+                        <div class="h-stat-pill">最高连击：<strong style="color:#f1c40f">🔥 x${hCombo}</strong></div>
                     </div>
                 `;
                 this.dom.historyListBox.appendChild(item);
@@ -1740,6 +1809,25 @@ class GameApp {
         soundEngine.playPlant();
     }
 
+    flushCurrentRoundIfNeeded(resultType = 'PRACTICE') {
+        if (this._roundRecorded || !mathEngine || mathEngine.totalAttempted <= 0) {
+            return;
+        }
+        this._roundRecorded = true;
+        const total = mathEngine.totalAttempted;
+        const correct = mathEngine.correctCount;
+        const accuracy = total > 0 ? Math.round((correct / total) * 100) : 100;
+        profileManager.recordGameRound({
+            levelId: this.pvzEngine?.levelId || '1-1',
+            result: resultType,
+            total,
+            correct,
+            accuracy,
+            maxCombo: mathEngine.maxCombo || 0,
+            mistakes: mathEngine.mistakes
+        });
+    }
+
     loadNewLevel(lvlId, options = {}) {
         if (!this.pvzEngine) return;
         const skipConfirm = Boolean(options && options.skipConfirm);
@@ -1748,6 +1836,7 @@ class GameApp {
                 return;
             }
         }
+        this.flushCurrentRoundIfNeeded('PRACTICE');
         if (this.dom.seedChooserModal) {
             this.dom.seedChooserModal.style.display = 'none';
         }
@@ -1776,6 +1865,7 @@ class GameApp {
         }
 
         mathEngine.resetRoundStats();
+        this._roundRecorded = false;
         this.syncQuestionToBlackboard();
 
         if (options && options.openChooser) {
@@ -1807,14 +1897,18 @@ class GameApp {
             if (profileManager.recordPvzLevelClear && clearedLvl && !String(clearedLvl).startsWith('endless')) {
                 profileManager.recordPvzLevelClear(clearedLvl, accuracy);
             }
-            profileManager.recordGameRound({
-                levelId: clearedLvl,
-                total,
-                correct,
-                accuracy,
-                maxCombo,
-                mistakes: mathEngine.mistakes
-            });
+            if (!this._roundRecorded) {
+                this._roundRecorded = true;
+                profileManager.recordGameRound({
+                    levelId: clearedLvl,
+                    result: 'VICTORY',
+                    total,
+                    correct,
+                    accuracy,
+                    maxCombo,
+                    mistakes: mathEngine.mistakes
+                });
+            }
 
             this.dom.victoryRewardText.innerText = data.rewardText || '恭喜守卫成功！';
             this.dom.reportTotalQ.innerText = total;
@@ -1828,16 +1922,20 @@ class GameApp {
             if (isEndless) {
                 profileManager.recordEndlessProgress(endlessFlags, survivedWaves);
             }
-            profileManager.recordGameRound({
-                levelId: this.pvzEngine.levelId,
-                total,
-                correct,
-                accuracy,
-                maxCombo,
-                endlessWaves: isEndless ? survivedWaves : undefined,
-                endlessFlags: isEndless ? endlessFlags : undefined,
-                mistakes: mathEngine.mistakes
-            });
+            if (!this._roundRecorded) {
+                this._roundRecorded = true;
+                profileManager.recordGameRound({
+                    levelId: this.pvzEngine.levelId,
+                    result: 'DEFEAT',
+                    total,
+                    correct,
+                    accuracy,
+                    maxCombo,
+                    endlessWaves: isEndless ? survivedWaves : undefined,
+                    endlessFlags: isEndless ? endlessFlags : undefined,
+                    mistakes: mathEngine.mistakes
+                });
+            }
 
             if (isEndless) {
                 const activeUser = profileManager.getActiveUser() || {};

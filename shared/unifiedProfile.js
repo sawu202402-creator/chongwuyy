@@ -63,6 +63,8 @@ function createFreshDailyState() {
         ticketsEarned: 0,
         starProgress: 0,
         vocabCampCount: 0,
+        questionsAttempted: 0,
+        questionsCorrect: 0,
         siblingGiftClaimed: false
     };
 }
@@ -192,6 +194,8 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
         lastPvzLevel: '1-1',
         preferredSmartMode: 'grand_random',
         stats: {
+            totalMathAttempted: 0,
+            totalEnglishAttempted: 0,
             totalMathCorrect: 0,
             totalEnglishCorrect: 0,
             totalWordsMastered: 0,
@@ -422,7 +426,46 @@ export class UserProfileManager {
             if (!isValidSmartMode(u.preferredSmartMode)) u.preferredSmartMode = 'grand_random';
             if (!Array.isArray(u.ownedAccessories)) u.ownedAccessories = ['none'];
             if (!Array.isArray(u.ownedDecors)) u.ownedDecors = [];
-            if (!u.stats) u.stats = { totalMathCorrect: 0, totalEnglishCorrect: 0, totalWordsMastered: 0, bestCombo: 0 };
+            if (!u.stats) {
+                u.stats = {
+                    totalMathAttempted: 0,
+                    totalEnglishAttempted: 0,
+                    totalMathCorrect: 0,
+                    totalEnglishCorrect: 0,
+                    totalWordsMastered: 0,
+                    bestCombo: 0
+                };
+            }
+            if (typeof u.stats.totalMathCorrect !== 'number') u.stats.totalMathCorrect = 0;
+            if (typeof u.stats.totalEnglishCorrect !== 'number') u.stats.totalEnglishCorrect = 0;
+            if (typeof u.stats.totalMathAttempted !== 'number' || u.stats.totalMathAttempted < u.stats.totalMathCorrect) {
+                u.stats.totalMathAttempted = u.stats.totalMathCorrect;
+            }
+            if (typeof u.stats.totalEnglishAttempted !== 'number' || u.stats.totalEnglishAttempted < u.stats.totalEnglishCorrect) {
+                u.stats.totalEnglishAttempted = u.stats.totalEnglishCorrect;
+            }
+            if (!u.statsAttemptBackfilled_v1) {
+                let histAttempted = 0;
+                let histCorrect = 0;
+                (u.history || []).forEach(r => {
+                    const rt = Number(r?.total ?? r?.stats?.totalAttempted ?? 0) || 0;
+                    const rc = Number(r?.correct ?? r?.stats?.correctCount ?? 0) || 0;
+                    histAttempted += rt;
+                    histCorrect += rc;
+                });
+                const curTotalAttempted = (u.stats.totalMathAttempted || 0) + (u.stats.totalEnglishAttempted || 0);
+                if (histAttempted > curTotalAttempted) {
+                    u.stats.totalMathAttempted += (histAttempted - curTotalAttempted);
+                }
+                const curTotalCorrect = (u.stats.totalMathCorrect || 0) + (u.stats.totalEnglishCorrect || 0);
+                if (histCorrect > curTotalCorrect) {
+                    u.stats.totalMathCorrect += (histCorrect - curTotalCorrect);
+                }
+                if (u.stats.totalMathAttempted < u.stats.totalMathCorrect) {
+                    u.stats.totalMathAttempted = u.stats.totalMathCorrect;
+                }
+                u.statsAttemptBackfilled_v1 = true;
+            }
             if (!u.dailyBadgeCap || u.dailyBadgeCap < 5) u.dailyBadgeCap = DEFAULT_DAILY_BADGE_CAP;
             this._ensureDailyState(u);
         });
@@ -568,6 +611,8 @@ export class UserProfileManager {
         if (typeof user.dailyState.ticketsEarned !== 'number') user.dailyState.ticketsEarned = 0;
         if (typeof user.dailyState.starProgress !== 'number') user.dailyState.starProgress = 0;
         if (typeof user.dailyState.vocabCampCount !== 'number') user.dailyState.vocabCampCount = 0;
+        if (typeof user.dailyState.questionsAttempted !== 'number') user.dailyState.questionsAttempted = 0;
+        if (typeof user.dailyState.questionsCorrect !== 'number') user.dailyState.questionsCorrect = 0;
         return user.dailyState;
     }
 
@@ -584,7 +629,29 @@ export class UserProfileManager {
             isCapped: remaining <= 0,
             starProgress: ds.starProgress,
             ticketsEarned: ds.ticketsEarned,
-            vocabCampCount: ds.vocabCampCount
+            vocabCampCount: ds.vocabCampCount,
+            questionsAttempted: ds.questionsAttempted || 0,
+            questionsCorrect: ds.questionsCorrect || 0
+        };
+    }
+
+    getQuestionStats(user = null) {
+        const u = user || this.getActiveUser();
+        const ds = this._ensureDailyState(u);
+        const st = u.stats || {};
+        const totalMathCorrect = st.totalMathCorrect || 0;
+        const totalEnglishCorrect = st.totalEnglishCorrect || 0;
+        const totalMathAttempted = Math.max(st.totalMathAttempted || 0, totalMathCorrect);
+        const totalEnglishAttempted = Math.max(st.totalEnglishAttempted || 0, totalEnglishCorrect);
+        return {
+            todayAttempted: ds.questionsAttempted || 0,
+            todayCorrect: ds.questionsCorrect || 0,
+            totalAttempted: totalMathAttempted + totalEnglishAttempted,
+            totalCorrect: totalMathCorrect + totalEnglishCorrect,
+            totalMathAttempted,
+            totalEnglishAttempted,
+            totalMathCorrect,
+            totalEnglishCorrect
         };
     }
 
@@ -787,13 +854,44 @@ export class UserProfileManager {
         if (user.badgeLedger.length > 60) user.badgeLedger = user.badgeLedger.slice(0, 60);
     }
 
-    awardLearningProgress({ title, subjectTag, badges = 0, stars = 0, gotTicket = false, isVocabCampFinish = false, combo = 0, isMath = true }) {
+    /**
+     * 记录任意单次做题（无论答对还是答错、数学还是英语、是否已达每日徽章上限，做题数量均实时 +1 并落盘）
+     */
+    recordQuestionAttempt({ isMath = true, isCorrect = false, combo = 0 } = {}) {
+        const u = this.getActiveUser();
+        const ds = this._ensureDailyState(u);
+        ds.questionsAttempted = (ds.questionsAttempted || 0) + 1;
+        if (isCorrect) {
+            ds.questionsCorrect = (ds.questionsCorrect || 0) + 1;
+        }
+        if (isMath) {
+            u.stats.totalMathAttempted = Math.max(u.stats.totalMathAttempted || 0, u.stats.totalMathCorrect || 0) + 1;
+            if (isCorrect) u.stats.totalMathCorrect = (u.stats.totalMathCorrect || 0) + 1;
+        } else {
+            u.stats.totalEnglishAttempted = Math.max(u.stats.totalEnglishAttempted || 0, u.stats.totalEnglishCorrect || 0) + 1;
+            if (isCorrect) u.stats.totalEnglishCorrect = (u.stats.totalEnglishCorrect || 0) + 1;
+        }
+        if (combo > (u.stats.bestCombo || 0)) u.stats.bestCombo = combo;
+        this.save();
+        return this.getQuestionStats(u);
+    }
+
+    awardLearningProgress({ title, subjectTag, badges = 0, stars = 0, gotTicket = false, isVocabCampFinish = false, combo = 0, isMath = true, countAsQuestion = true }) {
         const u = this.getActiveUser();
         const ds = this._ensureDailyState(u);
         const cap = u.dailyBadgeCap || DEFAULT_DAILY_BADGE_CAP;
 
-        if (isMath) u.stats.totalMathCorrect = (u.stats.totalMathCorrect || 0) + 1;
-        else u.stats.totalEnglishCorrect = (u.stats.totalEnglishCorrect || 0) + 1;
+        if (countAsQuestion !== false) {
+            ds.questionsAttempted = (ds.questionsAttempted || 0) + 1;
+            ds.questionsCorrect = (ds.questionsCorrect || 0) + 1;
+            if (isMath) {
+                u.stats.totalMathAttempted = Math.max(u.stats.totalMathAttempted || 0, u.stats.totalMathCorrect || 0) + 1;
+                u.stats.totalMathCorrect = (u.stats.totalMathCorrect || 0) + 1;
+            } else {
+                u.stats.totalEnglishAttempted = Math.max(u.stats.totalEnglishAttempted || 0, u.stats.totalEnglishCorrect || 0) + 1;
+                u.stats.totalEnglishCorrect = (u.stats.totalEnglishCorrect || 0) + 1;
+            }
+        }
         if (combo > (u.stats.bestCombo || 0)) u.stats.bestCombo = combo;
         if (isVocabCampFinish) ds.vocabCampCount += 1;
 
@@ -1335,7 +1433,8 @@ export class UserProfileManager {
             stars: 2,
             gotTicket: false,
             combo: 0,
-            isMath: true
+            isMath: true,
+            countAsQuestion: false
         });
         this.save();
         return {
@@ -1446,7 +1545,8 @@ export class UserProfileManager {
                 stars: 1,
                 gotTicket: false,
                 combo: 1,
-                isMath: false
+                isMath: false,
+                countAsQuestion: false
             });
             badgeGain = awardRes?.actualBadges || 0;
         }
@@ -1481,7 +1581,8 @@ export class UserProfileManager {
             stars: 2,
             gotTicket: false,
             combo: 1,
-            isMath: true
+            isMath: true,
+            countAsQuestion: false
         });
         this.save();
         return {

@@ -1,12 +1,12 @@
 /**
  * pvzEngine.js - 核心战场循环、波次推进、除草机与 DOM 实体混合架构
  */
-import { GAME_CONFIG } from './config.js?v=20261113_v2';
-import { assetsLoader } from './assetsLoader.js?v=20261113_v2';
-import { soundEngine } from './audio.js?v=20261113_v2';
-import { createPlant } from './plants.js?v=20261113_v2';
-import { Zombie } from './zombies.js?v=20261113_v2';
-import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js?v=20261113_v2';
+import { GAME_CONFIG } from './config.js?v=20261115_umbrella_v1';
+import { assetsLoader } from './assetsLoader.js?v=20261115_umbrella_v1';
+import { soundEngine } from './audio.js?v=20261115_umbrella_v1';
+import { createPlant } from './plants.js?v=20261115_umbrella_v1';
+import { Zombie } from './zombies.js?v=20261115_umbrella_v1';
+import { SunEntity, FloatingText, HitSplat, StarProjectile, LobbedProjectile, BowlingNutEntity } from './projectiles.js?v=20261115_umbrella_v1';
 
 export class PvzEngine {
     constructor(canvas, entityLayer, onStateChange = null) {
@@ -40,6 +40,8 @@ export class PvzEngine {
         this.explosions = [];
         this.suns = [];
         this.floatingTexts = [];
+        this.umbrellaBounces = [];
+        this.hoverCell = null;
         this.lawnMowers = [];
         this.tombstones = [];
         this.craters = [];
@@ -76,6 +78,8 @@ export class PvzEngine {
         this.isWhackAZombie = false;
         this.malletCursor = { x: -100, y: -100, swingTimer: 0 };
         this.whackEffects = [];
+        this.umbrellaBounces = [];
+        this.hoverCell = null;
         this.graveSpawnTimer = 0;
 
         // 波次推进状态
@@ -184,6 +188,8 @@ export class PvzEngine {
         this.explosions = [];
         this.suns = [];
         this.floatingTexts = [];
+        this.umbrellaBounces = [];
+        this.hoverCell = null;
 
         // 初始化黑夜墓碑
         this.tombstones = (this.levelConfig.tombstones || []).map(t => {
@@ -401,9 +407,55 @@ export class PvzEngine {
         }
     }
 
+    isSelectedUmbrellaCard() {
+        if (!this.selectedCard) return false;
+        if (this.selectedCard === 'umbrellaleaf') return true;
+        if (this.selectedCard === 'imitater') {
+            const conf = this.getEffectiveCardConfig('imitater');
+            return !!(conf && conf.copiedId === 'umbrellaleaf');
+        }
+        return false;
+    }
+
+    findProtectingUmbrella(targetRow, targetCol, targetX = null, targetPlant = null, allowFastMorph = true) {
+        if (!this.plants || this.plants.length === 0) return null;
+        const cellW = this.cellW || GAME_CONFIG.canvas.cellWidth || 80;
+        const inZone = (u) => {
+            if (!u || u.isDead || u.isAsleep) return false;
+            if (Math.abs(u.row - targetRow) > 1) return false;
+            if (Number.isInteger(targetCol)) {
+                if (Math.abs(u.col - targetCol) <= 1) return true;
+                if (targetPlant && targetPlant.isDoubleWide && Math.abs(u.col - (targetCol + 1)) <= 1) return true;
+            }
+            if (typeof targetX === 'number' && Math.abs(u.x - targetX) <= cellW * 1.65) {
+                return true;
+            }
+            return false;
+        };
+
+        const activeUmbrella = this.plants.find(u => u.type === 'umbrellaleaf' && inZone(u));
+        if (activeUmbrella) return activeUmbrella;
+
+        // 应急救场兼容：若玩家刚用模仿者种下叶子保护伞且蹦极/篮球已抵达，立即完成变身并撑伞弹开！
+        const morphingImitater = this.plants.find(u => u.type === 'imitater' && u.copiedType === 'umbrellaleaf' && inZone(u));
+        if (morphingImitater) {
+            if (!allowFastMorph) return morphingImitater;
+            if (typeof morphingImitater.update === 'function') {
+                morphingImitater.morphTimer = 0;
+                morphingImitater.update(0.01, this);
+                return this.plants.find(u => u.type === 'umbrellaleaf' && inZone(u)) || null;
+            }
+        }
+        return null;
+    }
+
     bindEvents() {
         const updatePointer = (e) => {
-            if (!this.isWhackAZombie && !this.aimingCobCannon) return;
+            const wantsUmbrellaPreview = this.isSelectedUmbrellaCard();
+            if (!this.isWhackAZombie && !this.aimingCobCannon && !wantsUmbrellaPreview) {
+                if (this.hoverCell) this.hoverCell = null;
+                return;
+            }
             const rect = this.canvas.getBoundingClientRect();
             if (!rect.width || !rect.height) return;
             const scaleX = this.canvas.width / rect.width;
@@ -417,6 +469,15 @@ export class PvzEngine {
             if (this.aimingCobCannon) {
                 this.cobAimCursor = { x: px, y: py };
             }
+            if (wantsUmbrellaPreview) {
+                this.hoverCell = this.getCellAt(px, py);
+            } else if (this.hoverCell) {
+                this.hoverCell = null;
+            }
+        };
+
+        const clearHover = () => {
+            if (this.hoverCell) this.hoverCell = null;
         };
 
         const handleRightCancel = (e) => {
@@ -430,6 +491,7 @@ export class PvzEngine {
         };
 
         this.canvas.addEventListener('mousemove', updatePointer);
+        this.canvas.addEventListener('mouseleave', clearHover);
         this.canvas.addEventListener('contextmenu', handleRightCancel);
         this.canvas.addEventListener('click', (e) => {
             if (this.isPaused || this.isGameOver || this.isVictory) return;
@@ -444,6 +506,7 @@ export class PvzEngine {
 
         if (this.entityLayer) {
             this.entityLayer.addEventListener('mousemove', updatePointer);
+            this.entityLayer.addEventListener('mouseleave', clearHover);
             this.entityLayer.addEventListener('contextmenu', handleRightCancel);
             this.entityLayer.addEventListener('click', (e) => {
                 if (this.isPaused || this.isGameOver || this.isVictory) return;
@@ -924,6 +987,18 @@ export class PvzEngine {
             if (plantObj.isAsleep) {
                 this.floatingTexts.push(new FloatingText(gridPos.x, gridPos.y - 32, '💤 植物睡眠中 (需咖啡豆)', '#9b59b6', 16));
             }
+            if (checkType === 'umbrellaleaf') {
+                this.umbrellaBounces.push({
+                    x: gridPos.x,
+                    y: gridPos.y,
+                    row: cell.row,
+                    col: cell.col,
+                    isPlacementPreview: true,
+                    age: 0,
+                    lifespan: 0.65
+                });
+                this.floatingTexts.push(new FloatingText(gridPos.x, gridPos.y - 38, '☂️ 3×3 弹射护盾就位!', '#2ecc71', 17));
+            }
             soundEngine.playPlant();
 
             if (this.levelConfig.isConveyorBelt) {
@@ -931,6 +1006,7 @@ export class PvzEngine {
             }
             this.selectedCard = null;
             this.selectedConveyorIdx = null;
+            this.hoverCell = null;
             if (this.onStateChange) this.onStateChange('plant_placed', { plantType: plantConf.id });
         }
     }
@@ -1151,6 +1227,10 @@ export class PvzEngine {
         if (this.whackEffects && this.whackEffects.length > 0) {
             this.whackEffects.forEach(ef => { ef.age += dt; });
             this.whackEffects = this.whackEffects.filter(ef => ef.age < ef.lifespan);
+        }
+        if (this.umbrellaBounces && this.umbrellaBounces.length > 0) {
+            this.umbrellaBounces.forEach(ub => { ub.age += dt; });
+            this.umbrellaBounces = this.umbrellaBounces.filter(ub => ub.age < ub.lifespan);
         }
         if (this.isWhackAZombie && this.waveIndex < this.totalWaves && this.tombstones.length < 10) {
             this.graveSpawnTimer += dt;
@@ -1849,6 +1929,8 @@ export class PvzEngine {
         const fxCtx = this.fxCtx || ctx;
         const hasMalletCursor = !!(this.isWhackAZombie && !this.selectedCard && !this.isShovelActive && this.malletCursor && this.malletCursor.x >= 0);
         const hasCobCursor = !!(this.aimingCobCannon && !this.aimingCobCannon.isDead && this.aimingCobCannon.isLoaded && this.cobAimCursor);
+        const hasUmbrellaPreview = !!(this.isSelectedUmbrellaCard() && this.hoverCell);
+        const hasUmbrellaBounces = !!(this.umbrellaBounces && this.umbrellaBounces.length > 0);
         const hasBungeeFx = this.zombies.some(z => !z.isDead && !z.isDying && z.type === 'bungee' && z.bungeePhase && z.bungeePhase !== 'init');
         const hasFxContent = (
             this.projectiles.length > 0 ||
@@ -1856,6 +1938,8 @@ export class PvzEngine {
             this.explosions.length > 0 ||
             this.floatingTexts.length > 0 ||
             (this.whackEffects && this.whackEffects.length > 0) ||
+            hasUmbrellaPreview ||
+            hasUmbrellaBounces ||
             hasBungeeFx ||
             hasMalletCursor ||
             hasCobCursor
@@ -2001,6 +2085,69 @@ export class PvzEngine {
                 fxCtx.arc(0, 0, 3.5, 0, Math.PI * 2);
                 fxCtx.fill();
                 fxCtx.restore();
+            }
+
+            // 4.35 叶子保护伞选卡悬停 3x3 翠绿守护九宫格预览 & 撑伞弹飞冲击波光罩
+            if (hasUmbrellaPreview && this.hoverCell) {
+                const hc = this.hoverCell;
+                fxCtx.save();
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        const r = hc.row + dr;
+                        const c = hc.col + dc;
+                        if (r < 0 || r >= this.rows || c < 0 || c >= this.cols) continue;
+                        if (!this.levelConfig.activeRows.includes(r)) continue;
+                        const pos = this.getGridCoords(c, r);
+                        const isCenter = (dr === 0 && dc === 0);
+                        fxCtx.fillStyle = isCenter ? 'rgba(46, 204, 113, 0.30)' : 'rgba(46, 204, 113, 0.16)';
+                        fxCtx.strokeStyle = isCenter ? 'rgba(39, 174, 96, 0.92)' : 'rgba(46, 204, 113, 0.65)';
+                        fxCtx.lineWidth = isCenter ? 2.4 : 1.5;
+                        fxCtx.setLineDash(isCenter ? [] : [6, 4]);
+                        fxCtx.beginPath();
+                        fxCtx.roundRect
+                            ? fxCtx.roundRect(pos.x - this.cellW / 2 + 2, pos.y - this.cellH / 2 + 2, this.cellW - 4, this.cellH - 4, 8)
+                            : fxCtx.rect(pos.x - this.cellW / 2 + 2, pos.y - this.cellH / 2 + 2, this.cellW - 4, this.cellH - 4);
+                        fxCtx.fill();
+                        fxCtx.stroke();
+                    }
+                }
+                fxCtx.setLineDash([]);
+                fxCtx.restore();
+            }
+
+            if (hasUmbrellaBounces) {
+                this.umbrellaBounces.forEach(ub => {
+                    const p = Math.min(1, ub.age / ub.lifespan);
+                    const easeOut = 1 - Math.pow(1 - p, 2);
+                    const alpha = Math.max(0, 1 - p);
+                    fxCtx.save();
+                    const rx = (this.cellW * 1.48) * (0.55 + easeOut * 0.52);
+                    const ry = (this.cellH * 1.38) * (0.55 + easeOut * 0.52);
+                    const grad = fxCtx.createRadialGradient(ub.x, ub.y - 8, 8, ub.x, ub.y - 8, Math.max(rx, ry));
+                    grad.addColorStop(0, `rgba(88, 240, 148, ${alpha * 0.42})`);
+                    grad.addColorStop(0.7, `rgba(46, 204, 113, ${alpha * 0.24})`);
+                    grad.addColorStop(1, 'rgba(46, 204, 113, 0)');
+                    fxCtx.fillStyle = grad;
+                    fxCtx.beginPath();
+                    fxCtx.ellipse(ub.x, ub.y - 8, rx, ry, 0, 0, Math.PI * 2);
+                    fxCtx.fill();
+
+                    fxCtx.strokeStyle = `rgba(46, 204, 113, ${alpha * 0.92})`;
+                    fxCtx.lineWidth = ub.isPlacementPreview ? 2.5 : 4.0;
+                    fxCtx.beginPath();
+                    fxCtx.ellipse(ub.x, ub.y - 8, rx * 0.95, ry * 0.95, 0, 0, Math.PI * 2);
+                    fxCtx.stroke();
+
+                    if (!ub.isPlacementPreview && typeof ub.targetX === 'number') {
+                        const ringY = (ub.targetY || ub.y) - 32 - easeOut * 48;
+                        fxCtx.strokeStyle = `rgba(163, 255, 196, ${alpha * 0.95})`;
+                        fxCtx.lineWidth = 3.2;
+                        fxCtx.beginPath();
+                        fxCtx.ellipse(ub.targetX, ringY, 22 + easeOut * 28, 10 + easeOut * 12, 0, 0, Math.PI * 2);
+                        fxCtx.stroke();
+                    }
+                    fxCtx.restore();
+                });
             }
         } else if (this.fxCtx && this.fxCanvas && this._fxCanvasDirty) {
             this.fxCtx.clearRect(0, 0, this.fxCanvas.width, this.fxCanvas.height);

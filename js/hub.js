@@ -374,11 +374,16 @@ class PortalHubApp {
         const carrotCleared = carrotRecs.filter(r => r && r.cleared).length;
         const carrotGold = carrotRecs.filter(r => r && r.carrot === 'gold').length;
         const totalAnswered = (active.stats?.totalMathCorrect || 0) + (active.stats?.totalEnglishCorrect || 0);
+        const qs = profileManager.getQuestionStats ? profileManager.getQuestionStats(active) : {
+            todayAttempted: 0,
+            totalAttempted: totalAnswered,
+            totalCorrect: totalAnswered
+        };
         const statCarrotEl = document.getElementById('liveStatCarrot');
         if (statCarrotEl) {
             statCarrotEl.innerHTML = `
                 <span>🥕 闯关 ${carrotCleared}/48 · 🥇${carrotGold}</span>
-                <span>🎯 累计答对 ${totalAnswered} 题</span>
+                <span title="今日已做 ${qs.todayAttempted} 题 · 全平台累计做题 ${qs.totalAttempted} 题（答对 ${qs.totalCorrect} 题）">📝 今日${qs.todayAttempted} · 共${qs.totalAttempted}题</span>
             `;
         }
 
@@ -975,6 +980,9 @@ class PortalHubApp {
                         this.renderReportList();
                         setTimeout(() => this.nextPracticeQuestion(), 650);
                     } else {
+                        this.practiceState.locked = true;
+                        profileManager.recordQuestionAttempt({ isMath: true, isCorrect: false, combo: 0 });
+                        this.renderAll();
                         fbEl.style.color = '#ff7675';
                         fbEl.textContent = `💡 差一点点（正确答案是 ${item.answer ?? item.expected}），下一轮再接再厉！`;
                         setTimeout(() => this.nextPracticeQuestion(), 900);
@@ -1045,6 +1053,8 @@ class PortalHubApp {
                 this.renderReportList();
                 setTimeout(() => this.nextPracticeQuestion(), 650);
             } else {
+                profileManager.recordQuestionAttempt({ isMath: true, isCorrect: false, combo: 0 });
+                this.renderAll();
                 fbEl.style.color = '#ff7675';
                 fbEl.textContent = `💡 再算一算哦～（提示：之前误填了 ${item.userAns ?? '其他数'}）`;
                 this.practiceState.inputBuf = '';
@@ -1112,6 +1122,8 @@ class PortalHubApp {
                     setTimeout(() => this.nextPracticeQuestion(), 850);
                 } else {
                     btn.classList.add('wrong');
+                    profileManager.recordQuestionAttempt({ isMath: false, isCorrect: false, combo: 0 });
+                    this.renderAll();
                     const pickedZh = btn.getAttribute('data-wzh') || '';
                     const pickedWord = btn.getAttribute('data-wword') || '';
                     sharedSpeech.speakEnglish(wordObj.word, true, wordObj.phonics);

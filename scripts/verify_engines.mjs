@@ -118,16 +118,61 @@ const evalRes = me.evaluateInteractiveAttempt(true, cmpQ.answer, true);
 assert.equal(evalRes.correct, true);
 assert.ok(evalRes.goldGain > 0 && evalRes.bonusSun > 0);
 
-// Verify spaced repetition injection from mistakesProvider
+// Verify spaced repetition injection from mistakesProvider + anti-spam cooldown (>=8 step gap, >=12 per expr)
 me.setSubMode('calc');
-me.setMistakesProvider(() => [{ formula: '9 + 8 = ?', expr: '9 + 8 = ?', display: '9 + 8 = ?', answer: 17, kind: 'calc' }]);
+me.setMistakesProvider(() => [
+    { formula: '9 + 8 = ?', expr: '9 + 8 = ?', display: '9 + 8 = ?', answer: 17, kind: 'calc' },
+    { formula: '15 - 7 = ?', expr: '15 - 7 = ?', display: '15 - 7 = ?', answer: 8, kind: 'calc' }
+]);
 let reviewHits = 0;
-for (let i = 0; i < 120; i++) {
+let lastRevIdx = -999;
+for (let i = 0; i < 160; i++) {
     const q = me.nextQuestion();
-    if (q.isReview) reviewHits++;
+    if (q.isReview) {
+        assert.ok(i - lastRevIdx >= 8, `Spaced repetition spammed too soon at gap ${i - lastRevIdx}`);
+        lastRevIdx = i;
+        reviewHits++;
+    }
 }
 assert.ok(reviewHits >= 5, `Expected spaced repetition review hits, got ${reviewHits}`);
 me.setMistakesProvider(null);
+
+// Verify oral arithmetic (calc) non-repetition, cross-reset memory, and uniform 36-pair carry distribution
+const meCalc = new MathEngine('grade1_2');
+meCalc.setSubMode('calc');
+const calcWindow30 = [];
+for (let i = 0; i < 30; i++) {
+    const q = meCalc.nextQuestion();
+    if (i > 0) {
+        assert.notEqual(q.expr, calcWindow30[i - 1], `Back-to-back oral arithmetic repeat at step ${i}: ${q.expr}`);
+    }
+    calcWindow30.push(q.expr);
+}
+assert.ok(new Set(calcWindow30).size >= 28, `Expected >=28 unique oral arithmetic questions in 30 draws, got ${new Set(calcWindow30).size}`);
+meCalc.resetRoundStats();
+const afterReset10 = [];
+for (let i = 0; i < 10; i++) {
+    afterReset10.push(meCalc.nextQuestion().expr);
+}
+const overlapWithLast10 = afterReset10.filter(e => calcWindow30.slice(-10).includes(e));
+assert.equal(overlapWithLast10.length, 0, `resetRoundStats() must preserve anti-repeat history, found overlap: ${overlapWithLast10}`);
+
+// Verify all 36 carry-addition pairs within 20 are sampled uniformly (no 8x skew on 2+9)
+const carryCounts = new Map();
+for (let i = 0; i < 360; i++) {
+    const [a, b] = meCalc._drawFromDeck('test_add20_carry_uniform', () => {
+        const pairs = [];
+        for (let x = 2; x <= 9; x++) {
+            for (let y = 11 - x; y <= 9; y++) pairs.push([x, y]);
+        }
+        return pairs;
+    });
+    const key = `${a}+${b}`;
+    carryCounts.set(key, (carryCounts.get(key) || 0) + 1);
+}
+assert.equal(carryCounts.size, 36, 'All 36 carry-addition pairs (sum 11..18) must appear');
+assert.equal(carryCounts.get('2+9'), 10, '2+9 must appear exactly 10 times in 10 full 36-card bag cycles');
+assert.equal(carryCounts.get('9+2'), 10, '9+2 must appear exactly 10 times in 10 full 36-card bag cycles');
 
 // Verify Carrot submitAnswer & PvZ checkPvzAnswer
 me.setCategoryFilter('word');
@@ -511,5 +556,51 @@ assert.equal(pm.isTownPlotPatrolledToday('plot_2'), true);
 const patrolDup = pm.claimTownShopPatrol('plot_2', '小青蛙的糖果甜品屋');
 assert.equal(patrolDup.ok, false, 'Cannot claim town patrol bonus twice on the same plot in one day');
 
-console.log('   ✅ Unified UserProfileManager, 12 Pet Voice Profiles, Town Patrol Bonus, 5-Stage Style Switcher & Frog Lotus Leaf Outfits verified!');
-console.log('\n🎉 ALL ENGINE, VOCABULARY (360 WORDS), & PET EVOLUTION CHECKS PASSED!');
+// 8. Verify Real-Time Question Count Tracking (Right + Wrong + Daily Cap + Non-Question Bonuses Excluded)
+const pmQ = new UserProfileManager();
+const qBefore = pmQ.getQuestionStats();
+assert.equal(qBefore.todayAttempted, 0);
+assert.equal(qBefore.totalAttempted, 0);
+
+// Answer 1 math right via awardLearningProgress
+pmQ.awardLearningProgress({ stars: 1, reason: '口算答对', isMath: true, combo: 1 });
+let qStats = pmQ.getQuestionStats();
+assert.equal(qStats.todayAttempted, 1);
+assert.equal(qStats.todayCorrect, 1);
+assert.equal(qStats.totalAttempted, 1);
+
+// Answer 1 math wrong via recordQuestionAttempt
+pmQ.recordQuestionAttempt({ isMath: true, isCorrect: false, combo: 0 });
+qStats = pmQ.getQuestionStats();
+assert.equal(qStats.todayAttempted, 2, 'Wrong math attempt must still increment todayAttempted');
+assert.equal(qStats.todayCorrect, 1, 'Wrong math attempt must not increment todayCorrect');
+assert.equal(qStats.totalAttempted, 2, 'Wrong math attempt must still increment totalAttempted');
+
+// Answer 1 English wrong + 1 English right
+pmQ.recordQuestionAttempt({ isMath: false, isCorrect: false });
+pmQ.awardLearningProgress({ stars: 2, reason: '英语答对', isMath: false, combo: 1 });
+qStats = pmQ.getQuestionStats();
+assert.equal(qStats.todayAttempted, 4);
+assert.equal(qStats.todayCorrect, 2);
+assert.equal(qStats.totalAttempted, 4);
+
+// Non-question bonuses (sibling visit gift, read-aloud check, town patrol, camp bonus) must NOT inflate question count
+pmQ.claimSiblingVisitGift();
+pmQ.toggleCourseReadCheck('S1U1W1_s0');
+pmQ.awardLearningProgress({ stars: 3, reason: '营地全通额外奖励', isMath: false, countAsQuestion: false });
+qStats = pmQ.getQuestionStats();
+assert.equal(qStats.todayAttempted, 4, 'Non-question bonus rewards must NOT inflate todayAttempted');
+assert.equal(qStats.totalAttempted, 4, 'Non-question bonus rewards must NOT inflate totalAttempted');
+
+// Even when dailyBadgeCap is reached, answering questions must STILL increment question count!
+const activeKid = pmQ.getActiveUser();
+activeKid.dailyBadgeCap = 1;
+activeKid.dailyState.badgesEarned = 1;
+const cappedAward = pmQ.awardLearningProgress({ stars: 3, title: '满额后继续口算', isMath: true, combo: 2 });
+assert.equal(cappedAward.actualBadges, 0);
+qStats = pmQ.getQuestionStats();
+assert.equal(qStats.todayAttempted, 5, 'Questions answered after daily badge cap must still increment todayAttempted');
+assert.equal(qStats.totalAttempted, 5, 'Questions answered after daily badge cap must still increment totalAttempted');
+
+console.log('   ✅ Unified UserProfileManager, Live Question Counter, 12 Pet Voice Profiles, Town Patrol Bonus & Frog Outfits verified!');
+console.log('\n🎉 ALL ENGINE, NON-REPETITION, QUESTION COUNTER, VOCABULARY (360 WORDS), & PET EVOLUTION CHECKS PASSED!');

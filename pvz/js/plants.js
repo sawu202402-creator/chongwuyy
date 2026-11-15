@@ -1,9 +1,9 @@
 /**
  * plants.js - 原版 1:1 植物实体系统与 DOM 60fps 动态 GIF 动画层
  */
-import { GAME_CONFIG } from './config.js?v=20261113_v2';
-import { Projectile, ExplosionEffect, SunEntity, FumeCloud, HitSplat, FloatingText, JalapenoFireLine, StarProjectile, LobbedProjectile, HomingSpikeProjectile, CobRocketProjectile } from './projectiles.js?v=20261113_v2';
-import { soundEngine } from './audio.js?v=20261113_v2';
+import { GAME_CONFIG } from './config.js?v=20261115_umbrella_v1';
+import { Projectile, ExplosionEffect, SunEntity, FumeCloud, HitSplat, FloatingText, JalapenoFireLine, StarProjectile, LobbedProjectile, HomingSpikeProjectile, CobRocketProjectile } from './projectiles.js?v=20261115_umbrella_v1';
+import { soundEngine } from './audio.js?v=20261115_umbrella_v1';
 
 // 蹦极僵尸尚在云端锁定预警/高空垂降初段/已撤离升空时，常规植物不提前空射或误跳；垂降进入视野 (>= -180px) 时全员集火！
 function isUntargetableBungee(z) {
@@ -12,6 +12,32 @@ function isUntargetableBungee(z) {
         z.bungeePhase === 'targeting' ||
         z.bungeePhase === 'ascending' ||
         z.bungeeOffsetY < -180
+    );
+}
+
+// 检测蹦极僵尸当前落点是否处于存活的叶子保护伞 (或正在复制保护伞的模仿者) 3x3 弹射守护罩内
+function isBungeeProtectedByUmbrella(engine, z) {
+    if (!engine || !engine.plants || !z || z.type !== 'bungee') return false;
+    const cellW = engine.cellW || GAME_CONFIG.canvas.cellWidth || 80;
+    const startX = engine.gridStartX ?? GAME_CONFIG.canvas.gridStartX ?? 40;
+    const targetPlant = (z.bungeeTargetPlant && !z.bungeeTargetPlant.isDead) ? z.bungeeTargetPlant : null;
+    const targetCol = Number.isInteger(z.bungeeTargetCol)
+        ? z.bungeeTargetCol
+        : (targetPlant
+            ? targetPlant.col
+            : Math.round((z.x - startX - cellW / 2) / cellW));
+    if (typeof engine.findProtectingUmbrella === 'function') {
+        return !!engine.findProtectingUmbrella(z.row, targetCol, z.x, targetPlant, false);
+    }
+    return engine.plants.some(u =>
+        !u.isDead && !u.isAsleep &&
+        (u.type === 'umbrellaleaf' || (u.type === 'imitater' && u.copiedType === 'umbrellaleaf')) &&
+        Math.abs(u.row - z.row) <= 1 &&
+        (
+            Math.abs(u.col - targetCol) <= 1 ||
+            (targetPlant && targetPlant.isDoubleWide && Math.abs(u.col - (targetCol + 1)) <= 1) ||
+            Math.abs(u.x - z.x) <= cellW * 1.65
+        )
     );
 }
 
@@ -355,7 +381,7 @@ export class PotatoMinePlant extends Plant {
             }
         }
         if (this.isArmed && engine && engine.zombies) {
-            // 僵尸驻足啃咬距离为 38px，触发半径设为 [-38, +48] 确保僵尸踏入即刻引爆（撑杆跳起跳中除外）
+            // 僵尸驻足啃咬距离为 38px，触发半径设为 [-38, +48] 确保僵尸踏入即刻引爆（撑杆跳起跳中、高空未落地蹦极及已被保护伞守护的蹦极除外）
             const zombieOnTop = engine.zombies.find(z =>
                 z.row === this.row &&
                 !z.isDead &&
@@ -363,6 +389,8 @@ export class PotatoMinePlant extends Plant {
                 !z.isHypnotized &&
                 z.state !== 'jumping' &&
                 !z.hasPole &&
+                !isUntargetableBungee(z) &&
+                !(z.type === 'bungee' && (z.bungeeOffsetY < -35 || isBungeeProtectedByUmbrella(engine, z))) &&
                 (z.x - this.x >= -38 && z.x - this.x <= 48)
             );
             if (zombieOnTop) {
@@ -465,10 +493,11 @@ export class ChomperPlant extends Plant {
             }
         } else if (this.state === 'idle') {
             const cellW = engine.cellW || GAME_CONFIG.canvas.cellWidth;
-            // 索敌：前方1.5格内未死活体地面僵尸（含已垂降落地的蹦极僵尸；不可直接吞食飞行气球/地下矿工）
+            // 索敌：前方1.5格内未死活体地面僵尸（含已垂降落地的蹦极僵尸，但若已在保护伞 3x3 守护内则交由保护伞无伤弹飞，避免白费40秒咀嚼）
             const target = engine.zombies.find(z =>
                 z.row === this.row && !z.isDead && !z.isDying && !z.isHypnotized &&
-                !z.isFlying && !isUntargetableBungee(z) && !(z.type === 'digger' && z.diggerPhase === 'digging') &&
+                !z.isFlying && !isUntargetableBungee(z) && !isBungeeProtectedByUmbrella(engine, z) &&
+                !(z.type === 'digger' && z.diggerPhase === 'digging') &&
                 (z.x - this.x) > -10 && (z.x - this.x) <= cellW * 1.5
             );
             if (target) {
@@ -947,11 +976,12 @@ export class SquashPlant extends Plant {
         if (this.isDead || this.isAsleep) return;
 
         if (this.state === 'idle') {
-            // 索敌：同航道前方 1.5 格内，或后方 0.8 格内（等待蹦极僵尸垂降落地附近 >= -90px 后再起跳压扁）
+            // 索敌：同航道前方 1.5 格内，或后方 0.8 格内（等待蹦极僵尸垂降落地附近 >= -90px 后再起跳压扁；若已有叶子保护伞守护则不白白牺牲）
             const cellW = engine.cellW || 82;
             const target = engine.zombies.find(z => 
                 z.row === this.row && !z.isDead && !z.isDying && !z.isHypnotized &&
-                !z.isFlying && !isUntargetableBungee(z) && !(z.type === 'bungee' && z.bungeeOffsetY < -90) &&
+                !z.isFlying && !isUntargetableBungee(z) && !isBungeeProtectedByUmbrella(engine, z) &&
+                !(z.type === 'bungee' && z.bungeeOffsetY < -90) &&
                 (z.x >= this.x - cellW * 0.8 && z.x <= this.x + cellW * 1.5)
             );
             if (target) {
@@ -1741,7 +1771,9 @@ export class TangleKelpPlant extends Plant {
         }
         const target = engine.zombies.find(z =>
             z.row === this.row && !z.isDead && !z.isDying && !z.isHypnotized &&
-            !z.isFlying && Math.abs(z.x - this.x) <= 44
+            !z.isFlying && !isUntargetableBungee(z) &&
+            !(z.type === 'bungee' && (z.bungeeOffsetY < -35 || isBungeeProtectedByUmbrella(engine, z))) &&
+            Math.abs(z.x - this.x) <= 44
         );
         if (target) {
             this.grabbing = true;
@@ -2120,12 +2152,34 @@ export class UmbrellaLeafPlant extends Plant {
         }
     }
 
-    triggerBounce(engine) {
-        this.bounceAnimTimer = 0.56;
+    triggerBounce(engine, impactX = null, impactY = null) {
+        this.bounceAnimTimer = 0.68;
         if (this.config.blockAnim) {
             this.setAnim(this.config.blockAnim);
         }
-        soundEngine.playPlant();
+        if (this.domElement) {
+            this.domElement.classList.remove('umbrella-bouncing');
+            void this.domElement.offsetWidth;
+            this.domElement.classList.add('umbrella-bouncing');
+        }
+        if (engine) {
+            if (!engine.umbrellaBounces) engine.umbrellaBounces = [];
+            engine.umbrellaBounces.push({
+                x: this.x,
+                y: this.y,
+                row: this.row,
+                col: this.col,
+                targetX: typeof impactX === 'number' ? impactX : this.x,
+                targetY: typeof impactY === 'number' ? impactY : this.y,
+                age: 0,
+                lifespan: 0.52
+            });
+        }
+        if (typeof soundEngine.playBoing === 'function') {
+            soundEngine.playBoing();
+        } else {
+            soundEngine.playPlant();
+        }
     }
 
     update(dt, engine) {
@@ -2135,6 +2189,9 @@ export class UmbrellaLeafPlant extends Plant {
             this.bounceAnimTimer -= dt;
             if (this.bounceAnimTimer <= 0) {
                 this.setAnim(this.config.anim);
+                if (this.domElement) {
+                    this.domElement.classList.remove('umbrella-bouncing');
+                }
             }
         }
     }

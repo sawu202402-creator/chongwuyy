@@ -45,6 +45,7 @@ export class SmartChalkboard {
         this.onEnglishBattleResult = opts.onEnglishBattleResult || (() => {});
         this.onSoundResume = opts.onSoundResume || (() => {});
         this.shouldConfirmExit = opts.shouldConfirmExit || (() => false);
+        this.onBeforeExit = opts.onBeforeExit || (() => {});
 
         if (this.mathEngine && typeof this.mathEngine.setMistakesProvider === 'function') {
             this.mathEngine.setMistakesProvider(() => this.profileManager.getActiveUser()?.mathMistakes || []);
@@ -69,6 +70,7 @@ export class SmartChalkboard {
         this.selectedPackId = 'all';
         this.showVisualTip = false;
         this._enLock = false;
+        this._interactiveMathLock = false;
         this._numericKeypadVisible = true;
 
         this.mountDOM();
@@ -98,7 +100,9 @@ export class SmartChalkboard {
             hubLink.addEventListener('click', (e) => {
                 if (this.shouldConfirmExit() && !confirm('当前战斗正在进行中，确定要离开本局返回游乐园大厅吗？')) {
                     e.preventDefault();
+                    return;
                 }
+                this.onBeforeExit();
             });
             hudLeft.insertBefore(hubLink, hudLeft.firstChild);
 
@@ -108,9 +112,11 @@ export class SmartChalkboard {
             petPill.className = 'portal-pet-badge-pill';
             petPill.title = '点击前往《奇妙萌宠店长》用徽章投喂兔兔和小青蛙！';
             petPill.addEventListener('click', (e) => {
-                if (this.shouldConfirmExit() && !confirm('当前战斗正在进行中，确定要前往《萌宠店长》吗？（已获得的徽章已实时保存）')) {
+                if (this.shouldConfirmExit() && !confirm('当前战斗正在进行中，确定要前往《萌宠店长》吗？（已获得的徽章与做题数已实时保存）')) {
                     e.preventDefault();
+                    return;
                 }
+                this.onBeforeExit();
             });
             hudLeft.appendChild(petPill);
             this.petBadgePillEl = petPill;
@@ -399,13 +405,17 @@ export class SmartChalkboard {
         const u = this.profileManager.getActiveUser();
         if (!u) return;
         const ds = this.profileManager.getDailyStatus(u);
+        const qs = typeof this.profileManager.getQuestionStats === 'function'
+            ? this.profileManager.getQuestionStats(u)
+            : { todayAttempted: ds.questionsAttempted || 0, totalAttempted: 0 };
+        const roundTotal = this.mathEngine?.totalAttempted || 0;
         this.petBadgePillEl.classList.toggle('is-capped', ds.isCapped);
         if (ds.isCapped) {
-            this.petBadgePillEl.innerHTML = `<span>🏅 ${u.badges}</span><span>· 今日已满(${ds.cap})</span>`;
-            this.petBadgePillEl.title = `${u.name}今日已拿满 ${ds.cap} 枚徽章！点击去《萌宠店长》投喂宠物或升级店铺吧！`;
+            this.petBadgePillEl.innerHTML = `<span>🏅 ${u.badges}</span><span>· 今日已满</span><span>· 📝${qs.todayAttempted}题</span>`;
+            this.petBadgePillEl.title = `${u.name}今日已拿满 ${ds.cap} 枚徽章｜本局已做 ${roundTotal} 题｜今日累计 ${qs.todayAttempted} 题｜全平台总计 ${qs.totalAttempted} 题`;
         } else {
-            this.petBadgePillEl.innerHTML = `<span>🏅 ${u.badges}</span><span>· 今日 ${ds.earned}/${ds.cap}</span>`;
-            this.petBadgePillEl.title = `${u.name}当前可用 ${u.badges} 枚萌宠徽章（今日已获 ${ds.earned}/${ds.cap} 枚，攒星 ${ds.starProgress}/3），点击前往萌宠小镇！`;
+            this.petBadgePillEl.innerHTML = `<span>🏅 ${u.badges}</span><span>· ${ds.earned}/${ds.cap}</span><span>· 📝${qs.todayAttempted}题</span>`;
+            this.petBadgePillEl.title = `${u.name}可用 ${u.badges} 枚徽章（今日 ${ds.earned}/${ds.cap}，攒星 ${ds.starProgress}/3）｜本局已做 ${roundTotal} 题｜今日累计 ${qs.todayAttempted} 题｜全平台总计 ${qs.totalAttempted} 题`;
         }
     }
 
@@ -525,8 +535,10 @@ export class SmartChalkboard {
     /**
      * 当宿主游戏外部刷新小黑板（例如点击了数盾怪兽加载专属算式，或数字键盘答完一题后刷新）时调用
      */
-    renderMathQuestion() {
+    renderMathQuestion(options = {}) {
+        const advanceGrand = options.advanceGrand !== false;
         const q = this.mathEngine.currentQuestion;
+        this._interactiveMathLock = false;
 
         // 1. 战场破盾算式最高优先级：临时展示数字口算面板，不覆盖玩家的 entryMode 偏好！
         if (q && (q.isShieldNuke || q.isShieldTarget)) {
@@ -534,9 +546,13 @@ export class SmartChalkboard {
             return;
         }
 
-        // 2. 若玩家处于【🎲 大随机】，刚答完一道数字数学题后推进下一题（可能抽中英语或互动数学）
+        // 2. 若玩家处于【🎲 大随机】，刚答对一道数字数学题后推进下一题（可能抽中英语或互动数学）；若答错保留当前数学题重算则不跳走
         if (this.entryMode === 'grand_random') {
-            this._prepareNextGrandQuestion(true);
+            if (advanceGrand) {
+                this._prepareNextGrandQuestion(true);
+            } else {
+                this._renderCurrentMathView();
+            }
             return;
         }
 
@@ -612,6 +628,8 @@ export class SmartChalkboard {
     }
 
     _handleInteractiveMathAnswer(isCorrect, userAnsLabel) {
+        if (this._interactiveMathLock) return;
+        this._interactiveMathLock = true;
         const res = this.mathEngine.evaluateInteractiveAttempt(isCorrect, userAnsLabel, false);
         const badgeSuffix = this.recordMathProgress(res);
 
@@ -625,6 +643,7 @@ export class SmartChalkboard {
 
         const delayMs = isCorrect ? 520 : 1100;
         setTimeout(() => {
+            this._interactiveMathLock = false;
             if (this.entryMode === 'grand_random') {
                 this._prepareNextGrandQuestion(true);
             } else {
@@ -748,9 +767,11 @@ export class SmartChalkboard {
             }
             return ` · ⭐攒星${prog.starProgress}/3`;
         } else {
+            this.profileManager.recordQuestionAttempt({ isMath: true, isCorrect: false, combo: 0 });
             if (q) {
                 this.profileManager.recordMathMistake(q, res?.userAns);
             }
+            this.updateTopBadgePill();
             return '';
         }
     }
@@ -968,6 +989,9 @@ export class SmartChalkboard {
             if (prog.actualTicket) {
                 badgeSuffix += ' · 🎟️+1盲盒券!';
             }
+        } else {
+            this.profileManager.recordQuestionAttempt({ isMath: false, isCorrect: false, combo: 0 });
+            this.updateTopBadgePill();
         }
 
         this.onEnglishBattleResult(battleRes, {

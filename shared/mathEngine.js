@@ -45,8 +45,58 @@ export class MathEngine {
         this.superChargeTimer = 0;
         this._lastWasReview = false;
         this._lastExpr = '';
+        this._recentExprs = [];
+        this._recentCoreKeys = [];
+        this._recentShieldExprs = [];
+        this._pairDecks = {};
+        this._lastDeckPick = {};
+        this._drawStep = 0;
+        this._questionsSinceReview = 0;
+        this._reviewLastStepByExpr = {};
         this.mistakesProvider = null; // () => Array<mistakeObj>
         this.nextQuestion();
+    }
+
+    _drawFromDeck(deckKey, builderFn) {
+        let deck = this._pairDecks[deckKey];
+        if (!Array.isArray(deck) || deck.length === 0) {
+            const fresh = builderFn() || [];
+            for (let i = fresh.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                const tmp = fresh[i];
+                fresh[i] = fresh[j];
+                fresh[j] = tmp;
+            }
+            const lastSig = this._lastDeckPick[deckKey];
+            if (fresh.length > 1 && lastSig && JSON.stringify(fresh[fresh.length - 1]) === lastSig) {
+                const swapIdx = Math.floor(Math.random() * (fresh.length - 1));
+                const tmp = fresh[fresh.length - 1];
+                fresh[fresh.length - 1] = fresh[swapIdx];
+                fresh[swapIdx] = tmp;
+            }
+            deck = fresh;
+            this._pairDecks[deckKey] = deck;
+        }
+        const picked = deck.pop();
+        this._lastDeckPick[deckKey] = JSON.stringify(picked);
+        return picked;
+    }
+
+    _recordRecentQuestion(q) {
+        const expr = (q?.expr || q?.formula || q?.display || '').trim();
+        if (expr) {
+            this._lastExpr = expr;
+            this._recentExprs.push(expr);
+            if (this._recentExprs.length > 30) {
+                this._recentExprs.shift();
+            }
+        }
+        if (q?._coreKey) {
+            this._recentCoreKeys.push(q._coreKey);
+            if (this._recentCoreKeys.length > 12) {
+                this._recentCoreKeys.shift();
+            }
+        }
     }
 
     setMistakesProvider(fn) {
@@ -63,7 +113,7 @@ export class MathEngine {
         this.superChargeActive = false;
         this.superChargeTimer = 0;
         this._lastWasReview = false;
-        this._lastExpr = '';
+        // 故意保留 _recentExprs / _recentCoreKeys / _pairDecks，防止重开局或切换关卡后立即重复刚做过的口算题
         this.nextQuestion();
     }
 
@@ -187,11 +237,14 @@ export class MathEngine {
     }
 
     nextQuestion(forcedOrShield = null) {
+        this._drawStep = (this._drawStep || 0) + 1;
+
         // 1. PvZ 僵尸护盾定制算式支持
         if (typeof forcedOrShield === 'string') {
             const sq = this.generateShieldSpecificQuestion(forcedOrShield);
             sq.id = 'sq_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
             sq.timestamp = Date.now();
+            this._recordRecentQuestion(sq);
             this.currentQuestion = sq;
             return sq;
         }
@@ -214,21 +267,26 @@ export class MathEngine {
                 timestamp: Date.now()
             };
             this._lastWasReview = true;
-            this._lastExpr = rq.expr;
+            this._questionsSinceReview = 0;
+            this._reviewLastStepByExpr[rq.expr] = this._drawStep;
+            this._recordRecentQuestion(rq);
             this.currentQuestion = rq;
             return rq;
         }
 
-        // 3. 艾宾浩斯错题穿插复习：平时闯关以 16% 概率自动回捞当前模式下的历史错题（不连续出现两次）
-        if (this.mistakesProvider && !this._lastWasReview && Math.random() < 0.16) {
+        // 3. 艾宾浩斯错题穿插复习：至少间隔 7 道新题才允许穿插，且同一道错题至少间隔 12 题才重现
+        if (this.mistakesProvider && !this._lastWasReview && (this._questionsSinceReview || 0) >= 7 && Math.random() < 0.32) {
             try {
                 const rawList = this.mistakesProvider() || [];
                 const targetKind = this.currentSubMode || 'calc';
                 const enabledSet = new Set(this.getEnabledTypes());
+                const veryRecent = this._recentExprs.slice(-8);
                 const eligible = rawList.filter(m => {
                     const mKind = m.kind || 'calc';
                     const expr = m.expr || m.formula || '';
-                    if (!expr || expr === this._lastExpr) return false;
+                    if (!expr || expr === this._lastExpr || veryRecent.includes(expr)) return false;
+                    const lastRevStep = this._reviewLastStepByExpr[expr] ?? -999;
+                    if (this._drawStep - lastRevStep < 12) return false;
                     if (m.isInteractiveWidget) {
                         if (mKind === 'bond_pop') return false;
                         if (targetKind === 'random') return enabledSet.has(mKind);
@@ -259,7 +317,9 @@ export class MathEngine {
                         timestamp: Date.now()
                     };
                     this._lastWasReview = true;
-                    this._lastExpr = exprStr;
+                    this._questionsSinceReview = 0;
+                    this._reviewLastStepByExpr[exprStr] = this._drawStep;
+                    this._recordRecentQuestion(autoRev);
                     this.currentQuestion = autoRev;
                     return autoRev;
                 }
@@ -267,82 +327,116 @@ export class MathEngine {
         }
 
         this._lastWasReview = false;
+        this._questionsSinceReview = (this._questionsSinceReview || 0) + 1;
 
-        let q;
-        if (this.currentSubMode === 'random') {
-            const chosenKind = this._pickRandomMathKind();
-            q = this._generateByKind(chosenKind);
-        } else if (ALL_MATH_TYPE_IDS.includes(this.currentSubMode) && this.currentSubMode !== 'calc') {
-            q = this._generateByKind(this.currentSubMode);
-        } else {
-            // 'calc' 模式（兼容旧版勾选穿插应用题/数据图）
-            const roll = Math.random();
-            if (this.config.includeWordProblems && roll < 0.22) {
-                q = this.generateWordProblem();
-            } else if (this.config.includeDataCharts && roll >= 0.22 && roll < 0.40) {
-                q = this.generateDataChartQuestion();
+        const fixedRandomKind = this.currentSubMode === 'random' ? this._pickRandomMathKind() : null;
+        let q = null;
+
+        for (let attempt = 0; attempt < 24; attempt++) {
+            let candidate;
+            if (this.currentSubMode === 'random') {
+                candidate = this._generateByKind(fixedRandomKind);
+            } else if (ALL_MATH_TYPE_IDS.includes(this.currentSubMode)) {
+                candidate = this._generateByKind(this.currentSubMode);
             } else {
-                q = this._generateByKind('calc');
+                candidate = this._generateByKind('calc');
+            }
+
+            if (!candidate.expr) candidate.expr = candidate.formula || candidate.display || '';
+            if (!candidate.formula) candidate.formula = candidate.expr;
+            if (!candidate.display) candidate.display = candidate.formula.replace(/\( \? \)/g, '?');
+
+            q = candidate;
+            const exprNorm = q.expr.trim();
+            const isLastSame = Boolean(exprNorm && exprNorm === this._lastExpr);
+            const inRecentExpr = Boolean(exprNorm && this._recentExprs.includes(exprNorm));
+            const inRecentCore = Boolean(q._coreKey && this._recentCoreKeys.includes(q._coreKey));
+
+            if (attempt < 10) {
+                if (!isLastSame && !inRecentExpr && !inRecentCore) break;
+            } else if (attempt < 20) {
+                if (!isLastSame && !inRecentExpr) break;
+            } else if (!isLastSame) {
+                break;
             }
         }
 
-        if (!q.expr) q.expr = q.formula || q.display || '';
-        if (!q.formula) q.formula = q.expr;
-        if (!q.display) q.display = q.formula.replace(/\( \? \)/g, '?');
         q.id = 'mq_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
         q.timestamp = Date.now();
-        this._lastExpr = q.expr;
+        this._recordRecentQuestion(q);
         this.currentQuestion = q;
         return q;
     }
 
-    // ==================== 1. 高质量加减乘除口算 ====================
+    // ==================== 1. 高质量加减乘除口算（全等权洗牌牌靴 + 滑动窗口防重复） ====================
     generateAddition(range = 20, allowCarry = true, isFillBlank = false) {
         let a, b, hint = '';
-        const shouldCarry = allowCarry && (Math.random() < 0.75);
+        const shouldCarry = allowCarry && (Math.random() < 0.68);
 
         if (range <= 10) {
-            a = Math.floor(Math.random() * 8) + 1;
-            b = Math.floor(Math.random() * (10 - a)) + 1;
+            const pair = this._drawFromDeck('add_10', () => {
+                const list = [];
+                for (let x = 1; x <= 9; x++) {
+                    for (let y = 1; y <= 10 - x; y++) {
+                        list.push([x, y]);
+                    }
+                }
+                return list;
+            });
+            [a, b] = pair;
             hint = '10以内加法';
         } else if (range <= 20) {
             if (shouldCarry) {
-                a = Math.floor(Math.random() * 8) + 2;
-                const minB = 11 - a;
-                b = Math.floor(Math.random() * (9 - minB + 1)) + minB;
+                // 36 道 20 以内进位加法全部等概率洗牌循环，彻底消除 2+9 偏高频现象
+                const pair = this._drawFromDeck('add_20_carry', () => {
+                    const list = [];
+                    for (let x = 2; x <= 9; x++) {
+                        for (let y = 11 - x; y <= 9; y++) {
+                            list.push([x, y]);
+                        }
+                    }
+                    return list;
+                });
+                [a, b] = pair;
                 hint = '20以内进位加法 (凑十法)';
             } else {
-                if (Math.random() < 0.4) {
-                    a = Math.floor(Math.random() * 7) + 1;
-                    b = Math.floor(Math.random() * (9 - a)) + 1;
-                } else {
-                    a = Math.floor(Math.random() * 8) + 11;
-                    const maxB = 9 - (a % 10);
-                    b = Math.floor(Math.random() * Math.max(1, maxB)) + 1;
-                }
+                const pair = this._drawFromDeck('add_20_nocarry', () => {
+                    const list = [];
+                    for (let x = 1; x <= 8; x++) {
+                        for (let y = 1; y <= 9 - x; y++) list.push([x, y]);
+                    }
+                    for (let x = 10; x <= 18; x++) {
+                        const maxY = 9 - (x % 10);
+                        for (let y = 1; y <= maxY; y++) list.push([x, y]);
+                    }
+                    for (let x = 1; x <= 8; x++) {
+                        for (let y = 10; y <= 19 - x; y++) {
+                            if (x + (y % 10) <= 9) list.push([x, y]);
+                        }
+                    }
+                    return list;
+                });
+                [a, b] = pair;
                 hint = '20以内不进位加法';
             }
         } else if (range <= 100) {
-            if (shouldCarry) {
-                const maxTensSum = Math.max(2, Math.floor(range / 10) - 2);
-                const aTens = Math.floor(Math.random() * Math.max(1, maxTensSum - 1)) + 1;
-                const aOnes = Math.floor(Math.random() * 8) + 2;
-                a = aTens * 10 + aOnes;
-                const bTens = Math.floor(Math.random() * Math.max(1, maxTensSum - aTens));
-                const minBOnes = 10 - aOnes;
-                const bOnes = Math.floor(Math.random() * (9 - minBOnes + 1)) + minBOnes;
-                b = bTens * 10 + bOnes;
-                hint = `${range}以内进位加法`;
-            } else {
-                const maxTens = Math.max(2, Math.floor(range / 10) - 2);
-                const aTens = Math.floor(Math.random() * (maxTens - 1)) + 1;
-                const aOnes = Math.floor(Math.random() * 8) + 1;
-                a = aTens * 10 + aOnes;
-                const bTens = Math.floor(Math.random() * Math.max(1, maxTens - aTens));
-                const bOnes = Math.floor(Math.random() * (9 - aOnes)) + 1;
-                b = bTens * 10 + bOnes;
-                hint = `${range}以内不进位加法`;
-            }
+            const deckKey = `add_${range}_${shouldCarry ? 'carry' : 'nocarry'}`;
+            const pair = this._drawFromDeck(deckKey, () => {
+                const list = [];
+                for (let x = 11; x <= range - 4; x++) {
+                    const maxY = range - x;
+                    for (let y = 3; y <= maxY; y++) {
+                        const isCarryPair = ((x % 10) + (y % 10)) >= 10;
+                        if (shouldCarry ? isCarryPair : !isCarryPair) {
+                            list.push([x, y]);
+                        }
+                    }
+                }
+                if (list.length === 0) list.push([12, 9]);
+                return list;
+            });
+            [a, b] = pair;
+            hint = shouldCarry ? `${range}以内进位加法` : `${range}以内不进位加法`;
         } else {
             a = Math.floor(Math.random() * 420) + 60;
             b = Math.floor(Math.random() * (950 - a)) + 30;
@@ -362,54 +456,73 @@ export class MathEngine {
             }
             hint += ' · 逆向填空';
         }
-        return { kind: 'calc', expr, formula: expr, display: expr.replace(/\( \? \)/g, '?'), answer, hint, type: 'add' };
+        const _coreKey = `add:${Math.min(a, b)}:${Math.max(a, b)}`;
+        return { kind: 'calc', expr, formula: expr, display: expr.replace(/\( \? \)/g, '?'), answer, hint, type: 'add', _coreKey };
     }
 
     generateSubtraction(range = 20, allowCarry = true, isFillBlank = false) {
         let a, b, hint = '';
-        const shouldBorrow = allowCarry && (Math.random() < 0.75);
+        const shouldBorrow = allowCarry && (Math.random() < 0.68);
 
         if (range <= 10) {
-            a = Math.floor(Math.random() * 9) + 2;
-            b = Math.floor(Math.random() * (a - 1)) + 1;
+            const pair = this._drawFromDeck('sub_10', () => {
+                const list = [];
+                for (let x = 2; x <= 10; x++) {
+                    for (let y = 1; y <= x - 1; y++) {
+                        list.push([x, y]);
+                    }
+                }
+                return list;
+            });
+            [a, b] = pair;
             hint = '10以内减法';
         } else if (range <= 20) {
             if (shouldBorrow) {
-                a = Math.floor(Math.random() * 8) + 11;
-                const minB = (a % 10) + 1;
-                b = Math.floor(Math.random() * (9 - minB + 1)) + minB;
+                // 36 道 20 以内退位减法全部等概率洗牌循环，彻底消除 18-9 偏高频现象
+                const pair = this._drawFromDeck('sub_20_borrow', () => {
+                    const list = [];
+                    for (let x = 11; x <= 18; x++) {
+                        for (let y = (x % 10) + 1; y <= 9; y++) {
+                            list.push([x, y]);
+                        }
+                    }
+                    return list;
+                });
+                [a, b] = pair;
                 hint = '20以内退位减法 (破十法)';
             } else {
-                if (Math.random() < 0.4) {
-                    a = Math.floor(Math.random() * 8) + 2;
-                    b = Math.floor(Math.random() * (a - 1)) + 1;
-                } else {
-                    a = Math.floor(Math.random() * 8) + 11;
-                    b = Math.floor(Math.random() * (a % 10)) + 1;
-                }
+                const pair = this._drawFromDeck('sub_20_noborrow', () => {
+                    const list = [];
+                    for (let x = 2; x <= 10; x++) {
+                        for (let y = 1; y <= x - 1; y++) list.push([x, y]);
+                    }
+                    for (let x = 11; x <= 20; x++) {
+                        for (let y = 1; y <= x - 1; y++) {
+                            if ((y % 10) <= (x % 10)) list.push([x, y]);
+                        }
+                    }
+                    return list;
+                });
+                [a, b] = pair;
                 hint = '20以内不退位减法';
             }
         } else if (range <= 100) {
-            if (shouldBorrow) {
-                const maxTens = Math.max(3, Math.floor(range / 10) - 1);
-                const aTens = Math.floor(Math.random() * (maxTens - 2)) + 2;
-                const aOnes = Math.floor(Math.random() * 8);
-                a = aTens * 10 + aOnes;
-                const bTens = Math.floor(Math.random() * (aTens - 1));
-                const minBOnes = aOnes + 1;
-                const bOnes = Math.floor(Math.random() * (9 - minBOnes + 1)) + minBOnes;
-                b = bTens * 10 + bOnes;
-                hint = `${range}以内退位减法`;
-            } else {
-                const maxTens = Math.max(3, Math.floor(range / 10) - 1);
-                const aTens = Math.floor(Math.random() * (maxTens - 2)) + 2;
-                const aOnes = Math.floor(Math.random() * 7) + 2;
-                a = aTens * 10 + aOnes;
-                const bTens = Math.floor(Math.random() * (aTens - 1)) + 1;
-                const bOnes = Math.floor(Math.random() * (aOnes - 1)) + 1;
-                b = bTens * 10 + bOnes;
-                hint = `${range}以内不退位减法`;
-            }
+            const deckKey = `sub_${range}_${shouldBorrow ? 'borrow' : 'noborrow'}`;
+            const pair = this._drawFromDeck(deckKey, () => {
+                const list = [];
+                for (let x = 14; x <= range; x++) {
+                    for (let y = 3; y <= x - 2; y++) {
+                        const isBorrowPair = (x % 10) < (y % 10);
+                        if (shouldBorrow ? isBorrowPair : !isBorrowPair) {
+                            list.push([x, y]);
+                        }
+                    }
+                }
+                if (list.length === 0) list.push([21, 6]);
+                return list;
+            });
+            [a, b] = pair;
+            hint = shouldBorrow ? `${range}以内退位减法` : `${range}以内不退位减法`;
         } else {
             a = Math.floor(Math.random() * 650) + 180;
             b = Math.floor(Math.random() * (a - 60)) + 35;
@@ -429,15 +542,16 @@ export class MathEngine {
             }
             hint += ' · 逆向填空';
         }
-        return { kind: 'calc', expr, formula: expr, display: expr.replace(/\( \? \)/g, '?'), answer, hint, type: 'sub' };
+        const _coreKey = `sub:${a}:${b}`;
+        return { kind: 'calc', expr, formula: expr, display: expr.replace(/\( \? \)/g, '?'), answer, hint, type: 'sub', _coreKey };
     }
 
     generateGrade1_2() {
         const allowCarry = this.config?.allowCarryBorrow !== false;
         const allowFill = this.config?.allowFillBlank !== false;
         const roll = Math.random();
-        if (roll < 0.42) return this.generateAddition(20, allowCarry, false);
-        if (roll < 0.84) return this.generateSubtraction(20, allowCarry, false);
+        if (roll < 0.38) return this.generateAddition(20, allowCarry, false);
+        if (roll < 0.76) return this.generateSubtraction(20, allowCarry, false);
         return Math.random() > 0.5
             ? this.generateAddition(20, allowCarry, allowFill)
             : this.generateSubtraction(20, allowCarry, allowFill);
@@ -446,62 +560,100 @@ export class MathEngine {
     generateGrade3_4() {
         const sub = Math.floor(Math.random() * 4);
         if (sub === 0) {
-            const a = Math.floor(Math.random() * 8) + 2;
-            const b = Math.floor(Math.random() * 8) + 2;
+            const [a, b] = this._drawFromDeck('mul_9', () => {
+                const list = [];
+                for (let x = 2; x <= 9; x++) {
+                    for (let y = 2; y <= 9; y++) list.push([x, y]);
+                }
+                return list;
+            });
             const expr = `${a} × ${b} = ?`;
-            return { kind: 'calc', expr, formula: expr, display: expr, answer: a * b, hint: '乘法口诀速算', type: 'grade3_4' };
+            return { kind: 'calc', expr, formula: expr, display: expr, answer: a * b, hint: '乘法口诀速算', type: 'grade3_4', _coreKey: `mul:${Math.min(a, b)}:${Math.max(a, b)}` };
         } else if (sub === 1) {
-            const b = Math.floor(Math.random() * 8) + 2;
-            const ans = Math.floor(Math.random() * 8) + 2;
+            const [b, ans] = this._drawFromDeck('div_9', () => {
+                const list = [];
+                for (let x = 2; x <= 9; x++) {
+                    for (let y = 2; y <= 9; y++) list.push([x, y]);
+                }
+                return list;
+            });
             const expr = `${b * ans} ÷ ${b} = ?`;
-            return { kind: 'calc', expr, formula: expr, display: expr, answer: ans, hint: '表内除法整除', type: 'grade3_4' };
+            return { kind: 'calc', expr, formula: expr, display: expr, answer: ans, hint: '表内除法整除', type: 'grade3_4', _coreKey: `div:${b * ans}:${b}` };
         } else if (sub === 2) {
-            const a = Math.floor(Math.random() * 14) + 12;
-            const b = Math.floor(Math.random() * 4) + 2;
+            const [a, b] = this._drawFromDeck('mul_2d_1d', () => {
+                const list = [];
+                for (let x = 12; x <= 29; x++) {
+                    for (let y = 2; y <= 6; y++) list.push([x, y]);
+                }
+                return list;
+            });
             const expr = `${a} × ${b} = ?`;
-            return { kind: 'calc', expr, formula: expr, display: expr, answer: a * b, hint: '两位数乘一位数', type: 'grade3_4' };
+            return { kind: 'calc', expr, formula: expr, display: expr, answer: a * b, hint: '两位数乘一位数', type: 'grade3_4', _coreKey: `mul2d:${a}:${b}` };
         } else {
-            return Math.random() > 0.5 ? this.generateAddition(100, true, true) : this.generateSubtraction(100, true, false);
+            return Math.random() > 0.5 ? this.generateAddition(100, true, Math.random() < 0.35) : this.generateSubtraction(100, true, Math.random() < 0.25);
         }
     }
 
     generateGrade5_6() {
         const sub = Math.floor(Math.random() * 4);
         if (sub === 0) {
-            const a = Math.floor(Math.random() * 20) + 6;
+            const a = Math.floor(Math.random() * 25) + 6;
             const b = Math.floor(Math.random() * 8) + 2;
-            const c = Math.floor(Math.random() * 7) + 2;
+            const c = Math.floor(Math.random() * 8) + 2;
             const expr = `${a} + ${b} × ${c} = ?`;
-            return { kind: 'calc', expr, formula: expr, display: expr, answer: a + b * c, hint: '四则混合 (先乘除后加减)', type: 'grade5_6' };
+            return { kind: 'calc', expr, formula: expr, display: expr, answer: a + b * c, hint: '四则混合 (先乘除后加减)', type: 'grade5_6', _coreKey: `mix1:${a}:${b}:${c}` };
         } else if (sub === 1) {
-            const a = Math.floor(Math.random() * 9) + 3;
-            const b = Math.floor(Math.random() * 8) + 2;
-            const c = Math.floor(Math.random() * 6) + 2;
+            const a = Math.floor(Math.random() * 12) + 3;
+            const b = Math.floor(Math.random() * 10) + 2;
+            const c = Math.floor(Math.random() * 7) + 2;
             const expr = `(${a} + ${b}) × ${c} = ?`;
-            return { kind: 'calc', expr, formula: expr, display: expr, answer: (a + b) * c, hint: '括号优先巧算', type: 'grade5_6' };
+            return { kind: 'calc', expr, formula: expr, display: expr, answer: (a + b) * c, hint: '括号优先巧算', type: 'grade5_6', _coreKey: `mix2:${a}:${b}:${c}` };
         } else if (sub === 2) {
-            const pairs = [
-                { a: 6, b: 8, gcd: 2, lcm: 24 },
-                { a: 12, b: 18, gcd: 6, lcm: 36 },
-                { a: 8, b: 12, gcd: 4, lcm: 24 },
-                { a: 15, b: 20, gcd: 5, lcm: 60 },
-                { a: 9, b: 12, gcd: 3, lcm: 36 }
-            ];
-            const chosen = pairs[Math.floor(Math.random() * pairs.length)];
-            const askGcd = Math.random() > 0.5;
-            const expr = askGcd ? `${chosen.a} 和 ${chosen.b} 的最大公因数是?` : `${chosen.a} 和 ${chosen.b} 的最小公倍数是?`;
-            const answer = askGcd ? chosen.gcd : chosen.lcm;
-            return { kind: 'calc', expr, formula: expr, display: expr, answer, hint: askGcd ? '公因数心算' : '公倍数心算', type: 'grade5_6' };
+            const item = this._drawFromDeck('g56_gcd_lcm', () => {
+                const pairs = [
+                    { a: 6, b: 8, gcd: 2, lcm: 24 },
+                    { a: 12, b: 18, gcd: 6, lcm: 36 },
+                    { a: 8, b: 12, gcd: 4, lcm: 24 },
+                    { a: 15, b: 20, gcd: 5, lcm: 60 },
+                    { a: 9, b: 12, gcd: 3, lcm: 36 },
+                    { a: 10, b: 15, gcd: 5, lcm: 30 },
+                    { a: 14, b: 21, gcd: 7, lcm: 42 },
+                    { a: 16, b: 24, gcd: 8, lcm: 48 },
+                    { a: 18, b: 27, gcd: 9, lcm: 54 },
+                    { a: 6, b: 15, gcd: 3, lcm: 30 },
+                    { a: 8, b: 20, gcd: 4, lcm: 40 },
+                    { a: 12, b: 16, gcd: 4, lcm: 48 }
+                ];
+                const deck = [];
+                pairs.forEach(p => {
+                    deck.push({ ...p, askGcd: true });
+                    deck.push({ ...p, askGcd: false });
+                });
+                return deck;
+            });
+            const expr = item.askGcd ? `${item.a} 和 ${item.b} 的最大公因数是?` : `${item.a} 和 ${item.b} 的最小公倍数是?`;
+            const answer = item.askGcd ? item.gcd : item.lcm;
+            return { kind: 'calc', expr, formula: expr, display: expr, answer, hint: item.askGcd ? '公因数心算' : '公倍数心算', type: 'grade5_6', _coreKey: `gcdlcm:${item.a}:${item.b}:${item.askGcd ? 'g' : 'l'}` };
         } else {
-            const tricks = [
+            const t = this._drawFromDeck('g56_tricks', () => [
                 { expr: '25 × 12 = ?', ans: 300 },
                 { expr: '25 × 16 = ?', ans: 400 },
+                { expr: '25 × 24 = ?', ans: 600 },
+                { expr: '25 × 28 = ?', ans: 700 },
+                { expr: '25 × 32 = ?', ans: 800 },
                 { expr: '125 × 8 = ?', ans: 1000 },
+                { expr: '125 × 16 = ?', ans: 2000 },
                 { expr: '15 × 15 = ?', ans: 225 },
-                { expr: '35 × 4 = ?', ans: 140 }
-            ];
-            const t = tricks[Math.floor(Math.random() * tricks.length)];
-            return { kind: 'calc', expr: t.expr, formula: t.expr, display: t.expr, answer: t.ans, hint: '简便巧算速算', type: 'grade5_6' };
+                { expr: '25 × 25 = ?', ans: 625 },
+                { expr: '35 × 4 = ?', ans: 140 },
+                { expr: '45 × 4 = ?', ans: 180 },
+                { expr: '75 × 4 = ?', ans: 300 },
+                { expr: '50 × 18 = ?', ans: 900 },
+                { expr: '99 + 47 = ?', ans: 146 },
+                { expr: '198 + 56 = ?', ans: 254 },
+                { expr: '300 - 196 = ?', ans: 104 }
+            ]);
+            return { kind: 'calc', expr: t.expr, formula: t.expr, display: t.expr, answer: t.ans, hint: '简便巧算速算', type: 'grade5_6', _coreKey: `trick:${t.expr}` };
         }
     }
 
@@ -518,25 +670,37 @@ export class MathEngine {
         if (op === 'add') return this.generateAddition(range, allowCarry, isFill);
         if (op === 'sub') return this.generateSubtraction(range, allowCarry, isFill);
         if (op === 'mul') {
-            const a = Math.floor(Math.random() * (limit - 1)) + 2;
-            const b = Math.floor(Math.random() * (limit - 1)) + 2;
+            const [a, b] = this._drawFromDeck(`mul_${limit}`, () => {
+                const list = [];
+                for (let x = 2; x <= limit; x++) {
+                    for (let y = 2; y <= limit; y++) list.push([x, y]);
+                }
+                return list;
+            });
             const prod = a * b;
+            const _coreKey = `mul:${Math.min(a, b)}:${Math.max(a, b)}`;
             if (isFill) {
                 const expr = `${a} × ( ? ) = ${prod}`;
-                return { kind: 'calc', expr, formula: expr, display: `${a} × ? = ${prod}`, answer: b, hint: `${limit}以内乘法填空`, type: 'mul' };
+                return { kind: 'calc', expr, formula: expr, display: `${a} × ? = ${prod}`, answer: b, hint: `${limit}以内乘法填空`, type: 'mul', _coreKey };
             }
             const expr = `${a} × ${b} = ?`;
-            return { kind: 'calc', expr, formula: expr, display: expr, answer: prod, hint: `${limit}以内乘法口诀`, type: 'mul' };
+            return { kind: 'calc', expr, formula: expr, display: expr, answer: prod, hint: `${limit}以内乘法口诀`, type: 'mul', _coreKey };
         }
-        const b = Math.floor(Math.random() * (limit - 1)) + 2;
-        const ans = Math.floor(Math.random() * (limit - 1)) + 2;
+        const [b, ans] = this._drawFromDeck(`div_${limit}`, () => {
+            const list = [];
+            for (let x = 2; x <= limit; x++) {
+                for (let y = 2; y <= limit; y++) list.push([x, y]);
+            }
+            return list;
+        });
         const a = b * ans;
+        const _coreKey = `div:${a}:${b}`;
         if (isFill) {
             const expr = `${a} ÷ ( ? ) = ${ans}`;
-            return { kind: 'calc', expr, formula: expr, display: `${a} ÷ ? = ${ans}`, answer: b, hint: `${limit}以内除法填空`, type: 'div' };
+            return { kind: 'calc', expr, formula: expr, display: `${a} ÷ ? = ${ans}`, answer: b, hint: `${limit}以内除法填空`, type: 'div', _coreKey };
         }
         const expr = `${a} ÷ ${b} = ?`;
-        return { kind: 'calc', expr, formula: expr, display: expr, answer: ans, hint: `${limit}以内表内除法`, type: 'div' };
+        return { kind: 'calc', expr, formula: expr, display: expr, answer: ans, hint: `${limit}以内表内除法`, type: 'div', _coreKey };
     }
 
     // ==================== 2. 乘除法与两步生活应用题 ====================
@@ -1374,52 +1538,70 @@ export class MathEngine {
     generateShieldWeakness() {
         const cfg = this.config || {};
         const ops = (cfg.operations && cfg.operations.length > 0) ? cfg.operations : ['add'];
-        const op = ops[Math.floor(Math.random() * ops.length)];
         const range = Number(cfg.range) || 20;
         const maxMul = Math.max(2, Math.min(9, Number(cfg.maxMultiplier) || (range <= 25 ? 5 : 9)));
         const allowCarry = cfg.allowCarryBorrow !== false;
 
-        let expr = '';
-        let answer = 0;
-        let hint = '';
+        let chosen = null;
+        for (let attempt = 0; attempt < 14; attempt++) {
+            const op = ops[Math.floor(Math.random() * ops.length)];
+            let expr = '';
+            let answer = 0;
+            let hint = '';
 
-        if (op === 'add') {
-            const addRes = this.generateAddition(range, allowCarry, Math.random() > 0.4);
-            expr = addRes.expr.replace(/\( \? \)/g, '?');
-            answer = addRes.answer;
-            hint = `${range}以内加法护盾`;
-        } else if (op === 'sub') {
-            const subRes = this.generateSubtraction(range, allowCarry, Math.random() > 0.4);
-            expr = subRes.expr.replace(/\( \? \)/g, '?');
-            answer = subRes.answer;
-            hint = `${range}以内减法护盾`;
-        } else if (op === 'mul') {
-            const a = Math.floor(Math.random() * (maxMul - 1)) + 2;
-            const b = Math.floor(Math.random() * (maxMul - 1)) + 2;
-            const prod = a * b;
-            if (Math.random() > 0.4) {
-                expr = `${a} × ? = ${prod}`;
-                answer = b;
+            if (op === 'add') {
+                const addRes = this.generateAddition(range, allowCarry, Math.random() > 0.45);
+                expr = addRes.expr.replace(/\( \? \)/g, '?');
+                answer = addRes.answer;
+                hint = `${range}以内加法护盾`;
+            } else if (op === 'sub') {
+                const subRes = this.generateSubtraction(range, allowCarry, Math.random() > 0.45);
+                expr = subRes.expr.replace(/\( \? \)/g, '?');
+                answer = subRes.answer;
+                hint = `${range}以内减法护盾`;
+            } else if (op === 'mul') {
+                const [a, b] = this._drawFromDeck(`shield_mul_${maxMul}`, () => {
+                    const list = [];
+                    for (let x = 2; x <= maxMul; x++) {
+                        for (let y = 2; y <= maxMul; y++) list.push([x, y]);
+                    }
+                    return list;
+                });
+                const prod = a * b;
+                if (Math.random() > 0.45) {
+                    expr = `${a} × ? = ${prod}`;
+                    answer = b;
+                } else {
+                    expr = `${a} × ${b} = ?`;
+                    answer = prod;
+                }
+                hint = `${maxMul}以内乘法护盾`;
             } else {
-                expr = `${a} × ${b} = ?`;
-                answer = prod;
+                const [b, ans] = this._drawFromDeck(`shield_div_${maxMul}`, () => {
+                    const list = [];
+                    for (let x = 2; x <= maxMul; x++) {
+                        for (let y = 2; y <= maxMul; y++) list.push([x, y]);
+                    }
+                    return list;
+                });
+                const a = b * ans;
+                if (Math.random() > 0.45) {
+                    expr = `${a} ÷ ? = ${ans}`;
+                    answer = b;
+                } else {
+                    expr = `${a} ÷ ${b} = ?`;
+                    answer = ans;
+                }
+                hint = `${maxMul}以内除法护盾`;
             }
-            hint = `${maxMul}以内乘法护盾`;
-        } else {
-            const b = Math.floor(Math.random() * (maxMul - 1)) + 2;
-            const ans = Math.floor(Math.random() * (maxMul - 1)) + 2;
-            const a = b * ans;
-            if (Math.random() > 0.4) {
-                expr = `${a} ÷ ? = ${ans}`;
-                answer = b;
-            } else {
-                expr = `${a} ÷ ${b} = ?`;
-                answer = ans;
-            }
-            hint = `${maxMul}以内除法护盾`;
+
+            chosen = { expr, answer, hint, opType: op, damageMultiplier: 3.5 };
+            if (!this._recentShieldExprs.includes(expr) && expr !== this._lastExpr) break;
         }
 
-        return { expr, answer, hint, opType: op, damageMultiplier: 3.5 };
+        this._recentShieldExprs.push(chosen.expr);
+        if (this._recentShieldExprs.length > 16) this._recentShieldExprs.shift();
+        return chosen;
     }
 
     loadCustomProblem(q) {
@@ -1440,49 +1622,61 @@ export class MathEngine {
 
     generateShieldSpecificQuestion(shieldType) {
         const shieldName = shieldType === 'buckethead' ? '铁桶' : (shieldType === 'conehead' ? '路障' : '防具');
-        if (this.difficultyKey === 'grade1_2') {
-            const isAdd = Math.random() < 0.5;
-            const res = isAdd ? this.generateAddition(20, true, false) : this.generateSubtraction(20, true, false);
-            return {
-                kind: 'calc',
-                formula: res.formula,
-                display: res.display,
-                expr: res.expr,
-                answer: res.answer,
-                hint: `⚡ 破盾雷击算式！算出 ${res.display} 击碎${shieldName}！`,
-                isShieldTarget: true,
-                shieldType
-            };
-        } else if (this.difficultyKey === 'grade3_4') {
-            const a = Math.floor(Math.random() * 8) + 2;
-            const b = Math.floor(Math.random() * 8) + 2;
-            const expr = `${a} × ${b} = ?`;
-            return {
-                kind: 'calc',
-                formula: expr,
-                display: `${a} × ${b}`,
-                expr,
-                answer: a * b,
-                hint: `⚡ 破盾雷击！乘法口诀 ${a}×${b} 击碎${shieldName}！`,
-                isShieldTarget: true,
-                shieldType
-            };
-        } else {
-            const a = Math.floor(Math.random() * 20) + 10;
-            const b = Math.floor(Math.random() * 5) + 2;
-            const c = Math.floor(Math.random() * 15) + 5;
-            const expr = `${a} × ${b} + ${c} = ?`;
-            return {
-                kind: 'calc',
-                formula: expr,
-                display: `${a} × ${b} + ${c}`,
-                expr,
-                answer: a * b + c,
-                hint: `⚡ 高阶破盾！四则心算直击${shieldName}要害！`,
-                isShieldTarget: true,
-                shieldType
-            };
+        let sq = null;
+        for (let attempt = 0; attempt < 14; attempt++) {
+            if (this.difficultyKey === 'grade1_2') {
+                const isAdd = Math.random() < 0.5;
+                const res = isAdd ? this.generateAddition(20, true, false) : this.generateSubtraction(20, true, false);
+                sq = {
+                    kind: 'calc',
+                    formula: res.formula,
+                    display: res.display,
+                    expr: res.expr,
+                    answer: res.answer,
+                    hint: `⚡ 破盾雷击算式！算出 ${res.display} 击碎${shieldName}！`,
+                    isShieldTarget: true,
+                    shieldType
+                };
+            } else if (this.difficultyKey === 'grade3_4') {
+                const [a, b] = this._drawFromDeck('shield_g34_mul', () => {
+                    const list = [];
+                    for (let x = 2; x <= 9; x++) {
+                        for (let y = 2; y <= 9; y++) list.push([x, y]);
+                    }
+                    return list;
+                });
+                const expr = `${a} × ${b} = ?`;
+                sq = {
+                    kind: 'calc',
+                    formula: expr,
+                    display: `${a} × ${b}`,
+                    expr,
+                    answer: a * b,
+                    hint: `⚡ 破盾雷击！乘法口诀 ${a}×${b} 击碎${shieldName}！`,
+                    isShieldTarget: true,
+                    shieldType
+                };
+            } else {
+                const a = Math.floor(Math.random() * 20) + 10;
+                const b = Math.floor(Math.random() * 5) + 2;
+                const c = Math.floor(Math.random() * 15) + 5;
+                const expr = `${a} × ${b} + ${c} = ?`;
+                sq = {
+                    kind: 'calc',
+                    formula: expr,
+                    display: `${a} × ${b} + ${c}`,
+                    expr,
+                    answer: a * b + c,
+                    hint: `⚡ 高阶破盾！四则心算直击${shieldName}要害！`,
+                    isShieldTarget: true,
+                    shieldType
+                };
+            }
+            if (!this._recentShieldExprs.includes(sq.expr) && sq.expr !== this._lastExpr) break;
         }
+        this._recentShieldExprs.push(sq.expr);
+        if (this._recentShieldExprs.length > 16) this._recentShieldExprs.shift();
+        return sq;
     }
 
     // ==================== 5. 答案校验与徽章/金币/阳光奖励计算 ====================

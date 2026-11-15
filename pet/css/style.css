@@ -1712,6 +1712,28 @@ button:active {
     text-overflow: ellipsis;
 }
 
+.pet-live-qcount-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.28), rgba(5, 150, 105, 0.36));
+    border: 1px solid rgba(110, 231, 183, 0.55);
+    color: #a7f3d0;
+    font-size: 11px;
+    font-weight: 900;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.pet-live-qcount-pill.q-bump {
+    transform: scale(1.14);
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.55), rgba(5, 150, 105, 0.65));
+    color: #ffffff;
+}
+
 .subject-main-tabs {
     display: grid;
     grid-template-columns: repeat(5, 1fr);

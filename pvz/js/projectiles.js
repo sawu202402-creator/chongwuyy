@@ -1,8 +1,8 @@
 /**
  * projectiles.js - 子弹、投掷物、爆炸粒子、飘字与阳光飞行动画系统
  */
-import { assetsLoader } from './assetsLoader.js?v=20261113_v2';
-import { soundEngine } from './audio.js?v=20261113_v2';
+import { assetsLoader } from './assetsLoader.js?v=20261115_umbrella_v1';
+import { soundEngine } from './audio.js?v=20261115_umbrella_v1';
 
 export class Projectile {
     constructor(row, x, y, type = 'pea', damage = 20, isSlow = false, maxRange = 960, customSpeed = null) {
@@ -765,34 +765,44 @@ export class LobbedProjectile {
         if (!engine) return;
 
         if (this.isEnemyBasketball) {
-            soundEngine.playSplat();
-            if (this.targetPlant && !this.targetPlant.isDead) {
-                // 优先检测 3x3 范围内是否有叶子保护伞 (Umbrella Leaf) 撑开巨叶弹开篮球！
-                const targetCol = this.targetPlant.col;
-                const umbrella = engine.plants ? engine.plants.find(u =>
-                    !u.isDead && u.type === 'umbrellaleaf' &&
+            const cellW = engine.cellW || 80;
+            const startX = engine.gridStartX ?? 40;
+            const liveTarget = (this.targetPlant && !this.targetPlant.isDead) ? this.targetPlant : null;
+            const targetCol = liveTarget
+                ? liveTarget.col
+                : Math.round((this.x - startX - cellW / 2) / cellW);
+            const umbrella = (typeof engine.findProtectingUmbrella === 'function')
+                ? engine.findProtectingUmbrella(this.row, targetCol, this.x, liveTarget, true)
+                : (engine.plants ? engine.plants.find(u =>
+                    !u.isDead && !u.isAsleep && u.type === 'umbrellaleaf' &&
                     Math.abs(u.row - this.row) <= 1 &&
-                    (Math.abs(u.col - targetCol) <= 1 || (this.targetPlant.isDoubleWide && Math.abs(u.col - (targetCol + 1)) <= 1))
-                ) : null;
-                if (umbrella) {
-                    if (typeof umbrella.triggerBounce === 'function') {
-                        umbrella.triggerBounce(engine);
-                    }
-                    if (engine.floatingTexts) {
-                        engine.floatingTexts.push(new FloatingText(umbrella.x, umbrella.y - 42, '☂️ 保护伞弹飞篮球!', '#2ecc71', 19));
-                    }
-                    engine.hitSplats.push(new HitSplat(this.x, this.y - 18, 'basketball'));
-                    return;
+                    (
+                        Math.abs(u.col - targetCol) <= 1 ||
+                        (liveTarget && liveTarget.isDoubleWide && Math.abs(u.col - (targetCol + 1)) <= 1) ||
+                        Math.abs(u.x - this.x) <= cellW * 1.65
+                    )
+                ) : null);
+            if (umbrella) {
+                if (typeof umbrella.triggerBounce === 'function') {
+                    umbrella.triggerBounce(engine, this.x, this.y - 18);
                 }
+                if (engine.floatingTexts) {
+                    engine.floatingTexts.push(new FloatingText(umbrella.x, umbrella.y - 42, '☂️ 保护伞弹飞篮球!', '#2ecc71', 19));
+                }
+                engine.hitSplats.push(new HitSplat(this.x, this.y - 24, 'basketball'));
+                return;
+            }
 
+            soundEngine.playSplat();
+            if (liveTarget) {
                 // 若该格套有南瓜头，优先砸伤南瓜头
                 const pumpkin = engine.plants ? engine.plants.find(
-                    p => !p.isDead && p.col === this.targetPlant.col && p.row === this.targetPlant.row && (p.isPumpkin || p.isPumpkinShell || p.type === 'pumpkin')
+                    p => !p.isDead && p.col === liveTarget.col && p.row === liveTarget.row && (p.isPumpkin || p.isPumpkinShell || p.type === 'pumpkin')
                 ) : null;
                 if (pumpkin) {
                     pumpkin.takeDamage(this.damage);
                 } else {
-                    this.targetPlant.takeDamage(this.damage);
+                    liveTarget.takeDamage(this.damage);
                 }
             }
             engine.hitSplats.push(new HitSplat(this.x, this.y, 'basketball'));

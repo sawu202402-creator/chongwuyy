@@ -461,6 +461,66 @@ async function main() {
     await sleep(200);
     await saveShot('mem_carrot_reveal_after_wrong.png');
 
+    // Switch back to Math -> ⚡ 口算 (calc) in Carrot to verify non-repetition + live question count + mid-game report + flush!
+    const carrotOralAndCountRes = await evalJs(`(async () => {
+        const { profileManager } = await import('../shared/unifiedProfile.js');
+        const qBefore = profileManager.getQuestionStats().todayAttempted;
+        document.querySelector('.smart-mode-tab[data-topcat="math"]').click();
+        document.querySelector('.smart-entry-pill[data-emode="calc"]').click();
+        const f1 = document.getElementById('questionFormula').textContent.trim();
+        const ans1 = String(window.mathEngine.currentQuestion.answer);
+        document.querySelector('#virtualKeypad [data-key="clear"]')?.click();
+        for (const ch of ans1) {
+            document.querySelector('#virtualKeypad [data-key="' + ch + '"]').click();
+        }
+        document.getElementById('btnSubmitAnswer').click();
+        const f2 = document.getElementById('questionFormula').textContent.trim();
+        const qAfterRight = profileManager.getQuestionStats().todayAttempted;
+
+        // Now submit a WRONG answer on f2 and verify question count STILL increments!
+        const wrongVal = String((Number(window.mathEngine.currentQuestion.answer) + 3) % 100);
+        document.querySelector('#virtualKeypad [data-key="clear"]')?.click();
+        for (const ch of wrongVal) {
+            document.querySelector('#virtualKeypad [data-key="' + ch + '"]').click();
+        }
+        document.getElementById('btnSubmitAnswer').click();
+        const qAfterWrong = profileManager.getQuestionStats().todayAttempted;
+        const badgePillText = document.getElementById('portalPetBadgePill')?.textContent || '';
+
+        // Open mid-game Score Records BEFORE wave ends!
+        document.getElementById('btnScoreRecords').click();
+        const metricQuestionsMid = Number(document.getElementById('recMetricQuestions').textContent.trim());
+        const historyHtmlMid = document.getElementById('recordsHistoryList').textContent || '';
+        document.getElementById('btnCloseRecordsModal').click();
+
+        // Click #btnStartGame to restart round and verify unfinished round flushes cleanly without losing count!
+        document.getElementById('btnStartGame').click();
+        await new Promise(r => setTimeout(r, 100));
+        document.getElementById('btnScoreRecords').click();
+        const metricQuestionsAfterFlush = Number(document.getElementById('recMetricQuestions').textContent.trim());
+        const historyHtmlAfterFlush = document.getElementById('recordsHistoryList').textContent || '';
+        document.getElementById('btnCloseRecordsModal').click();
+
+        return {
+            f1, f2,
+            formulaAdvanced: f1 !== f2,
+            qDeltaRight: qAfterRight - qBefore,
+            qDeltaWrong: qAfterWrong - qAfterRight,
+            badgePillHasCount: badgePillText.includes('📝' + qAfterWrong + '题'),
+            metricQuestionsMid,
+            hasLiveTagMid: historyHtmlMid.includes('本局进行中'),
+            metricQuestionsAfterFlush,
+            flushedPreserved: metricQuestionsAfterFlush >= metricQuestionsMid && historyHtmlAfterFlush.includes('随堂练习')
+        };
+    })()`);
+    console.log('Carrot Oral Non-Repeat & Live Question Counter Check:', carrotOralAndCountRes);
+    assert.equal(carrotOralAndCountRes.formulaAdvanced, true, 'Carrot oral arithmetic must immediately advance to a different formula');
+    assert.equal(carrotOralAndCountRes.qDeltaRight, 1, 'Right oral answer in Carrot must increment todayAttempted by +1');
+    assert.equal(carrotOralAndCountRes.qDeltaWrong, 1, 'Wrong oral answer in Carrot must also increment todayAttempted by +1');
+    assert.equal(carrotOralAndCountRes.badgePillHasCount, true, 'Carrot top badge pill must show live 📝X题 count');
+    assert.equal(carrotOralAndCountRes.hasLiveTagMid, true, 'Carrot mid-game report must include live 🟢 本局进行中 round');
+    assert.equal(carrotOralAndCountRes.flushedPreserved, true, 'Restarting/leaving mid-game in Carrot must flush active round as 随堂练习 without losing question count');
+
     // Switch back to Grand Random before leaving Carrot
     await evalJs(`document.querySelector('.smart-mode-tab[data-topcat="grand"]').click();`);
 
@@ -502,11 +562,188 @@ async function main() {
     assert.equal(pvzGentleCourse.noScroll, true);
     await sleep(300);
     await saveShot('easy_pvz_gentle_course.png');
+
+    // Verify PvZ ⚡ 口算 (calc) non-repetition + live badge pill count + mid-game 成长战报!
+    const pvzOralAndReportRes = await evalJs(`(async () => {
+        const { profileManager } = await import('../shared/unifiedProfile.js');
+        const qBefore = profileManager.getQuestionStats().todayAttempted;
+        document.querySelector('.smart-mode-tab[data-topcat="math"]').click();
+        document.querySelector('.smart-entry-pill[data-emode="calc"]').click();
+        const f1 = document.getElementById('questionFormula').textContent.trim();
+        const ans1 = String(window.gameApp.mathEngine.currentQuestion.answer);
+        document.querySelector('#virtualKeypad [data-key="clear"]')?.click();
+        for (const ch of ans1) {
+            document.querySelector('#virtualKeypad [data-key="' + ch + '"]').click();
+        }
+        document.getElementById('btnSubmitAnswer').click();
+        const f2 = document.getElementById('questionFormula').textContent.trim();
+        const qAfter = profileManager.getQuestionStats().todayAttempted;
+        const pillText = document.getElementById('portalPetBadgePill')?.textContent || '';
+
+        document.getElementById('btnScoreRecords').click();
+        const historyBoxText = document.getElementById('historyListBox')?.textContent || '';
+        document.getElementById('btnCloseRecordsModal').click();
+
+        return {
+            formulaAdvanced: f1 !== f2,
+            qDelta: qAfter - qBefore,
+            pillHasCount: pillText.includes('📝' + qAfter + '题'),
+            hasLiveRound: historyBoxText.includes('本局进行中'),
+            hasSummaryBanner: historyBoxText.includes('今日做题') && historyBoxText.includes('累计做题')
+        };
+    })()`);
+    console.log('PvZ Oral Non-Repeat & Mid-Game Report Check:', pvzOralAndReportRes);
+    assert.equal(pvzOralAndReportRes.formulaAdvanced, true, 'PvZ oral arithmetic must immediately advance to a new formula');
+    assert.equal(pvzOralAndReportRes.qDelta, 1, 'PvZ oral arithmetic must immediately increment todayAttempted');
+    assert.equal(pvzOralAndReportRes.pillHasCount, true, 'PvZ top badge pill must show live 📝X题 count');
+    assert.equal(pvzOralAndReportRes.hasLiveRound, true, 'PvZ mid-game report must display 🟢本局进行中');
+    assert.equal(pvzOralAndReportRes.hasSummaryBanner, true, 'PvZ report must display 今日做题 / 累计做题 summary banner');
+
     await evalJs(`document.querySelector('.smart-mode-tab[data-topcat="grand"]').click();`);
+
+    // Verify PvZ Umbrella Leaf (叶子保护伞) vs Bungee Zombie (蹦极僵尸) on Roof Level 5-7:
+    // 1) Diagonal 3x3 bounce even when Bungee is buttered + frozen!
+    // 2) Squash inside 3x3 zone does NOT sacrifice itself on a protected Bungee!
+    // 3) Imitater copying umbrellaleaf immediately morphs & bounces emergency Bungee!
+    const pvzUmbrellaBungeeRes = await evalJs(`(() => {
+        const eng = window.gameApp.pvzEngine;
+        window.gameApp.loadNewLevel('5-7', { skipConfirm: true });
+        eng.sun = 2000;
+        eng.zombies = [];
+
+        // Ensure flowerpots at (2,2), (1,1), (1,2) and plant umbrellaleaf at (2,2), sunflower at (1,1), squash at (1,2)
+        const ensurePotAndPlant = (r, c, pType) => {
+            const pos = eng.getGridCoords(c, r);
+            if (!eng.plants.some(p => !p.isDead && p.row === r && p.col === c && p.type === 'flowerpot')) {
+                eng.plants.push(window.createPlant('flowerpot', r, c, pos.x, pos.y, eng.entityLayer, false));
+            }
+            eng.selectedCard = pType;
+            eng.cardCooldowns[pType] = 0;
+            eng.handleClick(pos.x, pos.y);
+            return eng.getNormalPlantAt(r, c);
+        };
+
+        const umbrella = ensurePotAndPlant(2, 2, 'umbrellaleaf');
+        const sunflower = ensurePotAndPlant(1, 1, 'sunflower');
+        const squash = ensurePotAndPlant(1, 2, 'squash');
+
+        // Spawn a Bungee Zombie on row 1 targeting sunflower at (1,1), and apply both butter AND freeze!
+        const bungee1 = new window.Zombie('bungee', 1, 500, eng.entityLayer);
+        eng.zombies.push(bungee1);
+        eng.update(0.05); // init -> targeting (locks onto row 1 plant)
+        bungee1.bungeeTargetPlant = sunflower;
+        bungee1.bungeeTargetCol = 1;
+        bungee1.x = sunflower.x;
+        bungee1.butterTimer = 4.0;
+        bungee1.freezeTimer = 4.0;
+        bungee1.bungeePhase = 'descending';
+        bungee1.bungeeOffsetY = -90; // enters canopy height while buttered & frozen!
+
+        eng.update(0.05);
+        const bounced1 = bungee1.bungeeBounced && bungee1.bungeePhase === 'ascending';
+        const butterCleared = bungee1.butterTimer === 0 && bungee1.freezeTimer === 0;
+        const sunflowerSurvived = !sunflower.isDead;
+        const squashSurvived = !squash.isDead && squash.state === 'idle';
+        const hasBounceFx = eng.umbrellaBounces.length > 0 && umbrella.bounceAnimTimer > 0;
+
+        // Test emergency Imitater copying umbrellaleaf planted at (3,6) when a Bungee is already hanging at (3,6)!
+        const pos36 = eng.getGridCoords(6, 3);
+        eng.plants.push(window.createPlant('flowerpot', 3, 6, pos36.x, pos36.y, eng.entityLayer, false));
+        const imitaterUmbrella = window.createPlant('imitater', 3, 6, pos36.x, pos36.y, eng.entityLayer, false, 'umbrellaleaf');
+        eng.plants.push(imitaterUmbrella);
+        const bungee2 = new window.Zombie('bungee', 3, pos36.x, eng.entityLayer);
+        bungee2.bungeePhase = 'grabbing';
+        bungee2.bungeeTimer = 0.01;
+        bungee2.bungeeOffsetY = 0;
+        bungee2.bungeeTargetCol = 6;
+        eng.zombies.push(bungee2);
+        eng.update(0.05);
+        const bouncedByImitater = bungee2.bungeeBounced && bungee2.bungeePhase === 'ascending';
+
+        // Reset back to 1-1 cleanly
+        window.gameApp.loadNewLevel('1-1', { skipConfirm: true });
+        return {
+            bounced1,
+            butterCleared,
+            sunflowerSurvived,
+            squashSurvived,
+            hasBounceFx,
+            bouncedByImitater
+        };
+    })()`);
+    console.log('PvZ Umbrella Leaf vs Bungee Check:', pvzUmbrellaBungeeRes);
+    assert.equal(pvzUmbrellaBungeeRes.bounced1, true, 'Umbrella Leaf must bounce diagonal 3x3 Bungee Zombie even when buttered/frozen');
+    assert.equal(pvzUmbrellaBungeeRes.butterCleared, true, 'Bounced Bungee must clear butter/freeze timers and rocket upward immediately');
+    assert.equal(pvzUmbrellaBungeeRes.sunflowerSurvived, true, 'Protected plant in 3x3 zone must survive unharmed');
+    assert.equal(pvzUmbrellaBungeeRes.squashSurvived, true, 'Friendly Squash inside Umbrella Leaf 3x3 zone must not sacrifice itself on protected Bungee');
+    assert.equal(pvzUmbrellaBungeeRes.hasBounceFx, true, 'Umbrella Leaf must trigger bounce animation and 3x3 canopy shockwave');
+    assert.equal(pvzUmbrellaBungeeRes.bouncedByImitater, true, 'Emergency Imitater copying Umbrella Leaf must fast-morph and bounce Bungee');
 
     // ==================== 4. Test Pet Wonder Town (5 Top Tabs incl. 🎓 英语课 + Sight Words/Sentences + Read-Aloud Card) ====================
     await cdp.send('Page.navigate', { url: `${origin}/pet/index.html` }, sessionId);
     await sleep(1100);
+
+    // Regression Test: Pet Town 🔢 数学 -> ⚡ 口算 (calc) MUST NEVER get stuck on the same formula & #petLiveQuestionCount increments on EVERY right & wrong answer!
+    const petOralNonRepeatCheck = await evalJs(`(async () => {
+        const { mathEngine } = await import('./js/mathEngine.js');
+        document.querySelector('.subj-tab[data-subj="math"]').click();
+        document.querySelector('#petMathSubPills [data-mathmode="calc"]').click();
+
+        const readCountPill = () => {
+            const txt = document.getElementById('petLiveQuestionCount')?.textContent || '';
+            const m = txt.match(/(\\d+)/);
+            return m ? Number(m[1]) : -1;
+        };
+
+        const f1 = document.getElementById('mathFormulaView').textContent.trim();
+        const c0 = readCountPill();
+        const ans1 = String(mathEngine.currentQuestion.answer);
+
+        document.querySelector('#mathKeypad [data-k="clear"]')?.click();
+        for (const ch of ans1) {
+            document.querySelector('#mathKeypad [data-k="' + ch + '"]').click();
+        }
+        document.getElementById('btnSubmitMath').click();
+
+        const f2 = document.getElementById('mathFormulaView').textContent.trim();
+        const c1 = readCountPill();
+
+        // Answer a second oral question right in a row to confirm continuous progression!
+        const ans2 = String(mathEngine.currentQuestion.answer);
+        for (const ch of ans2) {
+            document.querySelector('#mathKeypad [data-k="' + ch + '"]').click();
+        }
+        document.getElementById('btnSubmitMath').click();
+        const f3 = document.getElementById('mathFormulaView').textContent.trim();
+        const c2 = readCountPill();
+
+        // Now submit a WRONG answer on f3 -> verify #petLiveQuestionCount IMMEDIATELY increments by +1, and after 1300ms transitions to f4!
+        const wrongAns = String((Number(mathEngine.currentQuestion.answer) + 4) % 100);
+        for (const ch of wrongAns) {
+            document.querySelector('#mathKeypad [data-k="' + ch + '"]').click();
+        }
+        document.getElementById('btnSubmitMath').click();
+        const c3Immediate = readCountPill();
+        await new Promise(r => setTimeout(r, 1300));
+        const f4AfterWrong = document.getElementById('mathFormulaView').textContent.trim();
+
+        return {
+            f1, f2, f3, f4AfterWrong,
+            c0, c1, c2, c3Immediate,
+            f1ToF2Changed: f1 !== f2,
+            f2ToF3Changed: f2 !== f3,
+            f3ToF4Changed: f3 !== f4AfterWrong,
+            noScrollOral: document.documentElement.scrollHeight <= window.innerHeight + 2
+        };
+    })()`);
+    console.log('Pet Town Oral Non-Repeat & Live Question Pill Check:', petOralNonRepeatCheck);
+    assert.equal(petOralNonRepeatCheck.f1ToF2Changed, true, 'Pet Town ⚡ 口算 must advance to a new formula immediately after 1st correct answer');
+    assert.equal(petOralNonRepeatCheck.f2ToF3Changed, true, 'Pet Town ⚡ 口算 must advance to a new formula immediately after 2nd correct answer');
+    assert.equal(petOralNonRepeatCheck.f3ToF4Changed, true, 'Pet Town ⚡ 口算 must advance to a new formula after wrong answer transition');
+    assert.equal(petOralNonRepeatCheck.c1 - petOralNonRepeatCheck.c0, 1, '#petLiveQuestionCount must increment by +1 on 1st correct answer');
+    assert.equal(petOralNonRepeatCheck.c2 - petOralNonRepeatCheck.c1, 1, '#petLiveQuestionCount must increment by +1 on 2nd correct answer');
+    assert.equal(petOralNonRepeatCheck.c3Immediate - petOralNonRepeatCheck.c2, 1, '#petLiveQuestionCount must immediately increment by +1 even on wrong answer');
+    assert.equal(petOralNonRepeatCheck.noScrollOral, true, 'Pet Town oral mode with #petLiveQuestionCount pill must maintain zero overflow');
     const petModesCheck = await evalJs(`(() => {
         const topTabs = Array.from(document.querySelectorAll('.subject-main-tabs .subj-tab')).map(b => b.getAttribute('data-subj'));
         const mathPills = Array.from(document.querySelectorAll('#petMathSubPills .sub-pill')).map(b => b.getAttribute('data-mathmode'));
