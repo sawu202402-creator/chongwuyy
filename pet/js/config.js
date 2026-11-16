@@ -105,12 +105,12 @@ export const SHOP_LEVEL_MAX_EXP = {
 
 export const SHOP_UPGRADE_BADGE_COST = 6; // 每次进货扩建消耗 6 枚徽章
 export const SHOP_UPGRADE_EXP_GAIN = 6;   // 每次进货增加 6 点店铺繁荣度
-export const GACHA_BADGE_COST = 35;       // 无扭蛋券时消耗 35 徽章可抽一次惊喜盲盒
+export const GACHA_BADGE_COST = 25;       // 无扭蛋券时消耗 25 徽章可抽一次惊喜盲盒
 
 // 每日防刷腻习惯养成上限配置 (自然日零点自动重置，可在家长设置中按孩子调整)
 export const DEFAULT_DAILY_BADGE_CAP = 30;
 export const DAILY_BADGE_CAP_OPTIONS = [15, 25, 30, 45, 60];
-export const DAILY_TICKET_CAP = 2;        // 每日最多掉落 2 张免费盲盒券
+export const DAILY_TICKET_CAP = 5;        // 连对/背词营等随机掉落盲盒券上限（每日固定打卡送券独立必得！）
 
 export const PETS_CATALOG = [
     // ================= 1. 绿野部落 (兔子与青蛙双C位首发免费!) =================
@@ -876,18 +876,26 @@ export const SHOPS_CATALOG = [
     }
 ];
 
-// 萌宠换装衣帽间（新增青蛙专属立体荷叶系列：清凉荷叶帽免费拥有，露珠荷叶伞/粉莲荷叶冠支持微徽章兑换或盲盒抽取！）
+// 萌宠换装衣帽间（共 16 款可收集潮玩头饰 + 清爽原貌/免费荷叶帽，全部支持盲盒抽取与舞台 3D 矢量穿戴！）
 export const PET_ACCESSORIES = [
-    { id: 'none', name: '清爽原貌', icon: '✨', freeDefault: true, cost: 0, desc: '不佩戴头饰，展示萌宠原貌' },
-    { id: 'lotus_hat', name: '清凉荷叶帽', icon: '🌿', frogSpecial: true, freeDefault: true, cost: 0, desc: '🐸青蛙特色 · 晶莹露珠翠绿荷叶帽' },
-    { id: 'lotus_umbrella', name: '露珠荷叶伞', icon: '☂️', frogSpecial: true, cost: 8, desc: '🐸青蛙特色 · 斜撑一片碧绿荷叶小伞' },
-    { id: 'lotus_crown', name: '粉莲荷叶冠', icon: '🪷', frogSpecial: true, cost: 12, desc: '🐸青蛙特色 · 荷叶衬底粉白盛开莲冠' },
-    { id: 'crown', name: '闪耀金皇冠', icon: '👑', cost: 18, desc: '盲盒或徽章兑换 · 皇室璀璨金冠' },
-    { id: 'sunglasses', name: '酷炫店长墨镜', icon: '🕶️', cost: 15, desc: '盲盒或徽章兑换 · 街头潮酷墨镜' },
-    { id: 'ribbon', name: '甜心蝴蝶结', icon: '🎀', cost: 12, desc: '盲盒或徽章兑换 · 软萌粉红蝴蝶结' },
-    { id: 'wizard', name: '学霸博士帽', icon: '🎓', cost: 16, desc: '盲盒或徽章兑换 · 满分状元博士帽' },
-    { id: 'flower', name: '夏威夷花环', icon: '🌺', cost: 14, desc: '盲盒或徽章兑换 · 阳光度假扶桑花' },
-    { id: 'medal', name: '星光荣誉星', icon: '🌟', cost: 15, desc: '盲盒或徽章兑换 · 头顶悬浮闪耀星' }
+    { id: 'none',            name: '清爽原貌',     enName: 'Natural Look',     icon: '✨', freeDefault: true, cost: 0,  rarity: 'R',   desc: '不佩戴头饰，展示萌宠原貌' },
+    { id: 'lotus_hat',       name: '清凉荷叶帽',   enName: 'Lotus Leaf Hat',   icon: '🌿', frogSpecial: true, freeDefault: true, cost: 0, rarity: 'R', desc: '🐸青蛙特色 · 晶莹露珠翠绿荷叶帽' },
+    { id: 'lotus_umbrella',  name: '露珠荷叶伞',   enName: 'Lotus Umbrella',   icon: '☂️', frogSpecial: true, cost: 8,  rarity: 'R',   desc: '🐸青蛙特色 · 斜撑一片碧绿荷叶小伞' },
+    { id: 'lotus_crown',     name: '粉莲荷叶冠',   enName: 'Pink Lotus Crown', icon: '🪷', frogSpecial: true, cost: 14, rarity: 'SR',  desc: '🐸青蛙特色 · 荷叶衬底粉白盛开莲冠' },
+    { id: 'ice_tiara',       name: '冰雪水晶王冠', enName: 'Crystal Tiara',    icon: '❄️', cost: 28, rarity: 'UR',  desc: '潮玩盲盒 UR · 极光冰晶六棱雪花王冠' },
+    { id: 'fairy_butterfly', name: '幻彩精灵蝶冠', enName: 'Fairy Butterfly',  icon: '🦋', cost: 24, rarity: 'SSR', desc: '潮玩盲盒 SSR · 双生流光蝴蝶花仙冠' },
+    { id: 'astro_antenna',   name: '星际雷达天线', enName: 'Space Antenna',    icon: '📡', cost: 22, rarity: 'SSR', desc: '潮玩盲盒 SSR · 双球发光星际通讯天线' },
+    { id: 'crown',           name: '闪耀金皇冠',   enName: 'Golden Crown',     icon: '👑', cost: 18, rarity: 'SSR', desc: '盲盒或徽章兑换 · 皇室璀璨宝石金冠' },
+    { id: 'magic_tophat',    name: '星夜魔术礼帽', enName: 'Magic Top Hat',    icon: '🎩', cost: 18, rarity: 'SR',  desc: '潮玩盲盒 SR · 金星缎带奇幻高礼帽' },
+    { id: 'neon_headphone',  name: '霓虹律动耳机', enName: 'Neon Headphones',  icon: '🎧', cost: 18, rarity: 'SR',  desc: '潮玩盲盒 SR · 赛博炫彩猫耳音乐头戴' },
+    { id: 'wizard',          name: '学霸博士帽',   enName: 'Scholar Cap',      icon: '🎓', cost: 16, rarity: 'SR',  desc: '盲盒或徽章兑换 · 满分状元金穗博士帽' },
+    { id: 'sunglasses',      name: '酷炫店长墨镜', enName: 'Cool Shades',      icon: '🕶️', cost: 15, rarity: 'SR',  desc: '盲盒或徽章兑换 · 街头潮酷星光墨镜' },
+    { id: 'medal',           name: '星光荣誉星',   enName: 'Honor Star Halo',  icon: '🌟', cost: 15, rarity: 'SR',  desc: '盲盒或徽章兑换 · 头顶悬浮闪耀金星' },
+    { id: 'royal_beret',     name: '小画家贝雷帽', enName: 'Artist Beret',     icon: '🎨', cost: 14, rarity: 'R',   desc: '潮玩盲盒 R · 暖橘软呢金星画家帽' },
+    { id: 'flower',          name: '夏威夷花环',   enName: 'Aloha Garland',    icon: '🌺', cost: 14, rarity: 'R',   desc: '盲盒或徽章兑换 · 阳光度假扶桑花环' },
+    { id: 'ribbon',          name: '甜心蝴蝶结',   enName: 'Sweet Ribbon',     icon: '🎀', cost: 12, rarity: 'R',   desc: '盲盒或徽章兑换 · 软萌粉红丝带蝴蝶结' },
+    { id: 'lucky_clover',    name: '幸运四叶草苗', enName: 'Lucky Clover',     icon: '🍀', cost: 10, rarity: 'R',   desc: '潮玩盲盒 R · 头顶冒出好运四叶草嫩芽' },
+    { id: 'dango_pin',       name: '三色团子发簪', enName: 'Sweet Dango Pin',  icon: '🍡', cost: 10, rarity: 'R',   desc: '潮玩盲盒 R · 粉白绿三色糯米团子簪' }
 ];
 
 // 萌宠小镇可免费/微徽章布置的景观装饰物 (装扮小镇功能)

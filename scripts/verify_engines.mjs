@@ -653,5 +653,65 @@ qStats = pmQ.getQuestionStats();
 assert.equal(qStats.todayAttempted, 5, 'Questions answered after daily badge cap must still increment todayAttempted');
 assert.equal(qStats.totalAttempted, 5, 'Questions answered after daily badge cap must still increment totalAttempted');
 
-console.log('   ✅ Unified UserProfileManager, Live Question Counter, 12 Pet Voice Profiles, Town Patrol Bonus & Frog Outfits verified!');
+// 9. Verify Daily Fixed Quests (Math 10Q + Off-Campus Course 8Q + All-Clear Golden Ticket) & 6-Series 74-Item Blindbox Museum!
+const pmBbx = new UserProfileManager();
+const museum0 = pmBbx.getBlindboxMuseumSummary();
+assert.equal(museum0.totalItems, 74, 'Blindbox museum must contain 74 collectibles across 6 themed series');
+assert.equal(museum0.bySeries.guardians.totalCount, 10);
+assert.equal(museum0.bySeries.fashion.totalCount, 16);
+assert.equal(museum0.bySeries.dino.totalCount, 12);
+assert.equal(museum0.bySeries.space.totalCount, 12);
+assert.equal(museum0.bySeries.sweets.totalCount, 12);
+assert.equal(museum0.bySeries.treasures.totalCount, 12);
+
+// Complete 10 Math questions -> must award +1 gachaTicket
+let mathQuestEvt = null;
+for (let i = 0; i < 10; i++) {
+    const r = pmBbx.awardLearningProgress({ title: `数学打卡#${i + 1}`, subjectTag: '数学', stars: 1, isMath: true });
+    if (r.questEvents?.length) mathQuestEvt = r.questEvents;
+}
+assert.ok(mathQuestEvt && mathQuestEvt.some(e => e.type === 'math'), '10th math right answer must trigger daily math quest reward');
+assert.equal(pmBbx.getDailyQuestStatus().mathCompleted, true);
+assert.equal(pmBbx.getActiveUser().gachaTickets, 1);
+
+// Complete 8 Off-Campus Course items -> must award +1 course ticket AND +1 all-clear golden ticket = 3 total tickets!
+let courseQuestEvts = [];
+for (let i = 0; i < 8; i++) {
+    const r = pmBbx.awardLearningProgress({
+        title: `校外英语打卡#${i + 1}`,
+        subjectTag: '英语课专项',
+        stars: 1,
+        isMath: false,
+        isCourseSpecial: true
+    });
+    if (r.questEvents?.length) courseQuestEvts.push(...r.questEvents);
+}
+assert.equal(pmBbx.getDailyQuestStatus().courseCompleted, true);
+assert.equal(pmBbx.getDailyQuestStatus().allClearCompleted, true);
+assert.equal(pmBbx.getActiveUser().gachaTickets, 3, 'Completing both daily fixed quests must grant 3 free blindbox tickets');
+assert.equal(pmBbx.getActiveUser().guaranteedHighRarityDraws, 1, 'All-clear bonus must grant 1 SSR/UR guaranteed high-rarity draw');
+
+// Pull 1st blindbox from 'dino' series -> must be SSR or UR (due to guaranteedHighRarityDraws!)
+const firstDinoPull = pmBbx.drawBlindBox('dino');
+assert.equal(firstDinoPull.ok, true);
+assert.equal(firstDinoPull.usedTicket, true);
+assert.equal(firstDinoPull.prize.seriesId, 'dino');
+assert.ok(['UR', 'SSR'].includes(firstDinoPull.prize.rarity), `Guaranteed draw must yield UR or SSR, got ${firstDinoPull.prize.rarity}`);
+
+// Grant 12 more tickets, pull remaining 11 dinosaurs -> verify 12/12 zero-duplicate mastery, then 13th pull upgrades star rank to 2!
+pmBbx.getActiveUser().gachaTickets += 12;
+const seenDinos = new Set([firstDinoPull.prize.uid]);
+for (let i = 0; i < 11; i++) {
+    const p = pmBbx.drawBlindBox('dino');
+    assert.equal(p.prize.isNew, true, `Pull #${i + 2} in dino series must be a brand-new dinosaur`);
+    seenDinos.add(p.prize.uid);
+}
+assert.equal(seenDinos.size, 12, '12 pulls in dino series must unlock all 12 unique dinosaurs with 0 duplicates');
+assert.equal(pmBbx.getBlindboxMuseumSummary().bySeries.dino.isMastered, true);
+
+const starUpPull = pmBbx.drawBlindBox('dino');
+assert.equal(starUpPull.prize.isStarUpgrade, true, '13th pull in a mastered series must upgrade an item to 2-star shiny card');
+assert.equal(starUpPull.prize.starLevel, 2);
+
+console.log('   ✅ Unified UserProfileManager, Daily Fixed Quests, 74-Item Blindbox Museum, Live Question Counter & 12 Pet Voices verified!');
 console.log('\n🎉 ALL ENGINE, NON-REPETITION, QUESTION COUNTER, VOCABULARY (360 WORDS), & PET EVOLUTION CHECKS PASSED!');

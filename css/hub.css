@@ -1117,3 +1117,146 @@ html, body {
 .hub-mode-strip:active {
     cursor: grabbing;
 }
+
+/* ==================== 🎁 每日固定练习打卡 & 六大系列盲盒珍藏馆弹窗 ==================== */
+.hub-btn-gacha {
+    background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%) !important;
+    color: #ffffff !important;
+    border-color: #db2777 !important;
+    box-shadow: 0 3px 10px rgba(219, 39, 119, 0.28);
+}
+
+.banner-ticket-clickable {
+    cursor: pointer;
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+    border: 1.5px solid #fbcfe8;
+}
+.banner-ticket-clickable:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(236, 72, 153, 0.2);
+}
+
+.hub-bbx-wallet-pill {
+    background: linear-gradient(135deg, #fdf2f8, #ede9fe);
+    border: 1.5px solid #f9a8d4;
+    color: #9d174d;
+    border-radius: 999px;
+    padding: 4px 12px;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.hub-bbx-practice-box {
+    margin-top: 10px;
+    background: #ffffff;
+    border: 2px solid #ddd6fe;
+    border-radius: 16px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.hub-bbx-math-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+}
+.hub-bbx-formula {
+    font-size: 28px;
+    font-weight: 900;
+    color: #1e1b4b;
+    background: #f5f3ff;
+    padding: 8px 22px;
+    border-radius: 14px;
+    border: 2px solid #c4b5fd;
+}
+.hub-bbx-keypad {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    max-width: 440px;
+}
+.hub-bbx-key {
+    min-width: 44px;
+    height: 40px;
+    padding: 0 10px;
+    border-radius: 10px;
+    border: 2px solid #cbd5e1;
+    background: #ffffff;
+    font-size: 17px;
+    font-weight: 900;
+    color: #1e293b;
+    cursor: pointer;
+}
+.hub-bbx-key.submit {
+    background: linear-gradient(135deg, #10b981, #059669);
+    border-color: #059669;
+    color: #ffffff;
+    padding: 0 16px;
+}
+
+.hub-bbx-machine-wrap {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: 16px;
+    align-items: center;
+}
+.hub-bbx-dome {
+    width: 176px;
+    height: 176px;
+    margin: 0 auto;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #ffffff, #f3e8ff);
+    border: 5px solid #ec4899;
+    box-shadow: inset 0 -10px 20px rgba(139, 92, 246, 0.2), 0 8px 18px rgba(236, 72, 153, 0.22);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+.hub-bbx-dome.shaking {
+    animation: hubDomeShake 0.55s ease;
+}
+@keyframes hubDomeShake {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(-8deg) scale(1.04); }
+    50% { transform: rotate(8deg) scale(1.06); }
+    75% { transform: rotate(-5deg) scale(1.03); }
+}
+.hub-bbx-pull-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 11px 14px;
+    border: none;
+    border-radius: 16px;
+    background: linear-gradient(135deg, #ec4899, #7c3aed);
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 4px 0 #5b21b6;
+}
+.hub-bbx-pull-btn small {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    opacity: 0.92;
+}
+.hub-bbx-prize-showcase {
+    background: #ffffff;
+    border: 2px solid #f9a8d4;
+    border-radius: 16px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    min-height: 210px;
+    gap: 6px;
+}

@@ -23,6 +23,14 @@ import {
 } from '../pet/js/config.js';
 import { ALL_MATH_TYPE_IDS } from './mathEngine.js';
 import { ALL_ENGLISH_TYPE_IDS, ALL_COURSE_SUB_IDS, DEFAULT_EASY_ENGLISH_TYPES, COURSE_LESSONS } from './englishEngine.js';
+import {
+    DAILY_MATH_QUEST_TARGET,
+    DAILY_COURSE_QUEST_TARGET,
+    BLINDBOX_SERIES,
+    BLINDBOX_RARITY_META,
+    COMPANION_SPRITES,
+    MUSEUM_COLLECTIBLES
+} from './blindboxCatalog.js';
 
 export const STORAGE_KEY = 'chongwuyy_pet_town_profiles_v2';
 
@@ -65,6 +73,11 @@ function createFreshDailyState() {
         vocabCampCount: 0,
         questionsAttempted: 0,
         questionsCorrect: 0,
+        mathCorrectToday: 0,
+        courseCorrectToday: 0,
+        dailyMathQuestClaimed: false,
+        dailyCourseQuestClaimed: false,
+        dailyAllClearClaimed: false,
         siblingGiftClaimed: false
     };
 }
@@ -147,6 +160,11 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
         ownedAccessories: ['none', 'lotus_hat'],
         frogLotusHatMigrated_v1: true,
         ownedDecors: [],
+        blindboxCollection: {},
+        activeCompanionId: null,
+        gachaPityCount: 0,
+        guaranteedHighRarityDraws: 0,
+        selectedBlindboxSeries: 'all',
         mathConfig,
         difficulty: { ...mathConfig },
         englishConfig: {
@@ -431,6 +449,24 @@ export class UserProfileManager {
             if (!isValidSmartMode(u.preferredSmartMode)) u.preferredSmartMode = 'grand_random';
             if (!Array.isArray(u.ownedAccessories)) u.ownedAccessories = ['none'];
             if (!Array.isArray(u.ownedDecors)) u.ownedDecors = [];
+            if (!u.blindboxCollection || typeof u.blindboxCollection !== 'object') u.blindboxCollection = {};
+            if (typeof u.activeCompanionId !== 'string') u.activeCompanionId = null;
+            if (typeof u.gachaPityCount !== 'number') u.gachaPityCount = 0;
+            if (typeof u.guaranteedHighRarityDraws !== 'number') u.guaranteedHighRarityDraws = 0;
+            if (!u.selectedBlindboxSeries || !BLINDBOX_SERIES.some(s => s.id === u.selectedBlindboxSeries)) {
+                u.selectedBlindboxSeries = 'all';
+            }
+            // 同步历史已抽中的盲盒神宠与配饰进统一图鉴星级表
+            PETS_CATALOG.filter(p => p.isBlindbox && u.pets?.[p.id]?.unlocked).forEach(p => {
+                if (!u.blindboxCollection[`pet_${p.id}`]) {
+                    u.blindboxCollection[`pet_${p.id}`] = { stars: 1, count: 1, obtainedAt: nowTimeStr() };
+                }
+            });
+            PET_ACCESSORIES.filter(a => !a.freeDefault && u.ownedAccessories?.includes(a.id)).forEach(a => {
+                if (!u.blindboxCollection[`acc_${a.id}`]) {
+                    u.blindboxCollection[`acc_${a.id}`] = { stars: 1, count: 1, obtainedAt: nowTimeStr() };
+                }
+            });
             if (!u.stats) {
                 u.stats = {
                     totalMathAttempted: 0,
@@ -618,7 +654,33 @@ export class UserProfileManager {
         if (typeof user.dailyState.vocabCampCount !== 'number') user.dailyState.vocabCampCount = 0;
         if (typeof user.dailyState.questionsAttempted !== 'number') user.dailyState.questionsAttempted = 0;
         if (typeof user.dailyState.questionsCorrect !== 'number') user.dailyState.questionsCorrect = 0;
+        if (typeof user.dailyState.mathCorrectToday !== 'number') user.dailyState.mathCorrectToday = 0;
+        if (typeof user.dailyState.courseCorrectToday !== 'number') user.dailyState.courseCorrectToday = 0;
+        if (typeof user.dailyState.dailyMathQuestClaimed !== 'boolean') user.dailyState.dailyMathQuestClaimed = false;
+        if (typeof user.dailyState.dailyCourseQuestClaimed !== 'boolean') user.dailyState.dailyCourseQuestClaimed = false;
+        if (typeof user.dailyState.dailyAllClearClaimed !== 'boolean') user.dailyState.dailyAllClearClaimed = false;
         return user.dailyState;
+    }
+
+    getDailyQuestStatus(user = null) {
+        const u = user || this.getActiveUser();
+        const ds = this._ensureDailyState(u);
+        const latestLesson = COURSE_LESSONS?.[0];
+        return {
+            dateKey: ds.dateKey,
+            mathDone: Math.min(DAILY_MATH_QUEST_TARGET, ds.mathCorrectToday || 0),
+            mathRaw: ds.mathCorrectToday || 0,
+            mathTarget: DAILY_MATH_QUEST_TARGET,
+            mathCompleted: Boolean(ds.dailyMathQuestClaimed),
+            courseDone: Math.min(DAILY_COURSE_QUEST_TARGET, ds.courseCorrectToday || 0),
+            courseRaw: ds.courseCorrectToday || 0,
+            courseTarget: DAILY_COURSE_QUEST_TARGET,
+            courseCompleted: Boolean(ds.dailyCourseQuestClaimed),
+            allClearCompleted: Boolean(ds.dailyAllClearClaimed),
+            completedCount: (ds.dailyMathQuestClaimed ? 1 : 0) + (ds.dailyCourseQuestClaimed ? 1 : 0),
+            totalQuests: 2,
+            latestLessonTitle: latestLesson ? `${latestLesson.code}《${latestLesson.storyTitle}》` : '校外英语课'
+        };
     }
 
     getDailyStatus(user = null) {
@@ -881,21 +943,34 @@ export class UserProfileManager {
         return this.getQuestionStats(u);
     }
 
-    awardLearningProgress({ title, subjectTag, badges = 0, stars = 0, gotTicket = false, isVocabCampFinish = false, combo = 0, isMath = true, countAsQuestion = true }) {
+    awardLearningProgress({ title, subjectTag, badges = 0, stars = 0, gotTicket = false, isVocabCampFinish = false, combo = 0, isMath = true, isCourseSpecial = false, countAsQuestion = true }) {
         const u = this.getActiveUser();
         const ds = this._ensureDailyState(u);
         const cap = u.dailyBadgeCap || DEFAULT_DAILY_BADGE_CAP;
+
+        const isCoursePractice = Boolean(
+            isCourseSpecial ||
+            subjectTag === '朗读打卡' ||
+            (typeof subjectTag === 'string' && (subjectTag.includes('英语课') || subjectTag.includes('校外课'))) ||
+            (typeof title === 'string' && (title.includes('校外英语') || title.includes('英语课') || title.includes('S1·分级') || title.includes('S1U1')))
+        );
 
         if (countAsQuestion !== false) {
             ds.questionsAttempted = (ds.questionsAttempted || 0) + 1;
             ds.questionsCorrect = (ds.questionsCorrect || 0) + 1;
             if (isMath) {
+                ds.mathCorrectToday = (ds.mathCorrectToday || 0) + 1;
                 u.stats.totalMathAttempted = Math.max(u.stats.totalMathAttempted || 0, u.stats.totalMathCorrect || 0) + 1;
                 u.stats.totalMathCorrect = (u.stats.totalMathCorrect || 0) + 1;
             } else {
+                if (isCoursePractice) {
+                    ds.courseCorrectToday = (ds.courseCorrectToday || 0) + 1;
+                }
                 u.stats.totalEnglishAttempted = Math.max(u.stats.totalEnglishAttempted || 0, u.stats.totalEnglishCorrect || 0) + 1;
                 u.stats.totalEnglishCorrect = (u.stats.totalEnglishCorrect || 0) + 1;
             }
+        } else if (subjectTag === '朗读打卡') {
+            ds.courseCorrectToday = (ds.courseCorrectToday || 0) + 1;
         }
         if (combo > (u.stats.bestCombo || 0)) u.stats.bestCombo = combo;
         if (isVocabCampFinish) ds.vocabCampCount += 1;
@@ -933,6 +1008,49 @@ export class UserProfileManager {
             actualTicket = true;
         }
 
+        // ==================== 📅 每日数英固定打卡任务检测（必送免费盲盒券！） ====================
+        const questEvents = [];
+        if (!ds.dailyMathQuestClaimed && ds.mathCorrectToday >= DAILY_MATH_QUEST_TARGET) {
+            ds.dailyMathQuestClaimed = true;
+            u.gachaTickets = (u.gachaTickets || 0) + 1;
+            actualTicket = true;
+            this._pushLedger(u, `📅 每日数学固定打卡(${DAILY_MATH_QUEST_TARGET}题)达成奖励`, 2);
+            this._pushScoreRecord(u, `📅 每日数学固定打卡达成 (+1🎟️盲盒券 +2🏅)`, '每日打卡', 2);
+            questEvents.push({
+                type: 'math',
+                ticketAdded: 1,
+                badgeAdded: 2,
+                label: `📅 今日数学固定打卡(${DAILY_MATH_QUEST_TARGET}题)完成！免费获赠 +1🎟️盲盒券 +2🏅！`
+            });
+        }
+        if (!ds.dailyCourseQuestClaimed && ds.courseCorrectToday >= DAILY_COURSE_QUEST_TARGET) {
+            ds.dailyCourseQuestClaimed = true;
+            u.gachaTickets = (u.gachaTickets || 0) + 1;
+            actualTicket = true;
+            this._pushLedger(u, `📅 每日校外英语打卡(${DAILY_COURSE_QUEST_TARGET}次)达成奖励`, 2);
+            this._pushScoreRecord(u, `📅 每日校外英语打卡达成 (+1🎟️盲盒券 +2🏅)`, '每日打卡', 2);
+            questEvents.push({
+                type: 'course',
+                ticketAdded: 1,
+                badgeAdded: 2,
+                label: `📅 今日校外英语打卡(${DAILY_COURSE_QUEST_TARGET}次)完成！免费获赠 +1🎟️盲盒券 +2🏅！`
+            });
+        }
+        if (ds.dailyMathQuestClaimed && ds.dailyCourseQuestClaimed && !ds.dailyAllClearClaimed) {
+            ds.dailyAllClearClaimed = true;
+            u.gachaTickets = (u.gachaTickets || 0) + 1;
+            u.guaranteedHighRarityDraws = (u.guaranteedHighRarityDraws || 0) + 1;
+            actualTicket = true;
+            this._pushLedger(u, '🏆 今日数英双科全勤满贯大奖', 3);
+            this._pushScoreRecord(u, '🏆 今日数英双科全勤达成 (+1🎟️闪耀保底盲盒券 +3🏅)', '全勤满贯', 3);
+            questEvents.push({
+                type: 'all_clear',
+                ticketAdded: 1,
+                badgeAdded: 3,
+                label: '🏆 今日数英双科全勤达成！加赠 +1🎟️ SSR/UR 保底黄金盲盒券 +3🏅！'
+            });
+        }
+
         this.save();
         return {
             user: u,
@@ -943,6 +1061,7 @@ export class UserProfileManager {
             reachedCapNow,
             alreadyAtCap,
             actualTicket,
+            questEvents,
             levelUpEvent: null
         };
     }
@@ -1257,58 +1376,280 @@ export class UserProfileManager {
         return { ok: true };
     }
 
-    drawBlindBox() {
+    _buildUnifiedBlindboxPool(user) {
+        const u = user || this.getActiveUser();
+        const col = u.blindboxCollection || {};
+        const pool = [];
+
+        // 1. guardians 系列：4 款隐藏神宠 + 6 款悬浮伴生精灵 (共 10 款)
+        PETS_CATALOG.filter(p => p.isBlindbox).forEach(p => {
+            const uid = `pet_${p.id}`;
+            const rarityKey = String(p.rarity || '').startsWith('UR') ? 'UR' : 'SSR';
+            const unlocked = Boolean(u.pets?.[p.id]?.unlocked);
+            const stars = unlocked ? (col[uid]?.stars || 1) : 0;
+            pool.push({
+                uid,
+                rawId: p.id,
+                seriesId: 'guardians',
+                prizeType: 'pet',
+                rarity: rarityKey,
+                name: p.name,
+                enName: p.enName || '',
+                icon: p.emoji,
+                img: p.img,
+                colors: [p.auraColor || '#8b5cf6', p.auraSecondary || '#ec4899'],
+                funFact: p.stageDescs?.[0] || '超稀有盲盒限定神宠伙伴！',
+                owned: unlocked,
+                stars
+            });
+        });
+
+        COMPANION_SPRITES.forEach(c => {
+            const uid = c.id;
+            const entry = col[uid];
+            pool.push({
+                uid,
+                rawId: c.id,
+                seriesId: 'guardians',
+                prizeType: 'companion',
+                rarity: c.rarity,
+                name: c.name,
+                enName: c.enName,
+                icon: c.icon,
+                colors: c.colors,
+                funFact: c.funFact,
+                owned: Boolean(entry),
+                stars: entry?.stars || 0
+            });
+        });
+
+        // 2. fashion 系列：16 款潮玩头饰装扮
+        PET_ACCESSORIES.filter(a => !a.freeDefault).forEach(a => {
+            const uid = `acc_${a.id}`;
+            const owned = Boolean(u.ownedAccessories?.includes(a.id));
+            const stars = owned ? (col[uid]?.stars || 1) : 0;
+            pool.push({
+                uid,
+                rawId: a.id,
+                seriesId: 'fashion',
+                prizeType: 'accessory',
+                rarity: a.rarity || 'R',
+                name: a.name,
+                enName: a.enName || '',
+                icon: a.icon,
+                colors: ['#ec4899', '#8b5cf6'],
+                funFact: a.desc,
+                owned,
+                stars
+            });
+        });
+
+        // 3. 四大博物馆手办系列：dino(12) + space(12) + sweets(12) + treasures(12) = 48 款
+        MUSEUM_COLLECTIBLES.forEach(m => {
+            const uid = m.id;
+            const entry = col[uid];
+            pool.push({
+                uid,
+                rawId: m.id,
+                seriesId: m.seriesId,
+                prizeType: 'figurine',
+                rarity: m.rarity,
+                name: m.name,
+                enName: m.enName,
+                icon: m.icon,
+                colors: m.colors,
+                funFact: m.funFact,
+                owned: Boolean(entry),
+                stars: entry?.stars || 0
+            });
+        });
+
+        return pool;
+    }
+
+    setSelectedBlindboxSeries(seriesId) {
         const u = this.getActiveUser();
+        if (!u) return;
+        if (BLINDBOX_SERIES.some(s => s.id === seriesId)) {
+            u.selectedBlindboxSeries = seriesId;
+            this.save();
+        }
+    }
+
+    equipCompanion(compId = null) {
+        const u = this.getActiveUser();
+        if (!u) return { ok: false };
+        if (!compId) {
+            u.activeCompanionId = null;
+            this.save();
+            return { ok: true, activeCompanionId: null };
+        }
+        if (!u.blindboxCollection?.[compId]) {
+            return { ok: false, msg: '尚未在盲盒中抽到这只伴生小精灵哦！' };
+        }
+        u.activeCompanionId = u.activeCompanionId === compId ? null : compId;
+        this.save();
+        return { ok: true, activeCompanionId: u.activeCompanionId };
+    }
+
+    getBlindboxMuseumSummary(user = null) {
+        const u = user || this.getActiveUser();
+        const pool = this._buildUnifiedBlindboxPool(u);
+        const ownedCount = pool.filter(it => it.owned).length;
+        const totalStars = pool.reduce((sum, it) => sum + (it.stars || 0), 0);
+        const bySeries = {};
+        BLINDBOX_SERIES.forEach(s => {
+            const list = s.id === 'all' ? pool : pool.filter(it => it.seriesId === s.id);
+            const got = list.filter(it => it.owned).length;
+            bySeries[s.id] = {
+                series: s,
+                items: list,
+                ownedCount: got,
+                totalCount: list.length,
+                isMastered: list.length > 0 && got >= list.length
+            };
+        });
+        return {
+            totalOwned: ownedCount,
+            totalItems: pool.length,
+            totalStars,
+            maxStars: pool.length * 3,
+            pityRemaining: Math.max(1, 5 - (u.gachaPityCount || 0)),
+            guaranteedHighRarityDraws: u.guaranteedHighRarityDraws || 0,
+            selectedSeries: u.selectedBlindboxSeries || 'all',
+            activeCompanionId: u.activeCompanionId || null,
+            bySeries
+        };
+    }
+
+    drawBlindBox(seriesOverride = null) {
+        const u = this.getActiveUser();
+        if (!u.blindboxCollection || typeof u.blindboxCollection !== 'object') {
+            u.blindboxCollection = {};
+        }
+
+        const targetSeries = (seriesOverride && BLINDBOX_SERIES.some(s => s.id === seriesOverride))
+            ? seriesOverride
+            : (u.selectedBlindboxSeries || 'all');
+        u.selectedBlindboxSeries = targetSeries;
+
         let usedTicket = false;
         if ((u.gachaTickets || 0) > 0) {
             u.gachaTickets -= 1;
             usedTicket = true;
         } else if (u.badges >= GACHA_BADGE_COST) {
-            this._pushLedger(u, '🎁 开启神秘萌宠盲盒扭蛋', -GACHA_BADGE_COST);
+            this._pushLedger(u, `🎁 开启【${BLINDBOX_SERIES.find(s => s.id === targetSeries)?.shortName || '惊喜'}】盲盒`, -GACHA_BADGE_COST);
         } else {
             return {
                 ok: false,
-                msg: `需要 1 张盲盒券或 ${GACHA_BADGE_COST} 枚徽章才能扭蛋哦！（每日完成首组 5 词背诵或达成 15 连对可直接免费送盲盒券！）`
+                msg: `需要 1 张 🎟️ 盲盒券或 ${GACHA_BADGE_COST} 枚 🏅 徽章才能开箱哦！（完成今日 10 道数学或 8 次校外英语固定打卡，免费必得盲盒券！）`
             };
         }
 
-        const unownedHiddenPets = PETS_CATALOG.filter(p => p.isBlindbox && !u.pets[p.id]?.unlocked);
-        const unownedAccs = PET_ACCESSORIES.filter(a => a.id !== 'none' && !u.ownedAccessories.includes(a.id));
+        const allPool = this._buildUnifiedBlindboxPool(u);
+        const seriesPool = targetSeries === 'all'
+            ? allPool
+            : allPool.filter(it => it.seriesId === targetSeries);
 
-        let prize = null;
-        const roll = Math.random();
+        u.gachaPityCount = (u.gachaPityCount || 0) + 1;
+        const forceHighRarity = (u.guaranteedHighRarityDraws || 0) > 0 || u.gachaPityCount >= 5;
 
-        if (unownedHiddenPets.length > 0 && (roll < 0.60 || unownedAccs.length === 0)) {
-            const chosenPet = unownedHiddenPets[Math.floor(Math.random() * unownedHiddenPets.length)];
-            u.pets[chosenPet.id].unlocked = true;
-            prize = {
-                prizeType: 'pet',
-                title: `🎊 欧气爆发！抽中 ${chosenPet.rarity}【${chosenPet.name}】！`,
-                name: chosenPet.name,
-                img: chosenPet.img,
-                icon: chosenPet.emoji,
-                petId: chosenPet.id
-            };
-        } else if (unownedAccs.length > 0) {
-            const acc = unownedAccs[Math.floor(Math.random() * unownedAccs.length)];
-            u.ownedAccessories.push(acc.id);
-            if (u.pets[u.activePetId]) u.pets[u.activePetId].accessory = acc.id;
-            prize = {
-                prizeType: 'accessory',
-                title: `✨ 恭喜获得限定萌宠装扮【${acc.icon} ${acc.name}】！`,
-                name: acc.name,
-                icon: acc.icon,
-                accId: acc.id
-            };
-        } else {
-            this._gainPetExp(u, u.activePetId, 20);
-            prize = {
-                prizeType: 'exp_pack',
-                title: `🌈 集齐幸运大奖！当前萌宠获得 +20 超级成长能量！`,
-                name: '彩虹成长大礼盒',
-                icon: '🌈'
-            };
+        // 1) 100% 优先从本系列尚未拥有的新品中抽取；若本系列已全齐，则优先抽取未满 3 星的可升星款
+        let candidates = seriesPool.filter(it => !it.owned);
+        if (candidates.length === 0) {
+            candidates = seriesPool.filter(it => (it.stars || 0) < 3);
         }
+        if (candidates.length === 0) {
+            // 若该单系列连 3 星都全部满级，则自动跨系列帮你抽其他系列尚未拥有的新品！
+            const otherUnowned = allPool.filter(it => !it.owned);
+            candidates = otherUnowned.length > 0 ? otherUnowned : seriesPool;
+        }
+
+        if (forceHighRarity) {
+            const highPool = candidates.filter(it => it.rarity === 'UR' || it.rarity === 'SSR');
+            if (highPool.length > 0) {
+                candidates = highPool;
+            }
+        }
+
+        const weightedPick = (list) => {
+            const totalW = list.reduce((acc, it) => acc + (BLINDBOX_RARITY_META[it.rarity]?.weight || 25), 0);
+            let r = Math.random() * totalW;
+            for (const it of list) {
+                r -= (BLINDBOX_RARITY_META[it.rarity]?.weight || 25);
+                if (r <= 0) return it;
+            }
+            return list[list.length - 1];
+        };
+
+        const chosen = weightedPick(candidates);
+        if (chosen.rarity === 'UR' || chosen.rarity === 'SSR') {
+            u.gachaPityCount = 0;
+            if ((u.guaranteedHighRarityDraws || 0) > 0) {
+                u.guaranteedHighRarityDraws -= 1;
+            }
+        }
+
+        const prevEntry = u.blindboxCollection[chosen.uid];
+        const isNew = !chosen.owned;
+        const nextStars = isNew ? 1 : Math.min(3, (prevEntry?.stars || 1) + 1);
+        const isStarUpgrade = !isNew && nextStars > (prevEntry?.stars || 1);
+
+        u.blindboxCollection[chosen.uid] = {
+            stars: nextStars,
+            count: (prevEntry?.count || 0) + 1,
+            obtainedAt: nowTimeStr()
+        };
+
+        if (chosen.prizeType === 'pet') {
+            if (u.pets[chosen.rawId]) u.pets[chosen.rawId].unlocked = true;
+        } else if (chosen.prizeType === 'accessory') {
+            if (!u.ownedAccessories.includes(chosen.rawId)) {
+                u.ownedAccessories.push(chosen.rawId);
+            }
+            if (isNew && u.pets[u.activePetId]) {
+                u.pets[u.activePetId].accessory = chosen.rawId;
+            }
+        } else if (chosen.prizeType === 'companion') {
+            if (isNew && !u.activeCompanionId) {
+                u.activeCompanionId = chosen.rawId;
+            }
+        }
+
+        if (!isNew) {
+            this._gainPetExp(u, u.activePetId, 12);
+        }
+
+        const rarityLabel = BLINDBOX_RARITY_META[chosen.rarity]?.label || chosen.rarity;
+        const seriesMeta = BLINDBOX_SERIES.find(s => s.id === chosen.seriesId);
+        const title = isNew
+            ? `🎊 新图鉴点亮！抽中 ${rarityLabel}【${chosen.name}】！`
+            : (isStarUpgrade
+                ? `🌟 闪卡升阶！【${chosen.name}】升至 ${nextStars} 星典藏（萌宠 +12 成长值）！`
+                : `🌈 满星鸿运！【${chosen.name}】化为 +12 超级成长能量！`);
+
+        const prize = {
+            uid: chosen.uid,
+            rawId: chosen.rawId,
+            seriesId: chosen.seriesId,
+            seriesName: seriesMeta?.name || '惊喜盲盒',
+            prizeType: chosen.prizeType,
+            rarity: chosen.rarity,
+            rarityLabel,
+            isNew,
+            isStarUpgrade,
+            starLevel: nextStars,
+            title,
+            name: chosen.name,
+            enName: chosen.enName,
+            img: chosen.img || null,
+            icon: chosen.icon,
+            colors: chosen.colors,
+            funFact: chosen.funFact,
+            petId: chosen.prizeType === 'pet' ? chosen.rawId : null,
+            accId: chosen.prizeType === 'accessory' ? chosen.rawId : null,
+            compId: chosen.prizeType === 'companion' ? chosen.rawId : null
+        };
 
         this.save();
         return { ok: true, usedTicket, prize };
@@ -1541,6 +1882,7 @@ export class UserProfileManager {
         };
         let badgeGain = 0;
         let awarded = false;
+        let questEvents = [];
         if (!alreadyRewardedToday) {
             awarded = true;
             const awardRes = this.awardLearningProgress({
@@ -1551,12 +1893,14 @@ export class UserProfileManager {
                 gotTicket: false,
                 combo: 1,
                 isMath: false,
+                isCourseSpecial: true,
                 countAsQuestion: false
             });
             badgeGain = awardRes?.actualBadges || 0;
+            questEvents = awardRes?.questEvents || [];
         }
         this.save();
-        return { checked: true, awarded, badgeGain };
+        return { checked: true, awarded, badgeGain, questEvents };
     }
 
     isTownPlotPatrolledToday(plotId, userObj = null) {

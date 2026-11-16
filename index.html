@@ -16,8 +16,8 @@
     <meta name="theme-color" content="#7c5cfc">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/hub.css?v=20261116_course_v2">
-    <link rel="stylesheet" href="shared/smartChalkboard.css?v=20261116_course_v2">
+    <link rel="stylesheet" href="css/hub.css?v=20261116_bbx_v1">
+    <link rel="stylesheet" href="shared/smartChalkboard.css?v=20261116_bbx_v1">
 </head>
 <body>
     <div class="hub-app" id="hubApp">
@@ -37,6 +37,10 @@
             </div>
 
             <div class="hub-header-actions">
+                <button type="button" class="hub-action-pill hub-btn-gacha" id="btnHubDailyGacha" title="每日固定数学(10题)+校外英语(8次)打卡免费领盲盒券，畅抽6大系列74款盲盒珍品！">
+                    <span>🎁</span>
+                    <span id="hubDailyGachaBtnLabel">打卡·盲盒</span>
+                </button>
                 <button type="button" class="hub-action-pill hub-btn-course" id="btnHubCourseCenter" title="校外英语课后作业特训舱：视频作业跟读打卡、高频词句听写与12词自然拼读抽查">
                     <span>🎓</span>
                     <span id="hubCourseBtnLabel">英语课作业</span>
@@ -96,11 +100,11 @@
                     </div>
                 </div>
 
-                <div class="banner-stat-box">
+                <div class="banner-stat-box banner-ticket-clickable" id="bannerTicketsBox" title="点击打开每日数英打卡与六大系列盲盒博物馆！">
                     <span class="banner-stat-icon">🎟️</span>
                     <div>
                         <div class="banner-stat-val" id="bannerTicketsVal">0</div>
-                        <div class="banner-stat-lbl">惊喜盲盒券</div>
+                        <div class="banner-stat-lbl">打卡·抽盲盒 ▸</div>
                     </div>
                 </div>
             </div>
@@ -362,11 +366,36 @@
         </div>
     </div>
 
-    <script type="module" src="js/hub.js?v=20261116_course_v2"></script>
+    <!-- ==================== 模态窗 5：🎁 每日数英固定打卡 & 六大系列盲盒博物馆 ==================== -->
+    <div class="hub-modal-overlay" id="hubBlindboxModal">
+        <div class="hub-modal-card hub-course-modal-card hub-bbx-modal-card">
+            <div class="hub-modal-header hub-course-header">
+                <div class="hub-course-title-wrap">
+                    <div class="hub-modal-title">🎁 每日固定练习打卡 & 盲盒珍藏馆</div>
+                    <span class="hub-bbx-wallet-pill" id="hubBbxWalletInfo">🎟️ 盲盒券 0 · 🏅 徽章 0</span>
+                </div>
+                <div class="hub-course-jump-group">
+                    <button type="button" class="hub-course-jump-btn" id="btnBbxGoPetGacha">🐾 去萌宠屋穿戴/伴飞</button>
+                    <button type="button" class="hub-close-btn" id="btnCloseHubBlindbox">✕</button>
+                </div>
+            </div>
+
+            <div class="hub-course-tabs" id="hubBlindboxTabs">
+                <button type="button" class="hub-course-tab active" data-bbxtab="quests">📅 1. 每日固定打卡领券</button>
+                <button type="button" class="hub-course-tab" data-bbxtab="machine">🎰 2. 六大系列扭盲盒</button>
+                <button type="button" class="hub-course-tab" data-bbxtab="museum" id="hubBbxMuseumTabBtn">🏛️ 3. 盲盒图鉴展柜 (0/74)</button>
+            </div>
+
+            <div class="hub-course-stage hub-bbx-stage" id="hubBlindboxStage"></div>
+            <div class="hub-course-feedback" id="hubBlindboxFeedback">📅 每天完成【10道数学】+【8次校外英语】固定打卡，保底免费领 3 张 🎟️ 盲盒券抽 74 款珍品！</div>
+        </div>
+    </div>
+
+    <script type="module" src="js/hub.js?v=20261116_bbx_v1"></script>
     <script>
         if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=20261116_course_v2').catch(() => {});
+                navigator.serviceWorker.register('./sw.js?v=20261116_bbx_v1').catch(() => {});
             });
         }
     </script>

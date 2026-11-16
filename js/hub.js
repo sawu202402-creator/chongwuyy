@@ -38,7 +38,13 @@ import {
     renderCourseReadAloudBoard
 } from '../shared/questionWidgets.js';
 import { openRandomFilterModal } from '../shared/randomFilterModal.js';
-import { AVATAR_LIST, DAILY_BADGE_CAP_OPTIONS, getPetById, getAccessoryById } from '../pet/js/config.js';
+import { AVATAR_LIST, DAILY_BADGE_CAP_OPTIONS, GACHA_BADGE_COST, getPetById, getAccessoryById } from '../pet/js/config.js';
+import {
+    BLINDBOX_SERIES,
+    BLINDBOX_RARITY_META,
+    renderCollectibleStandeeHtml,
+    renderStarRankHtml
+} from '../shared/blindboxCatalog.js';
 import { sharedSpeech } from '../shared/audioTTS.js';
 import { requireParentGate } from '../shared/parentGate.js';
 
@@ -84,6 +90,18 @@ class PortalHubApp {
             lessonId: 'latest',
             mode: 'course_readcard',
             locked: false
+        };
+
+        // 🎁 每日固定练习打卡 & 六大系列盲盒珍藏馆状态
+        this.bbxMathEngine = new MathEngine();
+        this.bbxCourseEngine = new EnglishEngine();
+        this.bbxState = {
+            tab: 'quests',       // 'quests' | 'machine' | 'museum'
+            activePractice: 'math', // 'math' | 'course'
+            mathInput: '',
+            currentMathQ: null,
+            lastPrize: null,
+            detailItem: null
         };
 
         this.bindEvents();
@@ -284,8 +302,24 @@ class PortalHubApp {
             });
         });
 
+        // 🎁 每日数英打卡 & 六大系列盲盒馆弹窗
+        document.getElementById('btnHubDailyGacha')?.addEventListener('click', () => this.openBlindboxModal('quests'));
+        document.getElementById('bannerTicketsBox')?.addEventListener('click', () => this.openBlindboxModal('machine'));
+        document.getElementById('btnCloseHubBlindbox')?.addEventListener('click', () => {
+            document.getElementById('hubBlindboxModal')?.classList.remove('show');
+        });
+        document.getElementById('btnBbxGoPetGacha')?.addEventListener('click', () => {
+            window.location.href = './pet/index.html';
+        });
+        document.getElementById('hubBlindboxTabs')?.addEventListener('click', (e) => {
+            const btn = e.target.closest('.hub-course-tab');
+            if (!btn) return;
+            this.bbxState.tab = btn.getAttribute('data-bbxtab') || 'quests';
+            this.renderBlindboxModal(false);
+        });
+
         // 模态遮罩空白处关闭
-        ['hubSettingsModal', 'hubReportModal', 'hubBackupModal', 'hubCourseModal'].forEach(id => {
+        ['hubSettingsModal', 'hubReportModal', 'hubBackupModal', 'hubCourseModal', 'hubBlindboxModal'].forEach(id => {
             const modal = document.getElementById(id);
             modal?.addEventListener('click', (e) => {
                 if (e.target === modal) {
@@ -429,6 +463,14 @@ class PortalHubApp {
         const courseBtnLbl = document.getElementById('hubCourseBtnLabel');
         if (courseBtnLbl && COURSE_LESSONS[0]) {
             courseBtnLbl.textContent = `英语课(${COURSE_LESSONS[0].code})`;
+        }
+        const dailyGachaLbl = document.getElementById('hubDailyGachaBtnLabel');
+        if (dailyGachaLbl && profileManager.getDailyQuestStatus) {
+            const qs = profileManager.getDailyQuestStatus(active);
+            const tickets = active?.gachaTickets || 0;
+            dailyGachaLbl.textContent = qs.allClearCompleted
+                ? `盲盒馆(🎟️${tickets})`
+                : `打卡·盲盒(${qs.completedCount}/2)`;
         }
 
         strip.innerHTML = '';
@@ -1394,18 +1436,23 @@ class PortalHubApp {
                 stars: res.starEarned,
                 gotTicket: res.gotGachaTicket,
                 combo: res.combo,
-                isMath: false
+                isMath: false,
+                isCourseSpecial: true
             });
             this.renderAll();
             if (fb) {
+                const questBonus = (award.questEvents && award.questEvents.length > 0)
+                    ? ` · 🎁${award.questEvents.map(ev => ev.label).join(' ')}`
+                    : '';
                 fb.textContent = award.actualBadges > 0
-                    ? `🎉 Super! ${keyText} 默写全对！荣获 +${award.actualBadges}🏅 徽章（今日 ${award.dailyEarned}/${award.dailyCap}）！`
-                    : `⭐ Super! ${keyText} 答对啦！学习星 ${award.starProgress}/3（满3星合成 +1🏅）！`;
+                    ? `🎉 Super! ${keyText} 默写全对！荣获 +${award.actualBadges}🏅 徽章（今日 ${award.dailyEarned}/${award.dailyCap}）${questBonus}`
+                    : `⭐ Super! ${keyText} 答对啦！学习星 ${award.starProgress}/3（满3星合成 +1🏅）${questBonus}`;
             }
             setTimeout(() => this.renderCourseModal(true), 780);
         } else {
             const wrongSpeak = q.expectedSentence || q.answerEn || q.wordObj.ttsWord || q.wordObj.word;
             sharedSpeech.speakEnglish(wrongSpeak, true, '');
+            profileManager.recordQuestionAttempt({ isMath: false, isCorrect: false, combo: 0 });
             profileManager.updateWordProgress(q.wordObj, false, 0);
             this.renderAll();
             if (fb) {
@@ -1413,6 +1460,410 @@ class PortalHubApp {
             }
             setTimeout(() => this.renderCourseModal(true), 1500);
         }
+    }
+
+    // ==================== 🎁 每日固定练习打卡 & 六大系列盲盒珍藏馆 ====================
+    openBlindboxModal(initialTab = 'quests') {
+        const u = profileManager.getActiveUser();
+        const qs = profileManager.getDailyQuestStatus(u);
+        this.bbxState.tab = initialTab || 'quests';
+        if (this.bbxState.tab === 'quests') {
+            this.bbxState.activePractice = (!qs.mathCompleted) ? 'math' : (!qs.courseCompleted ? 'course' : 'math');
+            this.bbxState.currentMathQ = null;
+            this.bbxState.mathInput = '';
+        }
+        this.renderBlindboxModal(false);
+        document.getElementById('hubBlindboxModal')?.classList.add('show');
+    }
+
+    _resolveHubPrizeVisual(item, size = 100) {
+        if (item.img) {
+            const src = item.img.startsWith('pet/') ? item.img : `pet/${item.img}`;
+            return `<img src="${src}" alt="${item.name}" style="width:${size}px;height:${size}px;object-fit:contain;" />`;
+        }
+        return renderCollectibleStandeeHtml(item, item.starLevel || item.stars || 1, size);
+    }
+
+    renderBlindboxModal(autoSpeak = false) {
+        const u = profileManager.getActiveUser();
+        const quest = profileManager.getDailyQuestStatus(u);
+        const museum = profileManager.getBlindboxMuseumSummary(u);
+        const stage = document.getElementById('hubBlindboxStage');
+        const fb = document.getElementById('hubBlindboxFeedback');
+        const walletEl = document.getElementById('hubBbxWalletInfo');
+        const museumTabBtn = document.getElementById('hubBbxMuseumTabBtn');
+        if (!stage) return;
+
+        if (walletEl) {
+            walletEl.textContent = `🎟️ 盲盒券 ${u.gachaTickets || 0} · 🏅 徽章 ${u.badges || 0}`;
+        }
+        if (museumTabBtn) {
+            museumTabBtn.textContent = `🏛️ 3. 盲盒图鉴展柜 (${museum.totalOwned}/${museum.totalItems})`;
+        }
+        document.querySelectorAll('#hubBlindboxTabs .hub-course-tab').forEach(btn => {
+            btn.classList.toggle('active', btn.getAttribute('data-bbxtab') === this.bbxState.tab);
+        });
+
+        // ---------------- 页签 1：每日数英固定打卡任务 + 页内直练闯关台 ----------------
+        if (this.bbxState.tab === 'quests') {
+            const mathPct = Math.round((quest.mathDone / quest.mathTarget) * 100);
+            const coursePct = Math.round((quest.courseDone / quest.courseTarget) * 100);
+            const isMathPrac = this.bbxState.activePractice === 'math';
+
+            stage.innerHTML = `
+                <div class="gacha-daily-quests-bar">
+                    <div class="gdq-card ${quest.mathCompleted ? 'done' : ''}">
+                        <div class="gdq-top">
+                            <span class="gdq-name">🔢 每日数学固定练习</span>
+                            <span class="gdq-count">${quest.mathDone} / ${quest.mathTarget} 题</span>
+                        </div>
+                        <div class="gdq-bar"><div class="gdq-fill math" style="width:${mathPct}%;"></div></div>
+                        <div class="gdq-foot">
+                            <span class="gdq-reward">必得：🎟️盲盒券×1 + 2🏅</span>
+                            <button type="button" class="gdq-go-btn" data-bbx-prac="math">
+                                ${quest.mathCompleted ? '✅ 已领券·继续练' : (isMathPrac ? '🔥 正在闯关中' : '去练数学 ▶')}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="gdq-card ${quest.courseCompleted ? 'done' : ''}">
+                        <div class="gdq-top">
+                            <span class="gdq-name">🎓 每日校外英语 (${quest.latestLessonTitle})</span>
+                            <span class="gdq-count">${quest.courseDone} / ${quest.courseTarget} 次</span>
+                        </div>
+                        <div class="gdq-bar"><div class="gdq-fill course" style="width:${coursePct}%;"></div></div>
+                        <div class="gdq-foot">
+                            <span class="gdq-reward">必得：🎟️盲盒券×1 + 2🏅</span>
+                            <button type="button" class="gdq-go-btn course" data-bbx-prac="course">
+                                ${quest.courseCompleted ? '✅ 已领券·继续练' : (!isMathPrac ? '🔥 正在闯关中' : '去练英语课 ▶')}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="gdq-bonus-pill ${quest.allClearCompleted ? 'done' : ''}">
+                        <div class="gdq-bonus-icon">${quest.allClearCompleted ? '🏆' : '🌟'}</div>
+                        <div>
+                            <div class="gdq-bonus-title">${quest.allClearCompleted ? '双科全勤已满贯！' : '双科全勤加赠大奖'}</div>
+                            <div class="gdq-bonus-sub">${quest.allClearCompleted ? '已赠 SSR/UR 保底黄金券 🎉' : '两项全完再送 +1🎟️保底券'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="hub-bbx-practice-box">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+                        <span style="font-size:13.5px;font-weight:900;color:#4c1d95;">
+                            ${isMathPrac
+                                ? `⚡ 正在进行：每日数学打卡（已完成 ${quest.mathDone}/${quest.mathTarget} 题）`
+                                : `🎓 正在进行：每日校外英语打卡 · ${quest.latestLessonTitle}（已完成 ${quest.courseDone}/${quest.courseTarget} 次）`}
+                        </span>
+                        ${(u.gachaTickets || 0) > 0
+                            ? `<button type="button" class="gdq-go-btn course" id="btnBbxJumpPullNow">🎉 已有 ${u.gachaTickets} 张盲盒券，立即去扭盲盒 ▸</button>`
+                            : ''}
+                    </div>
+                    <div id="hubBbxInlineMount"></div>
+                </div>
+            `;
+
+            stage.querySelectorAll('[data-bbx-prac]').forEach(btn => {
+                btn.onclick = () => {
+                    this.bbxState.activePractice = btn.getAttribute('data-bbx-prac');
+                    this.bbxState.currentMathQ = null;
+                    this.bbxState.mathInput = '';
+                    this.renderBlindboxModal(this.bbxState.activePractice === 'course');
+                };
+            });
+            stage.querySelector('#btnBbxJumpPullNow')?.addEventListener('click', () => {
+                this.bbxState.tab = 'machine';
+                this.renderBlindboxModal(false);
+            });
+
+            const mount = document.getElementById('hubBbxInlineMount');
+            if (isMathPrac) {
+                this.bbxMathEngine.setConfig(u.mathConfig || {});
+                this.bbxMathEngine.setSubMode('random');
+                if (!this.bbxState.currentMathQ) {
+                    this.bbxState.currentMathQ = this.bbxMathEngine.nextQuestion();
+                    this.bbxState.mathInput = '';
+                }
+                const mq = this.bbxState.currentMathQ;
+                if (mq.isInteractiveWidget || mq.uiType === 'interactive') {
+                    renderMathInteractiveWidget(mount, mq, {
+                        theme: 'light',
+                        onEvaluate: (ok) => {
+                            if (ok) {
+                                const award = profileManager.awardLearningProgress({
+                                    title: `📅 [每日数学打卡] 答对 ${mq.expr || mq.formula || '互动题'}`,
+                                    subjectTag: '每日数学打卡',
+                                    badges: 0,
+                                    stars: 1,
+                                    combo: 1,
+                                    isMath: true
+                                });
+                                this.bbxState.currentMathQ = null;
+                                this.renderAll();
+                                if (fb) {
+                                    fb.textContent = (award.questEvents && award.questEvents.length > 0)
+                                        ? `🎊 ${award.questEvents.map(e => e.label).join(' ')}`
+                                        : `✅ 答对啦！今日数学打卡进度 +1！`;
+                                }
+                                setTimeout(() => this.renderBlindboxModal(false), 520);
+                            } else {
+                                profileManager.recordQuestionAttempt({ isMath: true, isCorrect: false, combo: 0 });
+                                if (fb) fb.textContent = `💪 差一点点，正确答案是 ${mq.answer}，再来一题！`;
+                                this.bbxState.currentMathQ = null;
+                                setTimeout(() => this.renderBlindboxModal(false), 1100);
+                            }
+                        }
+                    });
+                } else {
+                    const renderOral = () => {
+                        const rawFormula = mq.formula || mq.expr || `${mq.storyText || ''} = ?`;
+                        const shownFormula = rawFormula.includes('?')
+                            ? rawFormula.replace('?', this.bbxState.mathInput || '?')
+                            : `${rawFormula} → ${this.bbxState.mathInput || '?'}`;
+                        mount.innerHTML = `
+                            <div class="hub-bbx-math-card">
+                                ${mq.storyText ? `<div style="font-size:14px;font-weight:800;color:#334155;max-width:520px;text-align:center;">📖 ${mq.storyText}</div>` : ''}
+                                <div class="hub-bbx-formula">${shownFormula} ${mq.unit ? `<small style="font-size:15px;">(${mq.unit})</small>` : ''}</div>
+                                ${mq.readText ? `<div style="font-size:13px;font-weight:800;color:#475569;">${mq.readText}</div>` : ''}
+                                <div class="hub-bbx-keypad">
+                                    ${['1','2','3','4','5','6','7','8','9','0'].map(k => `<button type="button" class="hub-bbx-key" data-bmk="${k}">${k}</button>`).join('')}
+                                    <button type="button" class="hub-bbx-key" data-bmk="back">⌫</button>
+                                    <button type="button" class="hub-bbx-key submit" data-bmk="ok">确认提交 ✓</button>
+                                </div>
+                            </div>
+                        `;
+                        mount.querySelectorAll('[data-bmk]').forEach(kb => {
+                            kb.onclick = () => {
+                                const k = kb.getAttribute('data-bmk');
+                                if (k === 'back') {
+                                    this.bbxState.mathInput = this.bbxState.mathInput.slice(0, -1);
+                                    renderOral();
+                                } else if (k === 'ok') {
+                                    if (!this.bbxState.mathInput) return;
+                                    const ok = Number(this.bbxState.mathInput) === Number(mq.answer);
+                                    if (ok) {
+                                        const award = profileManager.awardLearningProgress({
+                                            title: `📅 [每日数学打卡] 答对 ${mq.formula || mq.expr}`,
+                                            subjectTag: '每日数学打卡',
+                                            badges: 0,
+                                            stars: 1,
+                                            combo: 1,
+                                            isMath: true
+                                        });
+                                        this.bbxState.currentMathQ = null;
+                                        this.bbxState.mathInput = '';
+                                        this.renderAll();
+                                        if (fb) {
+                                            fb.textContent = (award.questEvents && award.questEvents.length > 0)
+                                                ? `🎊 ${award.questEvents.map(e => e.label).join(' ')}`
+                                                : `✅ 心算正确！今日数学打卡进度 +1！`;
+                                        }
+                                        this.renderBlindboxModal(false);
+                                    } else {
+                                        profileManager.recordQuestionAttempt({ isMath: true, isCorrect: false, combo: 0 });
+                                        profileManager.recordMathMistake(mq, this.bbxState.mathInput);
+                                        if (fb) fb.textContent = `💡 正确答案是 ${mq.answer}，没关系继续下一题！`;
+                                        this.bbxState.currentMathQ = null;
+                                        this.bbxState.mathInput = '';
+                                        this.renderBlindboxModal(false);
+                                    }
+                                } else if (this.bbxState.mathInput.length < 4) {
+                                    this.bbxState.mathInput += k;
+                                    renderOral();
+                                }
+                            };
+                        });
+                    };
+                    renderOral();
+                }
+            } else {
+                this.bbxCourseEngine.setConfig({
+                    ...(u.englishConfig || {}),
+                    courseLessonId: u.englishConfig?.courseLessonId || 'latest',
+                    courseSubMode: 'course_all'
+                });
+                const cq = this.bbxCourseEngine.nextQuickQuestion(null, 'course_all');
+                renderEnglishQuizWidget(mount, cq, {
+                    theme: 'light',
+                    badgeTitle: `🎓 每日校外英语打卡 · ${cq.lessonCode || ''}`,
+                    autoSpeak,
+                    speakFn: (txt, slow, ph) => sharedSpeech.speakEnglish(txt, slow, ph),
+                    onEvaluate: (ok, userAns) => {
+                        const evalRes = this.bbxCourseEngine.evaluateAttempt(ok);
+                        if (ok) {
+                            profileManager.updateWordProgress(cq.wordObj, true, 1);
+                            const award = profileManager.awardLearningProgress({
+                                title: `📅 [每日校外英语打卡] 答对 ${cq.wordObj.word}`,
+                                subjectTag: '英语课专项',
+                                badges: evalRes.badgeEarned,
+                                stars: evalRes.starEarned,
+                                gotTicket: evalRes.gotGachaTicket,
+                                combo: evalRes.combo,
+                                isMath: false,
+                                isCourseSpecial: true
+                            });
+                            this.renderAll();
+                            if (fb) {
+                                fb.textContent = (award.questEvents && award.questEvents.length > 0)
+                                    ? `🎊 ${award.questEvents.map(e => e.label).join(' ')}`
+                                    : `🎉 Great! 今日校外英语打卡进度 +1！`;
+                            }
+                            setTimeout(() => this.renderBlindboxModal(true), 680);
+                        } else {
+                            profileManager.recordQuestionAttempt({ isMath: false, isCorrect: false, combo: 0 });
+                            profileManager.updateWordProgress(cq.wordObj, false, 0);
+                            if (fb) fb.textContent = `💡 没关系，记住提示里的正确表达，继续下一题！`;
+                            setTimeout(() => this.renderBlindboxModal(true), 1350);
+                        }
+                    }
+                });
+            }
+            return;
+        }
+
+        // ---------------- 页签 2：六大系列盲盒机开箱 ----------------
+        const activeSeriesId = museum.selectedSeries || 'all';
+        const curBundle = museum.bySeries[activeSeriesId] || museum.bySeries.all;
+        const curSeries = curBundle.series;
+
+        const seriesTabsHtml = BLINDBOX_SERIES.map(s => {
+            const sb = museum.bySeries[s.id];
+            return `
+                <button type="button" class="gacha-series-tab ${s.id === activeSeriesId ? 'active' : ''} ${sb.isMastered ? 'mastered' : ''}" data-hbseries="${s.id}">
+                    <span>${s.shortName}</span>
+                    <small>${sb.ownedCount}/${sb.totalCount}</small>
+                </button>
+            `;
+        }).join('');
+
+        if (this.bbxState.tab === 'machine') {
+            const pr = this.bbxState.lastPrize;
+            const prRarity = pr ? (BLINDBOX_RARITY_META[pr.rarity] || BLINDBOX_RARITY_META.R) : null;
+            const prizePanelHtml = pr
+                ? `
+                    <div>
+                        <span class="bbx-rarity-chip" style="background:${prRarity.bg};border-color:${prRarity.border};color:${prRarity.color};">${prRarity.label}</span>
+                        ${renderStarRankHtml(pr.starLevel || 1)}
+                    </div>
+                    ${this._resolveHubPrizeVisual(pr, 96)}
+                    <div style="font-size:16px;font-weight:900;color:#be185d;">${pr.title}</div>
+                    ${pr.enName ? `<button type="button" class="qw-rc-btn primary" id="btnHubBbxSpeakEn">🔊 听英文：${pr.enName}</button>` : ''}
+                    ${pr.funFact ? `<div style="font-size:12px;font-weight:700;color:#4c1d95;background:#f5f3ff;border-radius:10px;padding:6px 10px;">💡 ${pr.funFact}</div>` : ''}
+                `
+                : `
+                    <div style="font-size:42px;">${curSeries.icon}</div>
+                    <div style="font-size:16px;font-weight:900;color:#4c1d95;">已瞄准【${curSeries.name}】</div>
+                    <div style="font-size:12.5px;font-weight:700;color:#6b7280;max-width:340px;">${curSeries.desc}</div>
+                    <div style="font-size:12px;font-weight:900;color:#db2777;">
+                        ${museum.guaranteedHighRarityDraws > 0
+                            ? `🌟 已激活全勤保底黄金券：下一抽必出 SSR / UR 珍品！`
+                            : `✨ 100% 优先抽未拥有新品 · 再抽 ${museum.pityRemaining} 次必出 SSR / UR！`}
+                    </div>
+                `;
+
+            stage.innerHTML = `
+                <div style="display:flex;flex-direction:column;gap:10px;">
+                    <div class="gacha-series-tabs">${seriesTabsHtml}</div>
+                    <div class="hub-bbx-machine-wrap">
+                        <div style="text-align:center;">
+                            <div class="hub-bbx-dome" id="hubBbxDome">
+                                <div style="font-size:44px;">${curSeries.icon}</div>
+                                <div style="font-size:13px;font-weight:900;color:#be185d;">${curSeries.shortName}</div>
+                                <div style="font-size:11px;font-weight:800;color:#6d28d9;">已集 ${curBundle.ownedCount} / ${curBundle.totalCount}</div>
+                            </div>
+                            <button type="button" class="hub-bbx-pull-btn" id="btnHubDoPull">
+                                🎉 扭一扭开【${curSeries.shortName.replace(/^[^\s]+\s*/, '')}】盲盒！
+                                <small>${(u.gachaTickets || 0) > 0 ? `优先免徽章使用 1 张 🎟️ 盲盒券（余 ${u.gachaTickets}）` : `消耗 ${GACHA_BADGE_COST} 枚 🏅 徽章抽取`}</small>
+                            </button>
+                        </div>
+                        <div class="hub-bbx-prize-showcase">${prizePanelHtml}</div>
+                    </div>
+                </div>
+            `;
+
+            stage.querySelectorAll('[data-hbseries]').forEach(btn => {
+                btn.onclick = () => {
+                    profileManager.setSelectedBlindboxSeries(btn.getAttribute('data-hbseries'));
+                    this.bbxState.lastPrize = null;
+                    this.renderBlindboxModal(false);
+                };
+            });
+            stage.querySelector('#btnHubBbxSpeakEn')?.addEventListener('click', () => {
+                if (pr?.enName) sharedSpeech.speakEnglish(pr.enName, false, '');
+            });
+            stage.querySelector('#btnHubDoPull')?.addEventListener('click', () => {
+                const dome = document.getElementById('hubBbxDome');
+                const res = profileManager.drawBlindBox(activeSeriesId);
+                if (!res.ok) {
+                    if (fb) fb.textContent = `⚠️ ${res.msg}`;
+                    return;
+                }
+                dome?.classList.add('shaking');
+                setTimeout(() => {
+                    this.bbxState.lastPrize = res.prize;
+                    this.renderAll();
+                    this.renderBlindboxModal(false);
+                    if (fb) fb.textContent = `${res.prize.title}（已自动存入图鉴展柜！）`;
+                    if (res.prize.enName) sharedSpeech.speakEnglish(res.prize.enName, false, '');
+                }, 420);
+            });
+            return;
+        }
+
+        // ---------------- 页签 3：74款盲盒珍藏图鉴展柜 ----------------
+        const det = this.bbxState.detailItem;
+        const detailBarHtml = det
+            ? `<div class="gacha-series-banner" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff7ed;border-color:#f59e0b;">
+                <span><strong>${det.icon} ${det.name}</strong> ${det.enName ? `(${det.enName})` : ''} · 💡 ${det.funFact || ''}</span>
+                ${det.enName ? `<button type="button" class="qw-rc-btn primary" id="btnHubDetSpeak">🔊 读英文</button>` : ''}
+               </div>`
+            : `<div class="gacha-series-banner">${curBundle.isMastered ? `${curSeries.trophyTitle} · 已集齐本馆全部 ${curBundle.totalCount} 款！` : `${curSeries.icon} ${curSeries.desc}`}</div>`;
+
+        const cardsHtml = curBundle.items.map(it => {
+            const rm = BLINDBOX_RARITY_META[it.rarity] || BLINDBOX_RARITY_META.R;
+            const art = !it.owned
+                ? `<div class="bbx-mystery-silhouette"><span>${it.icon}</span><small>?</small></div>`
+                : this._resolveHubPrizeVisual(it, 62);
+            return `
+                <div class="bbx-item-card ${it.owned ? 'owned' : 'locked'} rarity-${it.rarity.toLowerCase()}" data-hbitem="${it.uid}">
+                    <div class="bbx-card-top">
+                        <span class="bbx-rarity-chip" style="background:${rm.bg};border-color:${rm.border};color:${rm.color};">${rm.label}</span>
+                        ${it.owned ? `<span class="bbx-mini-stars">${'⭐'.repeat(Math.min(3, it.stars || 1))}</span>` : ''}
+                    </div>
+                    <div class="bbx-art-slot">${art}</div>
+                    <div class="bbx-item-name">${it.owned ? it.name : `神秘${curSeries.shortName.slice(-2)}`}</div>
+                    <div class="bbx-item-act ${it.owned ? 'ready' : ''}">${it.owned ? '🔍 点看科普' : '❓ 待抽取'}</div>
+                </div>
+            `;
+        }).join('');
+
+        stage.innerHTML = `
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                <div class="gacha-series-tabs">${seriesTabsHtml}</div>
+                ${detailBarHtml}
+                <div class="gacha-museum-grid">${cardsHtml}</div>
+            </div>
+        `;
+        stage.querySelectorAll('[data-hbseries]').forEach(btn => {
+            btn.onclick = () => {
+                profileManager.setSelectedBlindboxSeries(btn.getAttribute('data-hbseries'));
+                this.bbxState.detailItem = null;
+                this.renderBlindboxModal(false);
+            };
+        });
+        stage.querySelector('#btnHubDetSpeak')?.addEventListener('click', () => {
+            if (det?.enName) sharedSpeech.speakEnglish(det.enName, false, '');
+        });
+        stage.querySelectorAll('[data-hbitem]').forEach(cardEl => {
+            cardEl.onclick = () => {
+                const uid = cardEl.getAttribute('data-hbitem');
+                const found = curBundle.items.find(x => x.uid === uid);
+                if (found && found.owned) {
+                    this.bbxState.detailItem = found;
+                    if (found.enName) sharedSpeech.speakEnglish(found.enName, false, '');
+                    this.renderBlindboxModal(false);
+                }
+            };
+        });
     }
 }
 

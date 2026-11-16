@@ -759,13 +759,16 @@ export class SmartChalkboard {
                 isMath: true
             });
             this.updateTopBadgePill();
+            const questTip = (prog.questEvents && prog.questEvents.length > 0)
+                ? ` · 🎁每日打卡+${prog.questEvents.length}🎟️盲盒券!`
+                : '';
             if (prog.actualBadges > 0) {
-                return ` · 🏅+${prog.actualBadges}徽章`;
+                return ` · 🏅+${prog.actualBadges}徽章${questTip}`;
             }
             if (prog.alreadyAtCap) {
-                return ' · 今日徽章已满';
+                return ` · 今日徽章已满${questTip}`;
             }
-            return ` · ⭐攒星${prog.starProgress}/3`;
+            return ` · ⭐攒星${prog.starProgress}/3${questTip}`;
         } else {
             this.profileManager.recordQuestionAttempt({ isMath: true, isCorrect: false, combo: 0 });
             if (q) {
@@ -968,17 +971,24 @@ export class SmartChalkboard {
             const dsBefore = this.profileManager.getDailyStatus(u);
             const firstDailyCampTicket = isCampFinish && dsBefore.vocabCampCount === 0;
 
+            const isCourseQ = Boolean(
+                englishEngine.currentQuiz?.mode === 'course_special' ||
+                this._getTopCategory() === 'course'
+            );
             const prog = this.profileManager.awardLearningProgress({
                 title: isCampFinish
                     ? `🎓 [${gameTag}·背词营] 完成 5 词特训！`
-                    : `🔤 [${gameTag}·英语] 答对单词 ${wordObj.word}`,
-                subjectTag: `${gameTag}·英语`,
+                    : (isCourseQ
+                        ? `🎓 [${gameTag}·校外英语课] 答对 ${wordObj.word}`
+                        : `🔤 [${gameTag}·英语] 答对单词 ${wordObj.word}`),
+                subjectTag: isCourseQ ? `${gameTag}·英语课` : `${gameTag}·英语`,
                 badges: isCampFinish ? 3 : (evalRes.badgeEarned || 0),
                 stars: isCampFinish ? 0 : (evalRes.starEarned || 1),
                 gotTicket: Boolean(evalRes.gotGachaTicket || firstDailyCampTicket),
                 isVocabCampFinish: isCampFinish,
                 combo: battleRes.combo || 1,
-                isMath: false
+                isMath: false,
+                isCourseSpecial: isCourseQ
             });
             this.updateTopBadgePill();
             if (prog.actualBadges > 0) {
@@ -986,7 +996,9 @@ export class SmartChalkboard {
             } else if (!prog.alreadyAtCap) {
                 badgeSuffix = ` · ⭐攒星${prog.starProgress}/3`;
             }
-            if (prog.actualTicket) {
+            if (prog.questEvents && prog.questEvents.length > 0) {
+                badgeSuffix += ` · 🎁每日打卡+${prog.questEvents.length}🎟️盲盒券!`;
+            } else if (prog.actualTicket) {
                 badgeSuffix += ' · 🎟️+1盲盒券!';
             }
         } else {

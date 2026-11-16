@@ -53,6 +53,13 @@ import {
 } from '../../shared/questionWidgets.js';
 import { openRandomFilterModal } from '../../shared/randomFilterModal.js';
 import { requireParentGate } from '../../shared/parentGate.js';
+import {
+    BLINDBOX_SERIES,
+    BLINDBOX_RARITY_META,
+    getCompanionById,
+    renderCollectibleStandeeHtml,
+    renderStarRankHtml
+} from '../../shared/blindboxCatalog.js';
 
 // ==================== 立体荷叶系列、进化光效与伴生灵物高精 SVG 渲染器 ====================
 function getAccessoryPositionClass(accId) {
@@ -296,6 +303,104 @@ function renderAccessoryVisualHtml(accId, compact = false) {
                 <path d="M18 44 C26 36, 48 36, 56 44" stroke="#FDE047" stroke-width="3" stroke-linecap="round"/>
                 <polygon points="37,6 43.5,19 58,21 47.5,31 50,45 37,38.2 24,45 26.5,31 16,21 30.5,19" fill="url(#stGold${sfx})" stroke="#FFFFFF" stroke-width="1.6" stroke-linejoin="round"/>
                 <circle cx="34" cy="22" r="2.4" fill="#FFFFFF" opacity="0.85"/>
+            </svg>`;
+    }
+    if (accId === 'ice_tiara') {
+        const w = compact ? 40 : 74;
+        const h = compact ? 28 : 48;
+        return `
+            <svg class="lotus-svg-art lotus-hat-breathe" width="${w}" height="${h}" viewBox="0 0 84 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="iceCr${sfx}" x1="16" y1="6" x2="68" y2="44" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#E0F2FE"/>
+                        <stop offset="50%" stop-color="#38BDF8"/>
+                        <stop offset="100%" stop-color="#6366F1"/>
+                    </linearGradient>
+                </defs>
+                <polygon points="42,4 50,24 62,12 58,34 72,22 66,42 18,42 12,22 26,34 22,12 34,24" fill="url(#iceCr${sfx})" stroke="#FFFFFF" stroke-width="1.8" stroke-linejoin="round"/>
+                <polygon points="42,14 46,26 42,36 38,26" fill="#FFFFFF" opacity="0.85"/>
+                <circle cx="28" cy="31" r="2.6" fill="#E0F2FE"/>
+                <circle cx="56" cy="31" r="2.6" fill="#E0F2FE"/>
+            </svg>`;
+    }
+    if (accId === 'fairy_butterfly') {
+        const w = compact ? 40 : 76;
+        const h = compact ? 28 : 48;
+        return `
+            <svg class="lotus-svg-art lotus-hat-breathe" width="${w}" height="${h}" viewBox="0 0 86 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M43 28 C28 6, 8 10, 14 28 C18 40, 34 38, 43 30 Z" fill="#F472B6" stroke="#FFFFFF" stroke-width="1.5"/>
+                <path d="M43 28 C58 6, 78 10, 72 28 C68 40, 52 38, 43 30 Z" fill="#A855F7" stroke="#FFFFFF" stroke-width="1.5"/>
+                <ellipse cx="43" cy="28" rx="3.2" ry="9" fill="#FDE047"/>
+                <path d="M41 19 Q36 10 31 12 M45 19 Q50 10 55 12" stroke="#FDE047" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>`;
+    }
+    if (accId === 'astro_antenna') {
+        const w = compact ? 40 : 74;
+        const h = compact ? 30 : 50;
+        return `
+            <svg class="lotus-svg-art lotus-hat-breathe" width="${w}" height="${h}" viewBox="0 0 84 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M20 44 C26 28, 58 28, 64 44" stroke="#60A5FA" stroke-width="4" stroke-linecap="round"/>
+                <line x1="30" y1="33" x2="22" y2="14" stroke="#93C5FD" stroke-width="2.8" stroke-linecap="round"/>
+                <line x1="54" y1="33" x2="62" y2="14" stroke="#93C5FD" stroke-width="2.8" stroke-linecap="round"/>
+                <circle cx="22" cy="12" r="6" fill="#22D3EE" stroke="#FFFFFF" stroke-width="1.6"/>
+                <circle cx="62" cy="12" r="6" fill="#F472B6" stroke="#FFFFFF" stroke-width="1.6"/>
+            </svg>`;
+    }
+    if (accId === 'magic_tophat') {
+        const w = compact ? 38 : 70;
+        const h = compact ? 30 : 50;
+        return `
+            <svg class="lotus-svg-art" width="${w}" height="${h}" viewBox="0 0 80 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="40" cy="44" rx="30" ry="7" fill="#1E1B4B" stroke="#A78BFA" stroke-width="1.6"/>
+                <path d="M24 43 L20 12 H60 L56 43 Z" fill="#312E81" stroke="#C4B5FD" stroke-width="1.5"/>
+                <rect x="23" y="33" width="34" height="6" rx="2" fill="#EC4899"/>
+                <polygon points="40,21 42,26 47,26 43,29 44.5,34 40,31 35.5,34 37,29 33,26 38,26" fill="#FDE047"/>
+            </svg>`;
+    }
+    if (accId === 'neon_headphone') {
+        const w = compact ? 40 : 78;
+        const h = compact ? 28 : 48;
+        return `
+            <svg class="lotus-svg-art" width="${w}" height="${h}" viewBox="0 0 88 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M16 38 C16 14, 72 14, 72 38" stroke="#06B6D4" stroke-width="4.5" stroke-linecap="round"/>
+                <polygon points="24,19 30,7 36,17" fill="#EC4899" stroke="#FFFFFF" stroke-width="1.2"/>
+                <polygon points="64,19 58,7 52,17" fill="#EC4899" stroke="#FFFFFF" stroke-width="1.2"/>
+                <rect x="10" y="29" width="11" height="18" rx="5.5" fill="#8B5CF6" stroke="#22D3EE" stroke-width="1.6"/>
+                <rect x="67" y="29" width="11" height="18" rx="5.5" fill="#8B5CF6" stroke="#22D3EE" stroke-width="1.6"/>
+            </svg>`;
+    }
+    if (accId === 'royal_beret') {
+        const w = compact ? 38 : 70;
+        const h = compact ? 26 : 44;
+        return `
+            <svg class="lotus-svg-art" width="${w}" height="${h}" viewBox="0 0 80 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M40 13 L43 7" stroke="#9A3412" stroke-width="3" stroke-linecap="round"/>
+                <ellipse cx="41" cy="27" rx="28" ry="13" transform="rotate(-8 41 27)" fill="#F97316" stroke="#FFEDD5" stroke-width="1.6"/>
+                <rect x="22" y="34" width="36" height="5" rx="2.5" fill="#7C2D12"/>
+                <circle cx="52" cy="24" r="3.5" fill="#FDE047"/>
+            </svg>`;
+    }
+    if (accId === 'lucky_clover') {
+        const w = compact ? 36 : 64;
+        const h = compact ? 30 : 48;
+        return `
+            <svg class="lotus-svg-art lotus-hat-breathe" width="${w}" height="${h}" viewBox="0 0 72 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M36 48 Q36 34 39 24" stroke="#15803D" stroke-width="3.2" stroke-linecap="round"/>
+                <circle cx="32" cy="18" r="7" fill="#22C55E" stroke="#DCFCE7" stroke-width="1.2"/>
+                <circle cx="44" cy="18" r="7" fill="#16A34A" stroke="#DCFCE7" stroke-width="1.2"/>
+                <circle cx="32" cy="28" r="7" fill="#16A34A" stroke="#DCFCE7" stroke-width="1.2"/>
+                <circle cx="44" cy="28" r="7" fill="#4ADE80" stroke="#DCFCE7" stroke-width="1.2"/>
+            </svg>`;
+    }
+    if (accId === 'dango_pin') {
+        const w = compact ? 38 : 68;
+        const h = compact ? 28 : 46;
+        return `
+            <svg class="lotus-svg-art" width="${w}" height="${h}" viewBox="0 0 78 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <line x1="14" y1="36" x2="64" y2="14" stroke="#92400E" stroke-width="3" stroke-linecap="round"/>
+                <circle cx="28" cy="30" r="7.5" fill="#4ADE80" stroke="#FFFFFF" stroke-width="1.4"/>
+                <circle cx="41" cy="24" r="7.5" fill="#FFFBEB" stroke="#FDE68A" stroke-width="1.4"/>
+                <circle cx="54" cy="18" r="7.5" fill="#F472B6" stroke="#FFFFFF" stroke-width="1.4"/>
             </svg>`;
     }
     const accObj = getAccessoryById(accId);
@@ -1059,6 +1164,12 @@ class PetWonderTownApp {
         document.getElementById('hudName').textContent = u.name;
         document.getElementById('hudBadgesVal').textContent = u.badges;
         document.getElementById('hudTicketsVal').textContent = u.gachaTickets || 0;
+        const navQuestBadge = document.getElementById('navGachaQuestBadge');
+        if (navQuestBadge && profileManager.getDailyQuestStatus) {
+            const qs = profileManager.getDailyQuestStatus(u);
+            navQuestBadge.textContent = qs.allClearCompleted ? '✅全勤' : `${qs.completedCount}/2`;
+            navQuestBadge.classList.toggle('done', qs.allClearCompleted);
+        }
 
         const dailyBox = document.getElementById('hudDailyCapBox');
         const dailyIcon = document.getElementById('hudDailyIcon');
@@ -1279,6 +1390,19 @@ class PetWonderTownApp {
                 accEl.style.display = 'none';
             }
 
+            const compEl = document.getElementById('heroCompanionBadge');
+            if (compEl) {
+                const compObj = u.activeCompanionId ? getCompanionById(u.activeCompanionId) : null;
+                if (compObj) {
+                    const starLv = u.blindboxCollection?.[compObj.id]?.stars || 1;
+                    compEl.innerHTML = renderCollectibleStandeeHtml(compObj, starLv, 54);
+                    compEl.title = `伴生守护灵：${compObj.name} (${compObj.enName})`;
+                    compEl.style.display = 'block';
+                } else {
+                    compEl.style.display = 'none';
+                }
+            }
+
             if (pState.level >= 5) {
                 nurtureBtnIcon.textContent = '🏪';
                 nurtureBtnText.textContent = '已毕业·去开店';
@@ -1351,6 +1475,8 @@ class PetWonderTownApp {
             subSprite.src = mgrPet.img;
             subSprite.style.display = 'block';
             accEl.style.display = 'none';
+            const compElShop = document.getElementById('heroCompanionBadge');
+            if (compElShop) compElShop.style.display = 'none';
 
             if (sState.level >= 5) {
                 nurtureBtnIcon.textContent = '🗺️';
@@ -1764,40 +1890,250 @@ class PetWonderTownApp {
         }
     }
 
-    // ==================== 视图 4：惊喜盲盒扭蛋屋 ====================
+    celebrateDailyQuestEvents(questEvents = []) {
+        if (!Array.isArray(questEvents) || questEvents.length === 0) return;
+        soundEngine.playGachaOpen();
+        this.fx.spawnBurst(window.innerWidth * 0.55, window.innerHeight * 0.35, 42);
+        const msg = questEvents.map(ev => ev.label).join(' · ');
+        this.showQuickToast('🎁 每日固定打卡达成！免费盲盒券到账！', msg);
+    }
+
+    renderBlindboxPrizeVisualHtml(pr, size = 128) {
+        if (pr.img) {
+            return `<img src="${pr.img}" alt="${pr.name}" style="width:${size}px; height:${size}px; object-fit:contain;" />`;
+        }
+        if (pr.prizeType === 'accessory') {
+            return `<div style="transform:scale(1.45); margin:12px 0;">${renderAccessoryVisualHtml(pr.accId, false)}</div>`;
+        }
+        return renderCollectibleStandeeHtml(pr, pr.starLevel || 1, size);
+    }
+
+    openCollectibleDetailModal(item) {
+        const rarityMeta = BLINDBOX_RARITY_META[item.rarity] || BLINDBOX_RARITY_META.R;
+        const visualHtml = item.img
+            ? `<img src="${item.img}" alt="${item.name}" style="width:116px;height:116px;object-fit:contain;" />`
+            : (item.prizeType === 'accessory'
+                ? `<div style="transform:scale(1.3);margin:8px 0;">${renderAccessoryVisualHtml(item.rawId, false)}</div>`
+                : renderCollectibleStandeeHtml(item, item.stars || 1, 108));
+        this.showQuickModal(
+            `🏛️ 盲盒典藏图鉴 · ${item.name}`,
+            `<div style="text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px;">
+                <div>
+                    <span class="bbx-rarity-chip" style="background:${rarityMeta.bg};border-color:${rarityMeta.border};color:${rarityMeta.color};">${rarityMeta.label}</span>
+                    ${renderStarRankHtml(item.stars || 1)}
+                </div>
+                ${visualHtml}
+                <div style="font-size:18px;font-weight:900;color:#2d1b69;">${item.icon} ${item.name}</div>
+                ${item.enName ? `<button type="button" class="qw-rc-btn primary" id="btnSpeakCollectibleEn">🔊 ${item.enName}</button>` : ''}
+                <div style="font-size:13px;font-weight:700;color:#4c3d75;background:#f7f3ff;border-radius:12px;padding:8px 12px;line-height:1.45;">
+                    💡 ${item.funFact || ''}
+                </div>
+            </div>`
+        );
+        const speakBtn = document.getElementById('btnSpeakCollectibleEn');
+        if (speakBtn && item.enName) {
+            speakBtn.onclick = () => {
+                soundEngine.playTap();
+                soundEngine.speakEnglish(item.enName, false, '');
+            };
+        }
+    }
+
+    // ==================== 视图 4：每日固定打卡 & 六大系列盲盒博物馆 ====================
     renderGachaView() {
         const u = profileManager.getActiveUser();
+        const quest = profileManager.getDailyQuestStatus(u);
+        const museum = profileManager.getBlindboxMuseumSummary(u);
+        const activeSeriesId = museum.selectedSeries || 'all';
+        const curSeriesBundle = museum.bySeries[activeSeriesId] || museum.bySeries.all;
+        const curSeries = curSeriesBundle.series;
+
+        // 1) 顶部：每日固定数学练习(10题) + 每日校外英语练习(8次) 必得盲盒券进度栏
+        const questsBar = document.getElementById('petDailyQuestsBar');
+        if (questsBar) {
+            const mathPct = Math.round((quest.mathDone / quest.mathTarget) * 100);
+            const coursePct = Math.round((quest.courseDone / quest.courseTarget) * 100);
+            questsBar.innerHTML = `
+                <div class="gdq-card ${quest.mathCompleted ? 'done' : ''}">
+                    <div class="gdq-top">
+                        <span class="gdq-name">🔢 每日数学固定练习</span>
+                        <span class="gdq-count">${quest.mathDone}/${quest.mathTarget}题</span>
+                    </div>
+                    <div class="gdq-bar"><div class="gdq-fill math" style="width:${mathPct}%;"></div></div>
+                    <div class="gdq-foot">
+                        <span class="gdq-reward">奖励：🎟️盲盒券×1 + 2🏅</span>
+                        ${quest.mathCompleted
+                            ? '<span class="gdq-done-tag">✅ 今日已领券</span>'
+                            : '<button type="button" class="gdq-go-btn" data-quest-go="math">去练数学 ▶</button>'}
+                    </div>
+                </div>
+                <div class="gdq-card ${quest.courseCompleted ? 'done' : ''}">
+                    <div class="gdq-top">
+                        <span class="gdq-name">🎓 每日校外英语(${quest.latestLessonTitle.split('《')[0]})</span>
+                        <span class="gdq-count">${quest.courseDone}/${quest.courseTarget}次</span>
+                    </div>
+                    <div class="gdq-bar"><div class="gdq-fill course" style="width:${coursePct}%;"></div></div>
+                    <div class="gdq-foot">
+                        <span class="gdq-reward">奖励：🎟️盲盒券×1 + 2🏅</span>
+                        ${quest.courseCompleted
+                            ? '<span class="gdq-done-tag">✅ 今日已领券</span>'
+                            : '<button type="button" class="gdq-go-btn course" data-quest-go="course">去练英语课 ▶</button>'}
+                    </div>
+                </div>
+                <div class="gdq-bonus-pill ${quest.allClearCompleted ? 'done' : ''}">
+                    <div class="gdq-bonus-icon">${quest.allClearCompleted ? '🏆' : '🌟'}</div>
+                    <div>
+                        <div class="gdq-bonus-title">${quest.allClearCompleted ? '今日双科全勤已达成！' : '双科全勤加赠大奖'}</div>
+                        <div class="gdq-bonus-sub">${quest.allClearCompleted ? '已获赠 SSR/UR 保底黄金券 🎉' : '两项都完成再送 +1🎟️保底黄金券'}</div>
+                    </div>
+                </div>
+            `;
+            questsBar.querySelector('[data-quest-go="math"]')?.addEventListener('click', () => {
+                soundEngine.playTap();
+                profileManager.setPreferredSmartMode('math_random');
+                this.switchSubjectTab('math', true, false);
+                this.showQuickToast('🔢 每日数学打卡已就绪', `在右侧再答对 ${quest.mathTarget - quest.mathDone} 道数学题即可免费领 1 张 🎟️ 盲盒券！`);
+            });
+            questsBar.querySelector('[data-quest-go="course"]')?.addEventListener('click', () => {
+                soundEngine.playTap();
+                this.courseSubMode = 'course_all';
+                profileManager.setPreferredSmartMode('course_all');
+                this.switchSubjectTab('course', true, true);
+                this.showQuickToast('🎓 每日校外英语打卡已就绪', `在右侧再完成 ${quest.courseTarget - quest.courseDone} 次校外英语练习或跟读打卡即可领 🎟️ 盲盒券！`);
+            });
+        }
+
+        // 2) 左侧：当前选中系列的扭蛋机状态与保底提示
+        const activeSeriesLabel = document.getElementById('gachaActiveSeriesLabel');
+        if (activeSeriesLabel) {
+            activeSeriesLabel.textContent = `${curSeries.icon} 当前盲盒箱：${curSeries.name}`;
+        }
+        const centerLbl = document.getElementById('gachaCenterLabel');
+        if (centerLbl) {
+            centerLbl.textContent = `${curSeries.icon} ${curSeries.shortName.replace(/^[^\s]+\s*/, '')} (${curSeriesBundle.ownedCount}/${curSeriesBundle.totalCount})`;
+        }
+        const sampleIcons = curSeriesBundle.items.slice(0, 5).map(it => it.icon);
+        for (let i = 0; i < 5; i++) {
+            const capEl = document.getElementById(`gachaCap${i + 1}`);
+            if (capEl && sampleIcons[i]) capEl.textContent = sampleIcons[i];
+        }
+        const pityEl = document.getElementById('gachaPityHint');
+        if (pityEl) {
+            pityEl.textContent = museum.guaranteedHighRarityDraws > 0
+                ? `🌟 已激活全勤黄金保底（剩余 ${museum.guaranteedHighRarityDraws} 次必出 SSR/UR！）`
+                : `💎 优先抽未拥有新品 · 再抽 ${museum.pityRemaining} 次必出 SSR/UR！`;
+        }
+
         const hintEl = document.getElementById('gachaCostHint');
         if ((u.gachaTickets || 0) > 0) {
-            hintEl.textContent = `🎟️ 当前拥有 ${u.gachaTickets} 张免费盲盒券！点击立即免徽章抽取！`;
+            hintEl.textContent = `🎟️ 拥有 ${u.gachaTickets} 张免费盲盒券 · 免徽章开【${curSeries.shortName}】！`;
         } else {
-            hintEl.textContent = `消耗 ${GACHA_BADGE_COST} 枚 🏅 徽章扭一次（连对5题免费送券！）`;
+            hintEl.textContent = `消耗 ${GACHA_BADGE_COST}🏅 抽【${curSeries.shortName}】（上方每日打卡免费送券！）`;
+        }
+
+        // 3) 右侧：总收集度 + 7 大系列切换胶囊 + 图鉴展柜网格
+        const totalBadge = document.getElementById('gachaTotalProgBadge');
+        if (totalBadge) {
+            totalBadge.textContent = `已收集 ${museum.totalOwned} / ${museum.totalItems} · ⭐${museum.totalStars}`;
+        }
+
+        const tabsEl = document.getElementById('gachaSeriesTabs');
+        if (tabsEl) {
+            tabsEl.innerHTML = BLINDBOX_SERIES.map(s => {
+                const sb = museum.bySeries[s.id];
+                const isAct = s.id === activeSeriesId;
+                return `
+                    <button type="button" class="gacha-series-tab ${isAct ? 'active' : ''} ${sb.isMastered ? 'mastered' : ''}" data-gseries="${s.id}">
+                        <span>${s.shortName}</span>
+                        <small>${sb.ownedCount}/${sb.totalCount}</small>
+                    </button>
+                `;
+            }).join('');
+            tabsEl.querySelectorAll('[data-gseries]').forEach(btn => {
+                btn.onclick = () => {
+                    soundEngine.playTap();
+                    const sid = btn.getAttribute('data-gseries');
+                    profileManager.setSelectedBlindboxSeries(sid);
+                    this.renderGachaView();
+                };
+            });
+        }
+
+        const bannerEl = document.getElementById('gachaSeriesBanner');
+        if (bannerEl) {
+            bannerEl.innerHTML = curSeriesBundle.isMastered
+                ? `<span>${curSeries.trophyTitle} · 已集齐本馆全部 ${curSeriesBundle.totalCount} 款！继续抽取可升阶 2~3 星幻彩闪卡！</span>`
+                : `<span>${curSeries.icon} ${curSeries.desc}</span>`;
         }
 
         const box = document.getElementById('gachaHiddenPreview');
         box.innerHTML = '';
-        PETS_CATALOG.filter(p => p.isBlindbox).forEach(p => {
-            const unlocked = u.pets[p.id]?.unlocked;
-            const item = document.createElement('div');
-            item.className = `pet-cream-card ${unlocked ? '' : 'locked'}`;
-            item.style.padding = '10px';
-            item.innerHTML = `
-                <span class="pet-card-tag ssr">${p.rarity}</span>
-                <img src="${p.img}" alt="${p.name}" style="width:82px; height:82px;" />
-                <div class="pet-card-name" style="font-size:14px;">${p.emoji} ${p.name}</div>
-                <div style="font-size:11px; font-weight:800; color:${unlocked ? '#16a34a' : '#9c8fb8'};">
-                    ${unlocked ? '✅ 已抽中拥有！点击出战' : '❓ 待扭蛋唤醒'}
+        curSeriesBundle.items.forEach(it => {
+            const rarityMeta = BLINDBOX_RARITY_META[it.rarity] || BLINDBOX_RARITY_META.R;
+            const card = document.createElement('div');
+            card.className = `bbx-item-card ${it.owned ? 'owned' : 'locked'} rarity-${it.rarity.toLowerCase()}`;
+
+            let artHtml = '';
+            if (!it.owned) {
+                artHtml = `<div class="bbx-mystery-silhouette"><span>${it.icon}</span><small>?</small></div>`;
+            } else if (it.img) {
+                artHtml = `<img src="${it.img}" alt="${it.name}" class="bbx-item-img" />`;
+            } else if (it.prizeType === 'accessory') {
+                artHtml = `<div class="bbx-acc-thumb">${renderAccessoryVisualHtml(it.rawId, true)}</div>`;
+            } else {
+                artHtml = renderCollectibleStandeeHtml(it, it.stars || 1, 64);
+            }
+
+            let actionLabel = '❓ 待盲盒抽取';
+            if (it.owned) {
+                if (it.prizeType === 'pet') {
+                    actionLabel = u.activePetId === it.rawId ? '🌟 出战中' : '🐾 点击出战';
+                } else if (it.prizeType === 'companion') {
+                    actionLabel = u.activeCompanionId === it.rawId ? '✨ 伴飞中(点取消)' : '✨ 点击伴飞';
+                } else if (it.prizeType === 'accessory') {
+                    const curAcc = u.pets?.[u.activePetId]?.accessory;
+                    actionLabel = curAcc === it.rawId ? '🎀 穿戴中' : '🎀 点击穿戴';
+                } else {
+                    actionLabel = '🔍 点看科普卡';
+                }
+            }
+
+            card.innerHTML = `
+                <div class="bbx-card-top">
+                    <span class="bbx-rarity-chip" style="background:${rarityMeta.bg};border-color:${rarityMeta.border};color:${rarityMeta.color};">${rarityMeta.label}</span>
+                    ${it.owned ? `<span class="bbx-mini-stars">${'⭐'.repeat(Math.min(3, it.stars || 1))}</span>` : ''}
                 </div>
+                <div class="bbx-art-slot">${artHtml}</div>
+                <div class="bbx-item-name">${it.owned ? it.name : `神秘${curSeries.shortName.slice(-2)}`}</div>
+                <div class="bbx-item-act ${it.owned ? 'ready' : ''}">${actionLabel}</div>
             `;
-            if (unlocked) {
-                item.onclick = () => {
-                    profileManager.selectOrUnlockPet(p.id);
-                    soundEngine.playFeed();
-                    this.renderAll();
-                    this.switchWorldView('home');
+
+            if (it.owned) {
+                card.onclick = () => {
+                    soundEngine.playTap();
+                    if (it.prizeType === 'pet') {
+                        profileManager.selectOrUnlockPet(it.rawId);
+                        soundEngine.playFeed();
+                        this.renderAll();
+                        this.switchWorldView('home');
+                    } else if (it.prizeType === 'companion') {
+                        const eq = profileManager.equipCompanion(it.rawId);
+                        this.renderAll();
+                        if (eq.activeCompanionId) {
+                            this.showQuickToast('✨ 守护小精灵已跟随！', `【${it.name}】现在悬浮在你的萌宠身旁啦！切回「🏠 我的萌宠」快去看看吧！`);
+                        }
+                    } else if (it.prizeType === 'accessory') {
+                        const activePet = profileManager.getActiveUser().activePetId;
+                        profileManager.equipOrBuyAccessory(activePet, it.rawId);
+                        soundEngine.playFeed();
+                        this.renderAll();
+                        this.showQuickToast('🎀 潮玩头饰已穿戴！', `已为当前萌宠换上【${it.name}】！`);
+                    } else {
+                        this.openCollectibleDetailModal(it);
+                    }
                 };
             }
-            box.appendChild(item);
+            box.appendChild(card);
         });
     }
 
@@ -1973,6 +2309,7 @@ class PetWonderTownApp {
 
             this.triggerPetAnswerReaction(true, res.combo);
             this.renderAll();
+            this.celebrateDailyQuestEvents(award.questEvents);
 
             if (award.reachedCapNow) {
                 this.celebrateDailyCapReached(award.dailyCap);
@@ -2141,6 +2478,7 @@ class PetWonderTownApp {
                 if (res.awarded) {
                     soundEngine.playCorrect();
                     this.renderTopHud();
+                    this.celebrateDailyQuestEvents(res.questEvents);
                 }
             }
         });
@@ -2280,7 +2618,8 @@ class PetWonderTownApp {
                 stars: res.starEarned,
                 gotTicket: res.gotGachaTicket,
                 combo: res.combo,
-                isMath: false
+                isMath: false,
+                isCourseSpecial: isCourseQ
             });
 
             if (award.alreadyAtCap) {
@@ -2294,6 +2633,7 @@ class PetWonderTownApp {
 
             this.triggerPetAnswerReaction(true, res.combo);
             this.renderAll();
+            this.celebrateDailyQuestEvents(award.questEvents);
 
             if (award.reachedCapNow) this.celebrateDailyCapReached(award.dailyCap);
 
@@ -3515,16 +3855,28 @@ class PetWonderTownApp {
                 this.fx.spawnBurst(window.innerWidth * 0.35, window.innerHeight * 0.45, 50);
                 this.renderAll();
                 const pr = res.prize;
-                const visual = pr.img
-                    ? `<img src="${pr.img}" style="width:140px; height:140px; object-fit:contain;" />`
-                    : `<div style="font-size:68px;">${pr.icon}</div>`;
+                const rarityMeta = BLINDBOX_RARITY_META[pr.rarity] || BLINDBOX_RARITY_META.R;
+                const visual = this.renderBlindboxPrizeVisualHtml(pr, 126);
                 this.showQuickModal(
-                    '🎊 惊喜盲盒开箱！',
-                    `<div style="text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px;">
+                    `🎊 惊喜盲盒开箱 · ${pr.seriesName}`,
+                    `<div style="text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px;">
+                        <div>
+                            <span class="bbx-rarity-chip" style="background:${rarityMeta.bg};border-color:${rarityMeta.border};color:${rarityMeta.color};">${rarityMeta.label}</span>
+                            ${renderStarRankHtml(pr.starLevel || 1)}
+                        </div>
                         ${visual}
                         <div style="font-size:17px; font-weight:900; color:#c22575;">${pr.title}</div>
+                        ${pr.enName ? `<button type="button" class="qw-rc-btn primary" id="btnGachaPrizeSpeak">🔊 听英文：${pr.enName}</button>` : ''}
+                        ${pr.funFact ? `<div style="font-size:12.5px; font-weight:700; color:#4c3d75; background:#f7f3ff; border-radius:12px; padding:7px 11px; line-height:1.45;">💡 ${pr.funFact}</div>` : ''}
                     </div>`
                 );
+                const spBtn = document.getElementById('btnGachaPrizeSpeak');
+                if (spBtn && pr.enName) {
+                    spBtn.onclick = () => {
+                        soundEngine.playTap();
+                        soundEngine.speakEnglish(pr.enName, false, '');
+                    };
+                }
             }, 520);
         };
 

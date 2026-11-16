@@ -2008,6 +2008,315 @@
     color: #fff;
 }
 
+/* ==================== 每日数英打卡条 (.gdq-*) & 74款盲盒亚克力立牌/博物馆卡片 (.bbx-*) ==================== */
+.gacha-daily-quests-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr 220px;
+    gap: 10px;
+    width: 100%;
+    flex-shrink: 0;
+}
+
+.gdq-card {
+    background: #ffffff;
+    border: 2px solid #e9d8fd;
+    border-radius: 14px;
+    padding: 7px 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-shadow: 0 3px 10px rgba(124, 58, 237, 0.06);
+}
+.gdq-card.done {
+    border-color: #22c55e;
+    background: linear-gradient(180deg, #f0fdf4 0%, #ffffff 100%);
+}
+.gdq-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12.5px;
+    font-weight: 900;
+    color: #3b2369;
+}
+.gdq-count {
+    color: #7c3aed;
+    font-weight: 900;
+}
+.gdq-card.done .gdq-count {
+    color: #16a34a;
+}
+.gdq-bar {
+    height: 7px;
+    border-radius: 999px;
+    background: #ede9fe;
+    overflow: hidden;
+}
+.gdq-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.35s ease;
+}
+.gdq-fill.math {
+    background: linear-gradient(90deg, #3b82f6, #06b6d4);
+}
+.gdq-fill.course {
+    background: linear-gradient(90deg, #ec4899, #8b5cf6);
+}
+.gdq-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+}
+.gdq-reward {
+    font-size: 11px;
+    font-weight: 800;
+    color: #6b5b95;
+}
+.gdq-done-tag {
+    font-size: 11px;
+    font-weight: 900;
+    color: #15803d;
+    background: #dcfce7;
+    padding: 2px 8px;
+    border-radius: 999px;
+}
+.gdq-go-btn {
+    border: none;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+    padding: 3px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.gdq-go-btn.course {
+    background: linear-gradient(135deg, #ec4899, #7c3aed);
+}
+
+.gdq-bonus-pill {
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+    border: 2px dashed #f59e0b;
+    border-radius: 14px;
+    padding: 7px 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.gdq-bonus-pill.done {
+    border-style: solid;
+    border-color: #10b981;
+    background: linear-gradient(135deg, #ecfdf5 0%, #fef9c3 100%);
+}
+.gdq-bonus-icon {
+    font-size: 24px;
+    line-height: 1;
+}
+.gdq-bonus-title {
+    font-size: 12px;
+    font-weight: 900;
+    color: #92400e;
+}
+.gdq-bonus-sub {
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #b45309;
+}
+
+.bbx-standee-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.bbx-standee-wrap.is-max-holo {
+    filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.55));
+}
+.bbx-standee-emoji {
+    position: absolute;
+    top: 46%;
+    left: 50%;
+    transform: translate(-50%, -52%);
+    line-height: 1;
+    filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.16));
+    pointer-events: none;
+}
+
+.bbx-rarity-chip {
+    display: inline-block;
+    border-width: 1.5px;
+    border-style: solid;
+    border-radius: 999px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-weight: 900;
+    line-height: 1.4;
+}
+.bbx-star-pill {
+    display: inline-block;
+    margin-left: 4px;
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-size: 10.5px;
+    font-weight: 900;
+    background: #fef3c7;
+    color: #b45309;
+}
+.bbx-star-pill.lv2 {
+    background: #fce7f3;
+    color: #be185d;
+}
+.bbx-star-pill.lv3 {
+    background: linear-gradient(90deg, #fde68a, #fbcfe8, #bae6fd);
+    color: #7c2d12;
+}
+
+.gacha-series-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+.gacha-series-tab {
+    border: 1.5px solid #ddd6fe;
+    background: #ffffff;
+    color: #4c1d95;
+    border-radius: 999px;
+    padding: 3px 9px;
+    font-size: 11.5px;
+    font-weight: 900;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.gacha-series-tab small {
+    font-size: 10px;
+    opacity: 0.78;
+}
+.gacha-series-tab.active {
+    background: linear-gradient(135deg, #ec4899, #7c3aed);
+    border-color: #7c3aed;
+    color: #ffffff;
+}
+.gacha-series-tab.mastered:not(.active) {
+    border-color: #10b981;
+    background: #ecfdf5;
+    color: #065f46;
+}
+
+.gacha-series-banner {
+    font-size: 11.5px;
+    font-weight: 800;
+    color: #5b21b6;
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px dashed #c4b5fd;
+    border-radius: 9px;
+    padding: 4px 9px;
+}
+
+.gacha-museum-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: 8px;
+}
+
+.bbx-item-card {
+    background: #ffffff;
+    border: 2px solid #ede9fe;
+    border-radius: 14px;
+    padding: 7px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    text-align: center;
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+.bbx-item-card.owned {
+    cursor: pointer;
+}
+.bbx-item-card.owned:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 14px rgba(124, 58, 237, 0.14);
+}
+.bbx-item-card.owned.rarity-ur {
+    border-color: #f59e0b;
+    background: linear-gradient(180deg, #fffdf5 0%, #ffffff 100%);
+}
+.bbx-item-card.owned.rarity-ssr {
+    border-color: #f472b6;
+    background: linear-gradient(180deg, #fff7fb 0%, #ffffff 100%);
+}
+.bbx-item-card.locked {
+    opacity: 0.68;
+    background: #f8f7fc;
+    border-style: dashed;
+}
+.bbx-card-top {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2px;
+}
+.bbx-mini-stars {
+    font-size: 9px;
+    letter-spacing: -1px;
+}
+.bbx-art-slot {
+    height: 66px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.bbx-item-img {
+    width: 62px;
+    height: 62px;
+    object-fit: contain;
+}
+.bbx-acc-thumb {
+    transform: scale(1.1);
+}
+.bbx-mystery-silhouette {
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: #ede9fe;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+.bbx-mystery-silhouette span {
+    font-size: 26px;
+    filter: brightness(0) opacity(0.22);
+}
+.bbx-mystery-silhouette small {
+    position: absolute;
+    font-size: 16px;
+    font-weight: 900;
+    color: #7c3aed;
+}
+.bbx-item-name {
+    font-size: 12px;
+    font-weight: 900;
+    color: #2e1065;
+    line-height: 1.2;
+}
+.bbx-item-act {
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #9ca3af;
+}
+.bbx-item-act.ready {
+    color: #059669;
+}
+
 /* ==================== 英语降难度适配 & 随机筛题增强样式 ==================== */
 .qw-en-grid:has(> :nth-child(3):last-child) {
     grid-template-columns: repeat(3, 1fr);

@@ -267,6 +267,30 @@ async function main() {
         document.querySelector('#hubSmartModeStrip [data-smode="grand_random"]').click();
     `);
 
+    // Test Hub Daily Fixed Quests & 6-Series 74-Item Blindbox Museum Modal (#btnHubDailyGacha)
+    const hubBbxRes = await evalJs(`(() => {
+        const noScrollBefore = document.documentElement.scrollHeight <= window.innerHeight + 2;
+        document.getElementById('btnHubDailyGacha').click();
+        const isOpen = document.getElementById('hubBlindboxModal').classList.contains('show');
+        const questCards = document.querySelectorAll('#hubBlindboxStage .gdq-card').length;
+        const museumTabTxt = document.getElementById('hubBbxMuseumTabBtn')?.textContent || '';
+        document.querySelector('#hubBlindboxTabs [data-bbxtab="museum"]').click();
+        const seriesTabCount = document.querySelectorAll('#hubBlindboxStage [data-hbseries]').length;
+        const totalCards = document.querySelectorAll('#hubBlindboxStage .bbx-item-card').length;
+        document.querySelector('#hubBlindboxTabs [data-bbxtab="quests"]').click();
+        return { noScrollBefore, isOpen, questCards, museumTabTxt, seriesTabCount, totalCards };
+    })()`);
+    console.log('Hub Daily Quests & Blindbox Museum check:', hubBbxRes);
+    assert.equal(hubBbxRes.noScrollBefore, true, 'Hub with new 🎁 打卡·盲盒 button must maintain zero vertical overflow');
+    assert.equal(hubBbxRes.isOpen, true);
+    assert.equal(hubBbxRes.questCards, 2, 'Hub blindbox modal must display 2 fixed daily quest cards (Math 10Q + Off-Campus Course 8Q)');
+    assert.ok(hubBbxRes.museumTabTxt.includes('/74)'), `Expected 74 blindbox collectibles in museum tab, got ${hubBbxRes.museumTabTxt}`);
+    assert.equal(hubBbxRes.seriesTabCount, 7, 'Must render 1 All + 6 themed blindbox series tabs = 7');
+    assert.equal(hubBbxRes.totalCards, 74, 'All-series museum view must display 74 collectible cards');
+    await sleep(200);
+    await saveShot('hub_daily_blindbox_modal.png');
+    await evalJs(`document.getElementById('btnCloseHubBlindbox').click();`);
+
     // Test Backup Modal Export Code
     const backupCodeRes = await evalJs(`(() => {
         document.getElementById('btnHubBackup').click();
@@ -900,7 +924,7 @@ async function main() {
     })()`);
     assert.equal(wardrobeCheck.styleCardsInModal, 5, 'Wardrobe must display all 5 stage style cards');
     assert.equal(wardrobeCheck.frogSpecialCards, 3, 'Wardrobe must display 3 frog lotus leaf outfits');
-    assert.equal(wardrobeCheck.svgAccessoryCount, 9, 'All 9 non-none accessories must render custom 3D SVGs');
+    assert.equal(wardrobeCheck.svgAccessoryCount, 17, 'All 17 non-none accessories must render custom 3D SVGs');
     await sleep(300);
     await saveShot('pet_wardrobe_styles_lotus.png');
 
@@ -1021,6 +1045,45 @@ async function main() {
     assert.equal(optVerifyRes.noScrollFinal, true, 'Pet Town final view must maintain zero overflow');
     await sleep(900);
     await saveShot('pet_lv5_fairy_wings.png');
+
+    // 5) Test Pet Town #view-gacha (Daily Fixed Quests Bar + 6-Series 74-Item Blindbox Museum + Pull & Equip Companion/Accessory, 0 overflow!)
+    const petGachaMuseumRes = await evalJs(`(async () => {
+        const { profileManager } = await import('./js/profileManager.js');
+        profileManager.getActiveUser().gachaTickets = (profileManager.getActiveUser().gachaTickets || 0) + 2;
+        profileManager.save();
+        window.__petTownApp.switchWorldView('gacha');
+        window.__petTownApp.renderAll();
+
+        const questCards = document.querySelectorAll('#petDailyQuestsBar .gdq-card').length;
+        const seriesTabs = document.querySelectorAll('#gachaSeriesTabs [data-gseries]').length;
+        const progTxt = document.getElementById('gachaTotalProgBadge')?.textContent || '';
+
+        // Select 'guardians' series and pull 1 blindbox!
+        document.querySelector('#gachaSeriesTabs [data-gseries="guardians"]').click();
+        document.getElementById('btnPullGacha').click();
+        await new Promise(r => setTimeout(r, 620));
+        window.__petTownApp.closeModal('modalQuickPopup');
+
+        // Also select 'dino' series to display dinosaur museum shelf for screenshot!
+        document.querySelector('#gachaSeriesTabs [data-gseries="dino"]').click();
+        document.getElementById('btnPullGacha').click();
+        await new Promise(r => setTimeout(r, 620));
+        window.__petTownApp.closeModal('modalQuickPopup');
+
+        const dinoCardsCount = document.querySelectorAll('#gachaHiddenPreview .bbx-item-card').length;
+        const ownedDinoCards = document.querySelectorAll('#gachaHiddenPreview .bbx-item-card.owned').length;
+        const noScrollGacha = document.documentElement.scrollHeight <= window.innerHeight + 2;
+        return { questCards, seriesTabs, progTxt, dinoCardsCount, ownedDinoCards, noScrollGacha };
+    })()`);
+    console.log('Pet Town 6-Series Blindbox Museum Check:', petGachaMuseumRes);
+    assert.equal(petGachaMuseumRes.questCards, 2);
+    assert.equal(petGachaMuseumRes.seriesTabs, 7);
+    assert.ok(petGachaMuseumRes.progTxt.includes('/ 74'));
+    assert.equal(petGachaMuseumRes.dinoCardsCount, 12);
+    assert.ok(petGachaMuseumRes.ownedDinoCards >= 1);
+    assert.equal(petGachaMuseumRes.noScrollGacha, true, 'Pet Town Gacha Museum view must fit 1180x820 viewport with zero overflow');
+    await sleep(250);
+    await saveShot('pet_blindbox_museum_74.png');
 
     console.log('Console errors:', consoleErrors.length);
     console.log('Failed local network requests:', failedLocalUrls.length);
