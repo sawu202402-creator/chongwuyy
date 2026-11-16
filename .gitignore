@@ -6,6 +6,9 @@ node_modules/
 scratch/
 *.tmp
 
+# Local homework photo drop folder
+/yu/
+
 # System & IDE files
 .DS_Store
 Thumbs.db

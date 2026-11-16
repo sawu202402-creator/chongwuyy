@@ -182,7 +182,7 @@ async function main() {
     assert.equal(hubCheck.noScroll, true, 'Hub must fit 1180x820 iPad viewport with zero vertical overflow');
     assert.equal(hubCheck.modePillsCount, 27, 'Hub mode strip must expose 4 random/vocab + 5 course + 9 math + 9 general English = 27 entry pills');
     assert.equal(hubCheck.emptyHubPills, 0, 'All Hub mode pills must have visible labels');
-    assert.ok(hubCheck.courseBtnTxt.includes('S1U1W1'), 'Hub course button should show latest lesson code S1U1W1');
+    assert.ok(hubCheck.courseBtnTxt.includes('S1·分级'), 'Hub course button should show latest lesson code S1·分级');
     assert.equal(hubCheck.afterSingle, 'clock_money');
     assert.equal(hubCheck.afterGrand, 'grand_random');
     await saveShot('course_hub_portal_strip.png');
@@ -219,23 +219,37 @@ async function main() {
     assert.ok(hubFilterToggleRes.afterSaveTxt.includes('(5)'), `Expected (5) after excluding phonics_chunks, got ${hubFilterToggleRes.afterSaveTxt}`);
     assert.ok(hubFilterToggleRes.afterRestoreTxt.includes('(6)'), `Expected (6) after restoring easy preset, got ${hubFilterToggleRes.afterRestoreTxt}`);
 
-    // Test Hub Off-Campus Course Special Modal (Video Read-Aloud Board + Phonics Blind Dictation)
+    // Test Hub Off-Campus Course Special Modal (Class Party 4-Box Flowchart + Story Reader + Phonics Blind Dictation + Lesson Switcher)
     const hubCourseReadRes = await evalJs(`(() => {
         document.getElementById('btnHubCourseCenter').click();
         const isOpen = document.getElementById('hubCourseModal').classList.contains('show');
         const stageTxt = document.getElementById('hubCourseStage').textContent;
+        const flowBoxCount = document.querySelectorAll('#hubCourseStage .qw-rc-flow-box').length;
+        const hasStoryReader = Boolean(document.querySelector('#hubCourseStage .qw-rc-story-details'));
         const phCount = document.querySelectorAll('#hubCourseStage .qw-rc-ph-chip').length;
         const chkBtn = document.querySelector('#hubCourseStage .qw-rc-chk');
         const chkKey = chkBtn?.getAttribute('data-chk');
         if (chkBtn) chkBtn.click();
         const isCheckedAfter = document.querySelector('#hubCourseStage [data-chk="' + chkKey + '"]')?.classList.contains('checked');
-        return { isOpen, hasJackQ1: stageTxt.includes('What can Jack do'), phCount, isCheckedAfter };
+        const lessonOptionValues = Array.from(document.getElementById('hubCourseLessonSelect')?.options || []).map(o => o.value);
+        return {
+            isOpen,
+            hasClassPartyFlow: stageTxt.includes('won the spelling bee') && stageTxt.includes('party hats'),
+            flowBoxCount,
+            hasStoryReader,
+            phCount,
+            isCheckedAfter,
+            lessonOptionValues
+        };
     })()`);
     console.log('Hub Course Read-Aloud check:', hubCourseReadRes);
     assert.equal(hubCourseReadRes.isOpen, true);
-    assert.equal(hubCourseReadRes.hasJackQ1, true);
+    assert.equal(hubCourseReadRes.hasClassPartyFlow, true, 'Latest Hub course readcard must display Class Party 4-box flowchart');
+    assert.equal(hubCourseReadRes.flowBoxCount, 4, 'Class Party flowchart must have 4 boxes');
+    assert.equal(hubCourseReadRes.hasStoryReader, true, 'Class Party readcard must include expandable P2-P11 story reader');
     assert.equal(hubCourseReadRes.phCount, 12);
     assert.equal(hubCourseReadRes.isCheckedAfter, true);
+    assert.deepEqual(hubCourseReadRes.lessonOptionValues, ['latest', 'all_courses', 'S1_1114', 'S1U1W1']);
     await sleep(200);
     await saveShot('course_hub_readaloud_modal.png');
 
@@ -388,7 +402,7 @@ async function main() {
         };
     })()`);
     console.log('Carrot Course Phonics setup:', carrotCourseBefore);
-    assert.equal(carrotCourseBefore.lessonCode, 'S1U1W1');
+    assert.equal(carrotCourseBefore.lessonCode, 'S1·分级');
     await sleep(250);
     await saveShot('course_carrot_phonics_dictation.png');
 
@@ -548,7 +562,10 @@ async function main() {
     assert.equal(pvzCheck.noScroll, true, 'PvZ must fit 1180x820 viewport with zero vertical overflow');
     assert.equal(pvzCheck.noScrollAfterCourse, true, 'PvZ with course Q&A must maintain zero vertical overflow');
     assert.ok(pvzCheck.sunAfterMath > pvzCheck.sunBefore, 'Solving pyramid_grid in PvZ must award Sun!');
-    assert.ok(pvzCheck.qaStageText.includes('Jack') || pvzCheck.qaStageText.includes('Nan'), 'PvZ course_qa must render Jack Can story Q&A');
+    assert.ok(
+        pvzCheck.qaStageText.includes('party') || pvzCheck.qaStageText.includes('Eve') || pvzCheck.qaStageText.includes('Lopez') || pvzCheck.qaStageText.includes('Class Party'),
+        'PvZ course_qa must render Class Party story Q&A'
+    );
     // Also verify PvZ course_all in Easy mode renders gentle recognition/choice homework (0 blind full-word spelling)
     const pvzGentleCourse = await evalJs(`(async () => {
         const { englishEngine } = await import('../shared/englishEngine.js');

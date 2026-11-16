@@ -1314,7 +1314,7 @@ class PortalHubApp {
                 optsHtml += `<option value="all_courses">📚 全部已学课节联考 (${COURSE_LESSONS.length}节)</option>`;
             }
             COURSE_LESSONS.forEach(ls => {
-                optsHtml += `<option value="${ls.id}">📖 ${ls.title} · 《${ls.storyTitle}》</option>`;
+                optsHtml += `<option value="${ls.id}">📖 ${ls.code} (${ls.dateLabel}) · 《${ls.storyTitle}》</option>`;
             });
             sel.innerHTML = optsHtml;
             sel.value = this.courseState.lessonId;

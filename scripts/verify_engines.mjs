@@ -311,9 +311,51 @@ assert.equal(easyCourseKeys.size, 24, 'Easy S1U1W1 course_all must have 24 uniqu
 assert.deepEqual([...easyCourseSubTypes].sort(), ['phonics_listen_pick', 'qa_cloze', 'qa_match', 'sight_cloze_pick']);
 console.log('   ✅ Kid-Friendly Easy Difficulty & Excluded Types verified!');
 
-console.log('4B. Testing Off-Campus English Course Registry Full Exam Mode (S1U1W1 · 11/12 Jack Can)...');
-assert.ok(COURSE_LESSONS.length >= 1);
+console.log('4B. Testing Off-Campus English Course Registry Full Exam Mode (S1·分级 Class Party & S1U1W1 Jack Can)...');
+assert.ok(COURSE_LESSONS.length >= 2);
 assert.equal(COURSE_SUB_MODES.length, 5);
+
+// 1) Verify latest lesson COURSE_LESSONS[0] is S1_1114 (11/14 分级阅读 Class Party)
+const s1_1114 = COURSE_LESSONS[0];
+assert.equal(s1_1114.id, 'S1_1114');
+assert.equal(s1_1114.code, 'S1·分级');
+assert.equal(s1_1114.dateLabel, '11/14');
+assert.equal(s1_1114.storyTitle, 'Class Party');
+assert.equal(s1_1114.retellFlow.boxes.length, 4, 'Class Party must have 4 flowchart retell boxes');
+assert.deepEqual(
+    s1_1114.sightWords.map(w => w.word),
+    ['chapter', 'question', 'class', 'celebrate', 'party']
+);
+assert.equal(s1_1114.qaList.length, 6, 'Class Party must have 6 Q&A items');
+assert.equal(s1_1114.phonicsWords.length, 12, 'Class Party must have 12 vocabulary/phonics words');
+
+// Verify S1_1114 easy random course_all yields 29 gentle items (12 ph_pick + 5 sw_pick + 12 qa)
+easyEngine.setConfig({ wordDifficulty: 'easy', courseAllowHardDictation: false, courseLessonId: 'latest' });
+const latestEasyKeys = new Set();
+for (let i = 0; i < 29; i++) {
+    const cq = easyEngine.nextQuickQuestion(null, 'course_all');
+    assert.equal(cq.lessonId, 'S1_1114');
+    latestEasyKeys.add(cq.itemKey);
+}
+assert.equal(latestEasyKeys.size, 29, 'Easy S1_1114 course_all must have 29 unique gentle items');
+
+// Verify S1_1114 full exam mode yields 35 non-repeating items (12 ph_dict + 10 sight + 13 qa incl. 4-step flowchart ordering)
+ee.setConfig({ courseLessonId: 'S1_1114', wordDifficulty: 'all', courseAllowHardDictation: true, enabledTypes: ALL_ENGLISH_TYPE_IDS });
+const classPartyExamKeys = new Set();
+let saw4StepFlow = false;
+for (let i = 0; i < 35; i++) {
+    const cq = ee.nextQuickQuestion(null, 'course_all');
+    assert.equal(cq.mode, 'course_special');
+    classPartyExamKeys.add(cq.itemKey);
+    if (cq.courseSubType === 'qa_story_steps') {
+        assert.equal(cq.orderedSteps.length, 4, 'Class Party story steps must have all 4 flowchart boxes');
+        saw4StepFlow = true;
+    }
+}
+assert.equal(classPartyExamKeys.size, 35, `35 consecutive draws of S1_1114 course_all must have 0 repeats, got ${classPartyExamKeys.size}`);
+assert.equal(saw4StepFlow, true, 'Must include 4-step Class Party flowchart ordering');
+
+// 2) Verify S1U1W1 (11/12 Jack Can) remains intact & switchable
 const s1u1w1 = COURSE_LESSONS.find(l => l.id === 'S1U1W1');
 assert.ok(s1u1w1, 'Must contain lesson S1U1W1');
 assert.equal(s1u1w1.qaList.length, 4, 'S1U1W1 must have 4 Q&A items');
@@ -332,7 +374,16 @@ for (let i = 0; i < 29; i++) {
 }
 assert.equal(allCourseKeys.size, 29, `29 consecutive draws of S1U1W1 course_all must have 0 repeats, got ${allCourseKeys.size}`);
 
+// 3) Verify 'all_courses' combines both lessons (35 + 29 = 64 unique items)
+ee.setConfig({ courseLessonId: 'all_courses', wordDifficulty: 'all', courseAllowHardDictation: true });
+const combinedKeys = new Set();
+for (let i = 0; i < 64; i++) {
+    combinedKeys.add(ee.nextQuickQuestion(null, 'course_all').itemKey);
+}
+assert.equal(combinedKeys.size, 64, 'all_courses must draw all 64 unique items across both lessons without repeat');
+
 const phonicsWordsDrawn = new Set();
+ee.setConfig({ courseLessonId: 'S1U1W1', wordDifficulty: 'all', courseAllowHardDictation: true });
 for (let i = 0; i < 12; i++) {
     const pq = ee.nextQuickQuestion(null, 'course_phonics');
     assert.equal(pq.courseSubType, 'phonics_dictation');

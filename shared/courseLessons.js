@@ -26,6 +26,318 @@ export const ALL_COURSE_SUB_IDS = COURSE_SUB_MODES.map(m => m.id);
  */
 export const COURSE_LESSONS = [
     {
+        id: 'S1_1114',
+        code: 'S1·分级',
+        stage: 'S1',
+        dateLabel: '11/14',
+        storyTitle: 'Class Party',
+        title: 'S1·分级 · Class Party',
+        badgeLabel: 'S1 · 11/14 分级阅读 (Class Party)',
+        subtitle: '学案流程图复述 4 格 · 必抄词句 5 组 · 绘本问答 6 组 · 核心词库 12 词',
+        qaSectionTitle: '📖 绘本精读问答 & 学案填空（Class Party + P12 课后题）',
+        sightSectionTitle: '✍️ 2. 必抄单词 5 个（每个抄 4 遍）与课本原句听读',
+        phonicsRuleTitle: '核心必抄词 + 学案 Word Bank 听音拼读 12 词',
+
+        // 群视频作业核心：录制故事 Class Party 的表格/流程图信息 details（1:1 还原课堂完成的学案）
+        retellFlow: {
+            title: '🎬 3. 群视频作业：录制 Class Party 学案流程图复述 (Details)',
+            centerBadge: 'Class Party',
+            wordBank: ['excited', 'party hats', 'sad', 'party', 'nothing', 'bring', 'idea'],
+            fullSpeakText: "Class Party. The class will have a party, because they won the spelling bee. All the children are excited. They can bring something. There's nothing left for Eve to bring. She is sad. Luke has an idea. Eve can bring the party hats.",
+            boxes: [
+                {
+                    id: 'flow_1',
+                    step: 1,
+                    en: 'The class will have a party, because they won the spelling bee.',
+                    htmlEn: 'The class will have a <u>party</u>, because they won the spelling bee.',
+                    zh: '全班将要举办一场派对，因为他们赢得了拼字比赛。',
+                    blanks: ['party']
+                },
+                {
+                    id: 'flow_2',
+                    step: 2,
+                    en: 'All the children are excited. They can bring something.',
+                    htmlEn: 'All the children are <u>excited</u>. They can <u>bring</u> something.',
+                    zh: '所有孩子都很兴奋，每个人都可以带一样东西来。',
+                    blanks: ['excited', 'bring']
+                },
+                {
+                    id: 'flow_3',
+                    step: 3,
+                    en: "There's nothing left for Eve to bring. She is sad.",
+                    htmlEn: "There's <u>nothing</u> left for Eve to bring. She is <u>sad</u>.",
+                    zh: '没有剩下东西给伊芙（Eve）带了，她很难过。',
+                    blanks: ['nothing', 'sad']
+                },
+                {
+                    id: 'flow_4',
+                    step: 4,
+                    en: 'Luke has an idea. Eve can bring the party hats.',
+                    htmlEn: 'Luke has an <u>idea</u>. Eve can bring the <u>party hats</u>.',
+                    zh: '卢克（Luke）想出了一个好主意：伊芙可以带派对帽！',
+                    blanks: ['idea', 'party hats']
+                }
+            ]
+        },
+
+        // 分级绘本全文点读（P2–P11 双章原文 + 黑板派对分工记录表）
+        storyChapters: {
+            meta: 'Genre: Realistic Fiction (not real · 现实虚构故事) · Essential Question: What do you do at your school?',
+            partyChart: [
+                { name: 'Juan', item: 'drinks 🧃' },
+                { name: 'Luke', item: 'apples 🍏' },
+                { name: 'Mark', item: 'popcorn 🍿' },
+                { name: 'Kate', item: 'muffins 🧁' },
+                { name: 'Max', item: 'plates, napkins 🍽️' },
+                { name: 'Jack', item: 'cups 🥤' },
+                { name: 'Eve', item: 'party hats 🥳' }
+            ],
+            chapters: [
+                {
+                    title: 'Chapter 1 · How Can We Celebrate? (P2–P8)',
+                    pages: [
+                        { page: 'P2', en: 'Mrs. Lopez has a question for her class. "What happened last week?" she asks. "We won the spelling bee!" everyone says.', zh: '洛佩兹老师问全班：“上周发生了什么？”大家说：“我们赢了拼字比赛！”' },
+                        { page: 'P3', en: '"What can we do to celebrate?" asks Mrs. Lopez. "We can have a party," Mark answers. "That\'s a good idea," says Mrs. Lopez.', zh: '老师问：“我们怎么庆祝呢？”马克回答：“可以开派对！”老师说：“好主意。”' },
+                        { page: 'P4', en: '"A party at school will be fun!" says Kate. All the children are excited. They cannot wait for the party.', zh: '凯特说：“学校派对一定很有趣！”孩子们都很兴奋，迫不及待了（cannot = can\'t）。' },
+                        { page: 'P5', en: 'Mrs. Lopez talks to the class about the party. "We will need food and drinks for our party. How can we get those things?" asks Mrs. Lopez. The children think about it.', zh: '老师和大家讨论派对：“我们需要食物和饮料，怎么准备呢？”孩子们认真思考。' },
+                        { page: 'P6', en: '"We can all bring something," says Juan. "That\'s a good idea, Juan," says Mrs. Lopez. The children take turns. Juan says he will bring drinks. Luke wants to bring apples.', zh: '胡安说：“我们每人带一样东西吧！”大家轮流发言：胡安带饮料，卢克想带苹果。' },
+                        { page: 'P7', en: '"I can make popcorn," says Mark. "And I can bring muffins," says Kate. "My mom will help me make them."', zh: '马克说：“我会做爆米花。”凯特说：“我可以带松饼，妈妈会帮我一起做。”' },
+                        { page: 'P8', en: '"I can bring plates and napkins," says Max. "I can bring the cups," Jack adds.', zh: '麦克斯说：“我带盘子和餐巾纸。”杰克补充说：“我来带杯子。”' }
+                    ]
+                },
+                {
+                    title: 'Chapter 2 · How Can Eve Help? (P9–P11)',
+                    pages: [
+                        { page: 'P9', en: 'Everyone is excited, but Eve does not say anything. "What\'s wrong?" asks Mrs. Lopez. "There\'s nothing left for me to bring!" says Eve. "I want to help too."', zh: '大家都很兴奋，只有伊芙没说话。她说：“没有剩下我能带的东西了！我也想帮忙。”' },
+                        { page: 'P10', en: 'Then Luke has an idea. "We will need party hats," he says. "You can bring the party hats, Eve!"', zh: '这时卢克想到了一个主意：“我们还需要派对帽，伊芙，你可以带派对帽呀！”' },
+                        { page: 'P11', en: '"I like party hats," says Eve. "I will make them. That\'s how I can help!" "That\'s a good idea," says Mrs. Lopez. "If we all help out, it will be a great party!"', zh: '伊芙开心地说：“我喜欢派对帽，我来做！”老师说：“大家齐心协力，这会是很棒的派对！”' }
+                    ]
+                }
+            ]
+        },
+
+        // 绘本问答 & 学案流程图填空与四步排序
+        qaList: [
+            {
+                id: 's1_1114_qa1',
+                index: 1,
+                icon: '🎈',
+                q: 'Why will the class have a party?',
+                qSpeak: 'Why will the class have a party?',
+                qZh: '【学案第1格】为什么全班要举办一场派对？',
+                a: 'The class will have a party, because they won the spelling bee.',
+                aZh: '全班将要举办一场派对，因为他们赢得了拼字比赛。',
+                sentences: [
+                    { en: 'The class will have a party, because they won the spelling bee.', zh: '全班要办派对，因为他们赢了拼字比赛。' }
+                ],
+                clozeSentence: 'The class will have a ____, because they won the spelling bee.',
+                clozeAnswer: 'party',
+                clozeOptions: ['party', 'chapter', 'question', 'sad'],
+                qaDistractors: [
+                    'Because Mrs. Lopez has a new book.',
+                    'Because Eve made party hats at home.',
+                    'Because there is nothing left to bring.'
+                ],
+                keyVocab: { word: 'party', zh: '派对 (have a party)', icon: '🎈', phonics: 'p-ar-t-y' }
+            },
+            {
+                id: 's1_1114_qa2',
+                index: 2,
+                icon: '🤩',
+                q: 'How do all the children feel, and what can they do?',
+                qSpeak: 'How do all the children feel, and what can they do?',
+                qZh: '【学案第2格】所有孩子心情如何？他们可以怎么做？',
+                a: 'All the children are excited. They can bring something.',
+                aZh: '所有孩子都很兴奋。他们每个人都可以带一样东西来。',
+                sentences: [
+                    { en: 'All the children are excited.', zh: '所有孩子都很兴奋。' },
+                    { en: 'They can bring something.', zh: '他们可以每人带一样东西。' }
+                ],
+                clozeSentence: 'All the children are ____. They can ____ something.',
+                clozeAnswer: 'excited → bring',
+                clozeOptions: ['excited → bring', 'sad → nothing', 'happy → read', 'mad → take'],
+                qaDistractors: [
+                    'All the children are sad. Nobody wants a party.',
+                    'Only Mark is excited. Mrs. Lopez brings everything.',
+                    'They cannot bring food or drinks to school.'
+                ],
+                keyVocab: { word: 'excited', zh: '兴奋的 (are excited)', icon: '🤩', phonics: 'ex-c-i-t-ed' }
+            },
+            {
+                id: 's1_1114_qa3',
+                index: 3,
+                icon: '😢',
+                q: 'Why does Mrs. Lopez ask Eve what is wrong?',
+                qSpeak: 'Why does Mrs. Lopez ask Eve what is wrong?',
+                qZh: '【学案第3格 & P12第2题】为什么老师问伊芙怎么了？',
+                a: "There's nothing left for Eve to bring. She is sad.",
+                aZh: '因为大家都选完了，没有剩下东西给伊芙带，她没说话、很难过。',
+                sentences: [
+                    { en: "There's nothing left for Eve to bring.", zh: '没有剩下什么东西给伊芙带了。' },
+                    { en: 'She is sad.', zh: '她很难过。' }
+                ],
+                clozeSentence: "There's ____ left for Eve to bring. She is ____.",
+                clozeAnswer: 'nothing → sad',
+                clozeOptions: ['nothing → sad', 'something → excited', 'party → fun', 'idea → happy'],
+                qaDistractors: [
+                    'Because Eve does not like popcorn or muffins.',
+                    'Because Eve lost the spelling bee last week.',
+                    'Because Eve forgot her homework at home.'
+                ],
+                keyVocab: { word: 'nothing', zh: '没有东西 (nothing left)', icon: '🫙', phonics: 'n-o-th-i-ng' }
+            },
+            {
+                id: 's1_1114_qa4',
+                index: 4,
+                icon: '🥳',
+                q: 'How does Luke help Eve? (Retell all 4 details)',
+                qSpeak: 'How does Luke help Eve?',
+                qZh: '【学案第4格 & 全篇4步排序】卢克是怎么帮伊芙想办法的？',
+                a: 'Luke has an idea. Eve can bring the party hats.',
+                aZh: '卢克想出了一个好主意：伊芙可以制作并带来派对帽！',
+                sentences: [
+                    { en: 'The class will have a party, because they won the spelling bee.', zh: '1️⃣ 全班要开派对，因为赢了拼字比赛。' },
+                    { en: 'All the children are excited. They can bring something.', zh: '2️⃣ 孩子们很兴奋，大家都可以带东西。' },
+                    { en: "There's nothing left for Eve to bring. She is sad.", zh: '3️⃣ 没剩东西给伊芙带了，她很难过。' },
+                    { en: 'Luke has an idea. Eve can bring the party hats.', zh: '4️⃣ 卢克想到好主意：伊芙可以带派对帽！' }
+                ],
+                clozeSentence: 'Luke has an ____. Eve can bring the ____.',
+                clozeAnswer: 'idea → party hats',
+                clozeOptions: ['idea → party hats', 'idea → cups', 'question → apples', 'party → drinks'],
+                qaDistractors: [
+                    'Luke gives his apples to Eve.',
+                    'Jack asks Eve to bring plates and napkins.',
+                    'Mrs. Lopez tells Eve she does not need to help.'
+                ],
+                keyVocab: { word: 'idea', zh: '主意 (has an idea)', icon: '💡', phonics: 'i-d-ea' }
+            },
+            {
+                id: 's1_1114_qa5',
+                index: 5,
+                icon: '📋',
+                q: "How does Mrs. Lopez keep a record of the children's ideas?",
+                qSpeak: "How does Mrs. Lopez keep a record of the children's ideas?",
+                qZh: '【课本P12第1题】洛佩兹老师怎样记录孩子们的想法？',
+                a: 'She writes their names and ideas on a Class Party chart.',
+                aZh: '她把孩子们的名字和各自带的东西记录在黑板的 Class Party 表格上。',
+                sentences: [
+                    { en: 'She writes their names and ideas on a Class Party chart.', zh: '她把名字和想法写在黑板的班级派对表格上。' }
+                ],
+                clozeSentence: 'She writes their names and ideas on a Class Party ____.',
+                clozeAnswer: 'chart',
+                clozeOptions: ['chart', 'hat', 'cup', 'muffin'],
+                qaDistractors: [
+                    'She asks Mark to draw a picture of himself.',
+                    'She does not write anything down.',
+                    'She puts party hats on the desks.'
+                ],
+                keyVocab: { word: 'class', zh: '班级 (Class Party chart)', icon: '📋', phonics: 'cl-a-ss' }
+            },
+            {
+                id: 's1_1114_qa6',
+                index: 6,
+                icon: '📚',
+                q: 'Is Class Party nonfiction or fiction? Why?',
+                qSpeak: 'Is Class Party nonfiction or fiction? Why?',
+                qZh: '【课本封面笔记 & P12第3题】《Class Party》是纪实还是虚构故事？为什么？',
+                a: 'It is realistic fiction because the story is made up and not real, though it could happen at school.',
+                aZh: '它是现实虚构故事（not real），因为人物和故事是编出来的，但在真实学校里也可能发生。',
+                sentences: [
+                    { en: 'It is realistic fiction because the story is made up and not real, though it could happen at school.', zh: '它是现实虚构故事，故事是编的（not real），但在学校里可能发生。' }
+                ],
+                clozeSentence: 'Class Party is realistic ____ (not real), though it could happen at school.',
+                clozeAnswer: 'fiction',
+                clozeOptions: ['fiction', 'nonfiction', 'question', 'chapter'],
+                qaDistractors: [
+                    'It is nonfiction because animals can talk and fly.',
+                    'It is a science book about how apples grow.',
+                    'It is nonfiction with real photos of astronauts.'
+                ],
+                keyVocab: { word: 'celebrate', zh: '庆祝 (celebrate at school)', icon: '🎉', phonics: 'c-e-l-e-br-a-te' }
+            }
+        ],
+
+        // 作业第 2 项：抄写单词（每个 4 遍）与课本原句巩固 (5 词)
+        sightWords: [
+            {
+                id: 'cw_s1_1114_chapter',
+                word: 'chapter',
+                zh: '章节（必抄词①）',
+                icon: '📖',
+                phonics: 'ch-a-p-t-er',
+                ipa: '/ˈtʃæptər/',
+                sentence: 'We read chapter one in class.',
+                sentenceZh: '我们在班里读第一章。',
+                maskedSentence: 'We read ____ one in class.',
+                distractorChars: ['s', 'k', 'o']
+            },
+            {
+                id: 'cw_s1_1114_question',
+                word: 'question',
+                zh: '问题（必抄词②）',
+                icon: '❓',
+                phonics: 'qu-e-s-ti-on',
+                ipa: '/ˈkwestʃən/',
+                sentence: 'Mrs. Lopez has a question for her class.',
+                sentenceZh: '洛佩兹老师有一个问题要问全班同学。（P2原句）',
+                maskedSentence: 'Mrs. Lopez has a ____ for her class.',
+                distractorChars: ['a', 'k', 'c']
+            },
+            {
+                id: 'cw_s1_1114_class',
+                word: 'class',
+                zh: '班级；全班（必抄词③）',
+                icon: '🏫',
+                phonics: 'cl-a-ss',
+                ipa: '/klæs/',
+                sentence: 'The class will have a party.',
+                sentenceZh: '全班将要举办一场派对。（学案原句）',
+                maskedSentence: 'The ____ will have a party.',
+                distractorChars: ['k', 'e', 'z']
+            },
+            {
+                id: 'cw_s1_1114_celebrate',
+                word: 'celebrate',
+                zh: '庆祝（必抄词④）',
+                icon: '🎉',
+                phonics: 'c-e-l-e-br-a-te',
+                ipa: '/ˈselɪbreɪt/',
+                sentence: 'What can we do to celebrate?',
+                sentenceZh: '我们能做些什么来庆祝呢？（P3原句）',
+                maskedSentence: 'What can we do to ____?',
+                distractorChars: ['s', 'k', 'i']
+            },
+            {
+                id: 'cw_s1_1114_party',
+                word: 'party',
+                zh: '派对；聚会（必抄词⑤）',
+                icon: '🎈',
+                phonics: 'p-ar-t-y',
+                ipa: '/ˈpɑːrti/',
+                sentence: 'We can have a party.',
+                sentenceZh: '我们可以举办一场派对。（P3原句）',
+                maskedSentence: 'We can have a ____.',
+                distractorChars: ['b', 'e', 'i']
+            }
+        ],
+
+        // 核心词汇听音认读与拼写库（5个必抄词 + 6个学案Word Bank词 + 派对分工高频词 = 12词）
+        phonicsWords: [
+            { id: 'cw_s1_1114_ph_chapter',   word: 'chapter',   zh: '章节(必抄)',   icon: '📖', phonics: 'ch-a-p-t-er',    ipa: '/ˈtʃæptər/',  sentence: 'Chapter one is How Can We Celebrate.', distractorChars: ['s', 'k', 'o'] },
+            { id: 'cw_s1_1114_ph_question',  word: 'question',  zh: '问题(必抄)',   icon: '❓', phonics: 'qu-e-s-ti-on',   ipa: '/ˈkwestʃən/', sentence: 'Mrs. Lopez has a question.',          distractorChars: ['a', 'k', 'c'] },
+            { id: 'cw_s1_1114_ph_class',     word: 'class',     zh: '班级(必抄)',   icon: '🏫', phonics: 'cl-a-ss',        ipa: '/klæs/',      sentence: 'The class won the spelling bee.',     distractorChars: ['k', 'e', 'z'] },
+            { id: 'cw_s1_1114_ph_celebrate', word: 'celebrate', zh: '庆祝(必抄)',   icon: '🎉', phonics: 'c-e-l-e-br-a-te',ipa: '/ˈselɪbreɪt/',sentence: 'What can we do to celebrate?',         distractorChars: ['s', 'k', 'i'] },
+            { id: 'cw_s1_1114_ph_party',     word: 'party',     zh: '派对(必抄)',   icon: '🎈', phonics: 'p-ar-t-y',       ipa: '/ˈpɑːrti/',   sentence: 'The class will have a party.',        distractorChars: ['b', 'e', 'i'] },
+            { id: 'cw_s1_1114_ph_excited',   word: 'excited',   zh: '兴奋的(学案)', icon: '🤩', phonics: 'ex-c-i-t-ed',    ipa: '/ɪkˈsaɪtɪd/', sentence: 'All the children are excited.',       distractorChars: ['s', 'a', 'k'] },
+            { id: 'cw_s1_1114_ph_bring',     word: 'bring',     zh: '带来(学案)',   icon: '🤲', phonics: 'br-i-ng',        ipa: '/brɪŋ/',      sentence: 'They can bring something.',           distractorChars: ['p', 'e', 'd'] },
+            { id: 'cw_s1_1114_ph_nothing',   word: 'nothing',   zh: '没什么(学案)', icon: '🫙', phonics: 'n-o-th-i-ng',    ipa: '/ˈnʌθɪŋ/',    sentence: "There's nothing left for Eve.",       distractorChars: ['a', 'u', 's'] },
+            { id: 'cw_s1_1114_ph_sad',       word: 'sad',       zh: '难过的(学案)', icon: '😢', phonics: 's-a-d',          ipa: '/sæd/',       sentence: 'Eve is sad.',                         distractorChars: ['e', 'b', 't'] },
+            { id: 'cw_s1_1114_ph_idea',      word: 'idea',      zh: '好主意(学案)', icon: '💡', phonics: 'i-d-ea',         ipa: '/aɪˈdiːə/',   sentence: 'Luke has an idea.',                   distractorChars: ['t', 'o', 'u'] },
+            { id: 'cw_s1_1114_ph_hats',      word: 'hats',      zh: '派对帽(学案)', icon: '🥳', phonics: 'h-a-t-s',        ipa: '/hæts/',      sentence: 'Eve can bring the party hats.',       distractorChars: ['e', 'b', 'c'] },
+            { id: 'cw_s1_1114_ph_drinks',    word: 'drinks',    zh: '饮料(绘本)',   icon: '🧃', phonics: 'dr-i-nk-s',      ipa: '/drɪŋks/',    sentence: 'Juan says he will bring drinks.',     distractorChars: ['t', 'e', 'g'] }
+        ]
+    },
+    {
         id: 'S1U1W1',
         code: 'S1U1W1',
         stage: 'S1',
@@ -201,22 +513,37 @@ export const COURSE_LESSONS = [
     }
 ];
 
-export const ALL_COURSE_WORDS = COURSE_LESSONS.flatMap(lesson => [
-    ...(lesson.sightWords || []).map(w => ({
-        ...w,
-        level: 2,
-        packId: `course_${lesson.id}`,
-        packName: `${lesson.code}高频词`,
-        enCategory: `${lesson.code} Words to Know`
-    })),
-    ...(lesson.phonicsWords || []).map(w => ({
-        ...w,
-        level: 1,
-        packId: `course_${lesson.id}`,
-        packName: `${lesson.code}自然拼读`,
-        enCategory: `${lesson.code} Phonics`
-    }))
-]);
+export const ALL_COURSE_WORDS = (() => {
+    const seen = new Set();
+    const out = [];
+    for (const lesson of COURSE_LESSONS) {
+        for (const w of (lesson.sightWords || [])) {
+            const key = `${lesson.id}_${w.word.toLowerCase()}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push({
+                ...w,
+                level: 2,
+                packId: `course_${lesson.id}`,
+                packName: `${lesson.code}高频词`,
+                enCategory: `${lesson.code} Words`
+            });
+        }
+        for (const w of (lesson.phonicsWords || [])) {
+            const key = `${lesson.id}_${w.word.toLowerCase()}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            out.push({
+                ...w,
+                level: 1,
+                packId: `course_${lesson.id}`,
+                packName: `${lesson.code}核心词`,
+                enCategory: `${lesson.code} Phonics`
+            });
+        }
+    }
+    return out;
+})();
 
 function shuffleArray(arr) {
     const copy = [...arr];

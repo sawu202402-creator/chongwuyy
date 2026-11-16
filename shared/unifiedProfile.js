@@ -22,7 +22,7 @@ import {
     getShopById
 } from '../pet/js/config.js';
 import { ALL_MATH_TYPE_IDS } from './mathEngine.js';
-import { ALL_ENGLISH_TYPE_IDS, ALL_COURSE_SUB_IDS, DEFAULT_EASY_ENGLISH_TYPES } from './englishEngine.js';
+import { ALL_ENGLISH_TYPE_IDS, ALL_COURSE_SUB_IDS, DEFAULT_EASY_ENGLISH_TYPES, COURSE_LESSONS } from './englishEngine.js';
 
 export const STORAGE_KEY = 'chongwuyy_pet_town_profiles_v2';
 
@@ -405,6 +405,11 @@ export class UserProfileManager {
             }
             u.englishConfig.enabledTypes = sanitizeEnglishEnabledTypes(u.englishConfig.enabledTypes);
             if (!u.englishConfig.packId) u.englishConfig.packId = 'all';
+            const latestLessonId = COURSE_LESSONS?.[0]?.id || '';
+            if (latestLessonId && u.englishConfig.lastAutoSyncedLatestLessonId !== latestLessonId) {
+                u.englishConfig.courseLessonId = 'latest';
+                u.englishConfig.lastAutoSyncedLatestLessonId = latestLessonId;
+            }
             if (!u.englishConfig.courseLessonId) u.englishConfig.courseLessonId = 'latest';
             if (!u.englishConfig.courseSubMode) u.englishConfig.courseSubMode = 'course_all';
             if (!u.courseReadChecks || typeof u.courseReadChecks !== 'object') u.courseReadChecks = {};

@@ -1307,10 +1307,10 @@ function renderCourseSpecialQuestion(containerEl, q, ctx) {
                             <button type="button" class="qw-voice-btn slow" data-dspeak="slow">🐢 慢速拼读</button>
                         </div>
                         ${contextHtml}
-                        <div class="smart-spell-slots">${slotsHtml}</div>
+                        <div class="smart-spell-slots ${q.chars.length >= 8 ? 'long-word' : ''}">${slotsHtml}</div>
                         ${revealAnswer ? `<div class="qw-course-reveal">${revealAnswer}</div>` : ''}
                     </div>
-                    <div class="smart-spell-tiles">${tilesHtml}</div>
+                    <div class="smart-spell-tiles ${q.chars.length >= 8 ? 'long-word' : ''}">${tilesHtml}</div>
                 </div>
             `;
 
@@ -1644,7 +1644,97 @@ export function renderCourseReadAloudBoard(containerEl, lesson, hooks = {}) {
     const compact = Boolean(hooks.compact);
     const themeClass = hooks.theme === 'dark' ? 'qw-theme-dark' : 'qw-theme-light';
 
+    let storyOpen = false;
+
     const draw = () => {
+        // 0. 若本课带有课堂学案流程图（如 S1·分级 Class Party 群视频复述作业），置顶渲染 4 格流程图教练卡！
+        let retellFlowHtml = '';
+        if (lesson.retellFlow && Array.isArray(lesson.retellFlow.boxes)) {
+            const rf = lesson.retellFlow;
+            const wbHtml = Array.isArray(rf.wordBank) && rf.wordBank.length > 0
+                ? `<div class="qw-rc-wb-bar"><span>Word bank：</span>${rf.wordBank.map(w => `<button type="button" class="qw-rc-wb-pill" data-speak-en="${w.replace(/"/g, '&quot;')}">${w}</button>`).join('')}</div>`
+                : '';
+            const boxesHtml = rf.boxes.map((bx, idx) => {
+                const fKey = `${lesson.id}_${bx.id}`;
+                const fDone = getChecked(fKey);
+                const arrowHtml = idx < rf.boxes.length - 1 ? '<div class="qw-rc-flow-arrow">➜</div>' : '';
+                return `
+                    <div class="qw-rc-flow-step-wrap">
+                        <div class="qw-rc-flow-box ${fDone ? 'done' : ''}">
+                            <div class="qw-rc-qrow">
+                                <span class="qw-rc-flow-badge">第 ${bx.step} 格</span>
+                                <button type="button" class="qw-rc-chk ${fDone ? 'checked' : ''}" data-chk="${fKey}">
+                                    ${fDone ? '✅ 已熟读' : '⬜ 打卡'}
+                                </button>
+                            </div>
+                            <div class="qw-rc-flow-en">${bx.htmlEn || bx.en}</div>
+                            <div class="qw-rc-zh">${bx.zh}</div>
+                            <div class="qw-rc-btns">
+                                <button type="button" class="qw-rc-btn primary" data-speak-en="${bx.en.replace(/"/g, '&quot;')}">🔊 读本格</button>
+                                <button type="button" class="qw-rc-btn slow" data-speak-slow="${bx.en.replace(/"/g, '&quot;')}">🐢 慢读</button>
+                            </div>
+                        </div>
+                        ${arrowHtml}
+                    </div>
+                `;
+            }).join('');
+
+            retellFlowHtml = `
+                <div class="qw-rc-flow-head">
+                    <div class="qw-rc-sec-title" style="flex:1;">${rf.title}</div>
+                    <div class="qw-rc-btns" style="margin:0;">
+                        <button type="button" class="qw-rc-btn primary" data-speak-en="${(rf.fullSpeakText || '').replace(/"/g, '&quot;')}">🔊 整篇连读示范</button>
+                        <button type="button" class="qw-rc-btn slow" data-speak-slow="${(rf.fullSpeakText || '').replace(/"/g, '&quot;')}">🐢 整篇慢读</button>
+                    </div>
+                </div>
+                ${wbHtml}
+                <div class="qw-rc-flow-grid">${boxesHtml}</div>
+            `;
+        }
+
+        // 0B. 若本课附带分级绘本完整原文（P2–P11 双章点读 + 派对分工记录表），提供一键展开逐页点读！
+        let storyReaderHtml = '';
+        if (lesson.storyChapters && Array.isArray(lesson.storyChapters.chapters)) {
+            const sc = lesson.storyChapters;
+            const chartHtml = Array.isArray(sc.partyChart) && sc.partyChart.length > 0
+                ? `<div class="qw-rc-chart-strip">
+                    <span class="qw-rc-chart-lbl">📋 Class Party 分工表：</span>
+                    ${sc.partyChart.map(c => `<span class="qw-rc-chart-pill"><strong>${c.name}</strong> → ${c.item}</span>`).join('')}
+                   </div>`
+                : '';
+            const chapsHtml = sc.chapters.map(ch => `
+                <div class="qw-rc-chap-block">
+                    <div class="qw-rc-chap-title">📘 ${ch.title}</div>
+                    <div class="qw-rc-page-list">
+                        ${(ch.pages || []).map(pg => `
+                            <div class="qw-rc-page-card">
+                                <div class="qw-rc-qrow">
+                                    <span class="qw-rc-page-num">${pg.page}</span>
+                                    <div class="qw-rc-btns" style="margin:0;">
+                                        <button type="button" class="qw-rc-btn primary" data-speak-en="${pg.en.replace(/"/g, '&quot;')}">🔊 点读</button>
+                                        <button type="button" class="qw-rc-btn slow" data-speak-slow="${pg.en.replace(/"/g, '&quot;')}">🐢 慢读</button>
+                                    </div>
+                                </div>
+                                <div class="qw-rc-page-en">${pg.en}</div>
+                                <div class="qw-rc-zh">${pg.zh}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+
+            storyReaderHtml = `
+                <details class="qw-rc-story-details" ${storyOpen ? 'open' : ''}>
+                    <summary class="qw-rc-story-summary">📚 展开《${lesson.storyTitle}》分级绘本全文点读 (P2–P11 + 黑板分工表)</summary>
+                    <div class="qw-rc-story-body">
+                        ${sc.meta ? `<div class="qw-rc-story-meta">💡 ${sc.meta}</div>` : ''}
+                        ${chartHtml}
+                        ${chapsHtml}
+                    </div>
+                </details>
+            `;
+        }
+
         const qaCardsHtml = (lesson.qaList || []).map(qa => {
             const checkKey = `${lesson.id}_${qa.id}`;
             const done = getChecked(checkKey);
@@ -1694,16 +1784,29 @@ export function renderCourseReadAloudBoard(containerEl, lesson, hooks = {}) {
             </button>
         `).join('');
 
+        const qaSecTitle = lesson.qaSectionTitle || '📹 2. 视频作业：课文问答朗读跟读（点按钮跟读，熟读后打勾）';
+        const sightSecTitle = lesson.sightSectionTitle || '✍️ 3. 主教材高频词与必背听写句 (Words to Know)';
+        const phSecTitle = `👂 4. ${lesson.phonicsRuleTitle || '自然拼读听音写词抽查'}（点击听慢速拼读）`;
+
         containerEl.innerHTML = `
             <div class="qw-rc-board ${themeClass} ${compact ? 'compact' : ''}">
-                <div class="qw-rc-sec-title">📹 2. 视频作业：课文问答朗读跟读（点按钮跟读，熟读后打勾）</div>
+                ${retellFlowHtml}
+                ${storyReaderHtml}
+                <div class="qw-rc-sec-title">${qaSecTitle}</div>
                 <div class="qw-rc-qa-list">${qaCardsHtml}</div>
-                <div class="qw-rc-sec-title">✍️ 3. 主教材高频词与必背听写句 (Words to Know)</div>
+                <div class="qw-rc-sec-title">${sightSecTitle}</div>
                 <div class="qw-rc-sight-grid">${sightHtml}</div>
-                <div class="qw-rc-sec-title">👂 4. ${lesson.phonicsRuleTitle || '自然拼读听音写词抽查'}（点击听慢速拼读）</div>
+                <div class="qw-rc-sec-title">${phSecTitle}</div>
                 <div class="qw-rc-ph-grid">${phonicsHtml}</div>
             </div>
         `;
+
+        const detailsEl = containerEl.querySelector('.qw-rc-story-details');
+        if (detailsEl) {
+            detailsEl.addEventListener('toggle', () => {
+                storyOpen = detailsEl.open;
+            });
+        }
 
         containerEl.querySelectorAll('[data-speak-en]').forEach(btn => {
             btn.onclick = () => {

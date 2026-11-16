@@ -232,9 +232,9 @@ export class SmartChalkboard {
 
         const latestLesson = COURSE_LESSONS[0];
         const courseLessonOptionsHtml = [
-            `<option value="latest">📚 ${latestLesson ? `${latestLesson.code} (${latestLesson.dateLabel})` : 'S1U1W1'}</option>`,
-            ...(COURSE_LESSONS.length > 1 ? [`<option value="all_courses">🌟 全部课次 (${COURSE_LESSONS.length}课)</option>`] : []),
-            ...COURSE_LESSONS.map(l => `<option value="${l.id}">📖 ${l.code} · ${l.dateLabel}</option>`)
+            `<option value="latest">🌟 最新：${latestLesson ? `${latestLesson.code}(${latestLesson.dateLabel})` : 'S1U1W1'}</option>`,
+            ...(COURSE_LESSONS.length > 1 ? [`<option value="all_courses">📚 全部课次 (${COURSE_LESSONS.length}课)</option>`] : []),
+            ...COURSE_LESSONS.map(l => `<option value="${l.id}">📖 ${l.code}(${l.dateLabel})《${l.storyTitle}》</option>`)
         ].join('');
 
         enPanel.innerHTML = `
