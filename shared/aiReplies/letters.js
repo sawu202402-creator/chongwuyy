@@ -94,32 +94,9 @@ export const INSTANT_REPLY_CLIPS = {
 };
 
 /**
- * 每次游戏魔法师根据小朋友的留言完成新功能升级后，在此追加专属回信（配合自定义生成的 MP3 语音）
- * 结构示例：
- * {
- *   id: 'reply_20261118_01',
- *   replyToId: 'wish_xxx',
- *   targetKid: 'pea' | 'chuan' | 'both',
- *   senderName: '游戏魔法师',
- *   badgeTitle: '🎉 愿望已实现！',
- *   createdAt: 1763400000000,
- *   createdStr: '11/18 19:30',
- *   audioFile: 'reply_20261118_01.mp3',
- *   text: '...'
- * }
+ * 静态兜底回信列表（日常回信已全面切换为云端 SQLite Durable Object 实时下发文字 + /api/tts 实时朗读，无需静态预制 MP3）
  */
-export const MAGICIAN_LETTERS = [
-    {
-        "id": "reply_20261117_hint_fix",
-        "replyToId": "wish_1794913687269_ined",
-        "targetKid": "pea",
-        "senderName": "游戏魔法师",
-        "badgeTitle": "🎉 愿望已实现 · 火眼金睛奖！",
-        "createdAt": 1794916538311,
-        "createdStr": "11/17 17:25",
-        "audioFile": "reply_20261117_hint_fix.mp3",
-        "text": "小豌豆你好呀！你真是太细心、太厉害的小小游戏侦探啦！你发现的题目点提示会直接出现答案这个小秘密太关键了！魔法师刚刚已经挥动魔杖，把所有数学题和英语题的提示都升级成只给解题思路、不漏出最终答案啦！快去试试新的提示按钮吧，给你颁一枚金光闪闪的火眼金睛大勋章！"
-    },];
+export const MAGICIAN_LETTERS = [];
 
 export function detectSpeakerPrefix(kidId = '', kidName = '') {
     if (kidId === 'both' || /一起|两个/.test(kidName)) return 'both';

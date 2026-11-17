@@ -604,7 +604,7 @@ export default {
             if (request.method === "POST") {
                 try {
                     const body = await request.json().catch(() => ({}));
-                    const text = cleanStr(body.text, 400);
+                    const text = cleanStr(body.text, 600);
                     const role = cleanStr(body.role, 32) || "magician";
                     if (!text) {
                         return jsonResponse({ ok: false, error: "empty_text" }, 400);

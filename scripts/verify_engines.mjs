@@ -749,7 +749,7 @@ const { WELCOME_LETTER, INSTANT_REPLY_CLIPS, MAGICIAN_LETTERS, matchInstantReply
 const audioDir = path.join(ROOT, 'shared', 'aiReplies', 'audio');
 assert.ok(fs.existsSync(path.join(audioDir, WELCOME_LETTER.audioFile)), 'Welcome MP3 must exist');
 assert.ok(fs.statSync(path.join(audioDir, WELCOME_LETTER.audioFile)).size > 50000, 'Welcome MP3 must be valid neural audio');
-assert.ok(MAGICIAN_LETTERS.some(l => l.id === 'reply_20261117_hint_fix' && fs.existsSync(path.join(audioDir, l.audioFile))), 'Xiaowandou hint-fix voice reply must exist');
+assert.deepEqual(MAGICIAN_LETTERS, [], 'Cloud replies use dynamic /api/tts directly without static MP3 files in MAGICIAN_LETTERS');
 
 // Verify across 240 generated math questions that visualTip NEVER reveals "= <answer>" directly!
 const { MathEngine: HintCheckMath } = await import('../shared/mathEngine.js');

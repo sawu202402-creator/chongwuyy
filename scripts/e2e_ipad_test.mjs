@@ -1238,7 +1238,7 @@ async function main() {
                 senderName: '游戏魔法师',
                 badgeTitle: '🎉 愿望已实现！',
                 text: '小豌豆你好呀！你说的彩虹豌豆射手创意太酷啦，魔法师已经收到并为你点亮了专属彩虹徽章哟！',
-                audioUrl: 'shared/aiReplies/audio/pea_pvz_tower.mp3',
+                audioUrl: '',
                 createdAt: Date.now(),
                 createdStr: '刚刚'
             })
@@ -1249,9 +1249,10 @@ async function main() {
         const hasBanner = Boolean(document.querySelector('.mm-new-letter-banner'));
         const badgeVisible = triggerBtn.querySelector('[data-mm-badge]')?.style.display !== 'none';
 
-        // Click banner to open modal and view the golden fulfilled reply!
+        // Click banner to open modal and verify synchronous WebAudio unlock + direct /api/tts playback!
         document.querySelector('.mm-new-letter-banner')?.click();
-        await new Promise(r => setTimeout(r, 320));
+        const unlockedSync = Boolean(magicMailbox._audioCtx);
+        await new Promise(r => setTimeout(r, 420));
 
         const specialBubbles = document.querySelectorAll('.mm-is-special-reply').length;
         const aiLiveBadges = document.querySelectorAll('.mm-tag-ai-live').length;
@@ -1262,6 +1263,7 @@ async function main() {
             cloudWishCount: syncCheck.wishes.length,
             hasBanner,
             badgeVisible,
+            unlockedSync,
             specialBubbles,
             aiLiveBadges,
             kidBubbles,
@@ -1274,7 +1276,8 @@ async function main() {
     assert.equal(magicRes.cloudWishCount, 2);
     assert.equal(magicRes.hasBanner, true, 'New Magician reply must display top notification banner');
     assert.equal(magicRes.badgeVisible, true, 'New Magician reply must light up unread badge');
-    assert.ok(magicRes.specialBubbles >= 2, 'Magician fulfilled replies (static + dynamic) must render golden special bubbles');
+    assert.equal(magicRes.unlockedSync, true, 'Clicking banner must synchronously unlock AudioContext inside user gesture');
+    assert.ok(magicRes.specialBubbles >= 1, 'Magician fulfilled reply must render golden special bubble');
     assert.equal(magicRes.aiLiveBadges, 2, 'Workers AI live chat replies must render 🧠 魔法师实时陪聊 badges');
     assert.equal(magicRes.kidBubbles, 2, 'Both kids bubbles must render in timeline');
     assert.equal(magicRes.roboticCallsInMailbox, 0, 'Dynamic AI replies must play Neural MP3 audio, NEVER robotic speechSynthesis!');

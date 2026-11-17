@@ -185,8 +185,11 @@ class MagicMailboxController {
         this._recBaseText = '';
         this._recFinalText = '';
         this._playingKey = null;
+        this._loadingVoiceKey = null;
         this._thinkingWishId = null;
         this._audioEl = null;
+        this._sharedHtmlAudio = null;
+        this._sharedAudioUnlocked = false;
         this._activeBufferSrc = null;
         this._voiceToken = 0;
         this._ttsMemCache = new Map();
@@ -289,7 +292,8 @@ class MagicMailboxController {
                 map.set(item.id, {
                     ...prev,
                     ...item,
-                    audioHref: resolveAudioHref(item.audioFile || item.audioUrl || prev.audioFile || '')
+                    // 云端回信统一直接调 /api/tts 实时朗读文字，不再依赖预生成静态 MP3 文件
+                    audioHref: ''
                 });
             }
         }
@@ -606,6 +610,7 @@ class MagicMailboxController {
         d.chatStream.addEventListener('click', (e) => {
             const playBtn = e.target.closest('[data-mm-play-key]');
             if (!playBtn) return;
+            this._unlockAudioInGesture();
             const playKey = playBtn.dataset.mmPlayKey;
             const audioHref = playBtn.dataset.mmAudio || '';
             const text = playBtn.dataset.mmText || '';
@@ -683,6 +688,7 @@ class MagicMailboxController {
     }
 
     open() {
+        this._unlockAudioInGesture();
         this._ensureModalDom();
         this._syncActiveSpeakerFromProfile();
         this._updateSpeakerButtons();
@@ -1304,7 +1310,8 @@ class MagicMailboxController {
 
     /* ==================== 提交消息 + 云端大模型实时陪聊 + 愿望同步 ==================== */
     async submitCurrentWish() {
-        // 在点击手势内预先唤醒 iPad Safari 语音队列，确保大模型异步返回后能自动朗读出声
+        // 在点击手势内同步解锁 WebAudio 与 HTMLAudio，确保后续异步 /api/tts 返回后在 iPadOS Safari 能 100% 自动播报出声
+        this._unlockAudioInGesture();
         if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
             try { window.speechSynthesis.resume(); } catch (_) {}
         }
@@ -1554,49 +1561,100 @@ class MagicMailboxController {
     }
 
     /* ==================== 真人级神经网络 MP3 语音播报（云端实时合成 + 静态MP3 + 离线兜底） ==================== */
-    async _playMp3Base64OrUrl({ token, audioBase64 = '', audioHref = '' }, onDone) {
-        if (token !== this._voiceToken) return false;
-
-        // 优先使用已解锁的 WebAudio 解码播放（完全不受 iPadOS Safari 异步请求后自动播放拦截限制！）
+    _unlockAudioInGesture() {
         try {
             const Ctx = window.AudioContext || window.webkitAudioContext;
             if (Ctx) {
                 if (!this._audioCtx) this._audioCtx = new Ctx();
                 if (this._audioCtx.state === 'suspended') {
-                    await this._audioCtx.resume().catch(() => {});
+                    this._audioCtx.resume().catch(() => {});
                 }
-                let arrayBuf = null;
-                if (audioBase64) {
-                    arrayBuf = base64ToArrayBuffer(audioBase64);
-                } else if (audioHref) {
-                    const r = await fetch(audioHref);
-                    if (r.ok) arrayBuf = await r.arrayBuffer();
+                const silentBuf = this._audioCtx.createBuffer(1, 1, 22050);
+                const src = this._audioCtx.createBufferSource();
+                src.buffer = silentBuf;
+                src.connect(this._audioCtx.destination);
+                src.start(0);
+            }
+        } catch (_) {}
+
+        try {
+            if (!this._sharedAudioUnlocked) {
+                if (!this._sharedHtmlAudio) {
+                    this._sharedHtmlAudio = new Audio();
+                    this._sharedHtmlAudio.preload = 'auto';
+                    this._sharedHtmlAudio.setAttribute('playsinline', 'true');
                 }
-                if (arrayBuf && arrayBuf.byteLength > 100 && token === this._voiceToken) {
-                    const decoded = await this._audioCtx.decodeAudioData(arrayBuf.slice(0));
-                    if (token !== this._voiceToken) return true;
-                    const src = this._audioCtx.createBufferSource();
-                    src.buffer = decoded;
-                    src.connect(this._audioCtx.destination);
-                    this._activeBufferSrc = src;
-                    src.onended = () => {
-                        if (this._activeBufferSrc === src) this._activeBufferSrc = null;
-                        if (onDone) onDone();
-                    };
-                    src.start(0);
-                    return true;
+                if (!this._playingKey) {
+                    this._sharedHtmlAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+                    const p = this._sharedHtmlAudio.play();
+                    if (p && typeof p.then === 'function') {
+                        p.then(() => {
+                            this._sharedAudioUnlocked = true;
+                            if (!this._playingKey) {
+                                try { this._sharedHtmlAudio.pause(); } catch (_) {}
+                            }
+                        }).catch(() => {});
+                    }
+                }
+            }
+        } catch (_) {}
+    }
+
+    async _playMp3Base64OrUrl({ token, audioBase64 = '', audioHref = '' }, onDone) {
+        if (token !== this._voiceToken) return false;
+
+        // 1. 优先使用已在点击手势中解锁的 WebAudio 解码播放（完全不受 iPadOS Safari 异步 fetch 后自动播放拦截限制！）
+        try {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (Ctx) {
+                if (!this._audioCtx) this._audioCtx = new Ctx();
+                if (this._audioCtx.state === 'suspended') {
+                    // 严禁在非手势栈裸 await resume()（iOS WebKit 会永久挂起 Promise！）
+                    await Promise.race([
+                        this._audioCtx.resume().catch(() => {}),
+                        new Promise(r => setTimeout(r, 160))
+                    ]);
+                }
+                if (this._audioCtx.state === 'running') {
+                    let arrayBuf = null;
+                    if (audioBase64) {
+                        arrayBuf = base64ToArrayBuffer(audioBase64);
+                    } else if (audioHref) {
+                        const r = await fetch(audioHref);
+                        const ctype = (r.headers.get('content-type') || '').toLowerCase();
+                        if (r.ok && !ctype.includes('text/html')) {
+                            arrayBuf = await r.arrayBuffer();
+                        }
+                    }
+                    if (arrayBuf && arrayBuf.byteLength > 100 && token === this._voiceToken) {
+                        const decoded = await this._audioCtx.decodeAudioData(arrayBuf.slice(0));
+                        if (token !== this._voiceToken) return true;
+                        const src = this._audioCtx.createBufferSource();
+                        src.buffer = decoded;
+                        src.connect(this._audioCtx.destination);
+                        this._activeBufferSrc = src;
+                        src.onended = () => {
+                            if (this._activeBufferSrc === src) this._activeBufferSrc = null;
+                            if (onDone) onDone();
+                        };
+                        src.start(0);
+                        return true;
+                    }
                 }
             }
         } catch (_) {}
 
-        // 备选 HTMLAudioElement 播放
+        // 2. 备选复用已解锁的 HTMLAudioElement 播放
         const srcUrl = audioBase64 ? `data:audio/mpeg;base64,${audioBase64}` : audioHref;
         if (srcUrl && token === this._voiceToken) {
             try {
-                const audio = new Audio(srcUrl);
+                const audio = this._sharedHtmlAudio || new Audio();
+                this._sharedHtmlAudio = audio;
                 audio.preload = 'auto';
+                audio.src = srcUrl;
                 this._audioEl = audio;
                 audio.onended = onDone;
+                audio.onerror = onDone;
                 await audio.play();
                 return true;
             } catch (_) {
@@ -1633,24 +1691,42 @@ class MagicMailboxController {
         this.stopAllVoice();
         const token = ++this._voiceToken;
         this._playingKey = key;
+        this._loadingVoiceKey = null;
         this._syncPlayingBtnHighlight();
 
         const onDone = () => {
             if (this._playingKey === key) {
                 this._playingKey = null;
+                this._loadingVoiceKey = null;
                 this._syncPlayingBtnHighlight();
             }
         };
 
+        // 1) 若已有缓存或内联 Base64 语音，直接秒播
         let b64 = audioBase64 || this._ttsMemCache.get(key) || '';
-        if (!b64 && !audioHref && text && this._shouldUseCloudApi()) {
-            b64 = await this._fetchCloudNeuralTts(text, 'magician');
-            if (b64) this._ttsMemCache.set(key, b64);
+        if (b64) {
+            const ok = await this._playMp3Base64OrUrl({ token, audioBase64: b64 }, onDone);
+            if (ok || token !== this._voiceToken) return;
         }
 
-        if (b64 || audioHref) {
-            const ok = await this._playMp3Base64OrUrl({ token, audioBase64: b64, audioHref }, onDone);
+        // 2) 若带本地预置 MP3（如置顶欢迎信），优先尝试；若失败自动无缝走步骤 3 云端实时朗读！
+        if (audioHref && token === this._voiceToken) {
+            const ok = await this._playMp3Base64OrUrl({ token, audioHref }, onDone);
             if (ok || token !== this._voiceToken) return;
+        }
+
+        // 3) 所有云端回信与动态对话：直接调 /api/tts 把文字读出来（无需任何静态合成文件）
+        if (text && this._shouldUseCloudApi() && token === this._voiceToken) {
+            this._loadingVoiceKey = key;
+            this._syncPlayingBtnHighlight();
+            b64 = await this._fetchCloudNeuralTts(text, 'magician');
+            this._loadingVoiceKey = null;
+            this._syncPlayingBtnHighlight();
+            if (b64 && token === this._voiceToken) {
+                this._ttsMemCache.set(key, b64);
+                const ok = await this._playMp3Base64OrUrl({ token, audioBase64: b64 }, onDone);
+                if (ok || token !== this._voiceToken) return;
+            }
         }
 
         if (token === this._voiceToken) {
@@ -1662,19 +1738,25 @@ class MagicMailboxController {
         this.stopAllVoice();
         const token = ++this._voiceToken;
         this._playingKey = key;
+        this._loadingVoiceKey = null;
         this._syncPlayingBtnHighlight();
 
         const onDone = () => {
             if (this._playingKey === key) {
                 this._playingKey = null;
+                this._loadingVoiceKey = null;
                 this._syncPlayingBtnHighlight();
             }
         };
 
         const role = speaker === 'chuan' ? 'kid_chuan' : 'kid_pea';
         if (text && this._shouldUseCloudApi()) {
+            this._loadingVoiceKey = key;
+            this._syncPlayingBtnHighlight();
             const b64 = await this._fetchCloudNeuralTts(text, role);
-            if (b64) {
+            this._loadingVoiceKey = null;
+            this._syncPlayingBtnHighlight();
+            if (b64 && token === this._voiceToken) {
                 const ok = await this._playMp3Base64OrUrl({ token, audioBase64: b64 }, onDone);
                 if (ok || token !== this._voiceToken) return;
             }
@@ -1726,17 +1808,22 @@ class MagicMailboxController {
         }
         sharedSpeech.cancelAllSpeech();
         this._playingKey = null;
+        this._loadingVoiceKey = null;
         this._syncPlayingBtnHighlight();
     }
 
     _syncPlayingBtnHighlight() {
         if (!this.dom.chatStream) return;
         this.dom.chatStream.querySelectorAll('[data-mm-play-key]').forEach((btn) => {
-            const active = this._playingKey && btn.dataset.mmPlayKey === this._playingKey;
+            const key = btn.dataset.mmPlayKey;
+            const active = this._playingKey && key === this._playingKey;
+            const loading = this._loadingVoiceKey && key === this._loadingVoiceKey;
             btn.classList.toggle('mm-playing', Boolean(active));
             const lbl = btn.querySelector('.mm-play-lbl');
             if (lbl) {
-                if (active) {
+                if (loading) {
+                    lbl.textContent = '⏳ 准备语音…';
+                } else if (active) {
                     lbl.textContent = '⏹️ 正在播报…';
                 } else {
                     lbl.textContent = btn.dataset.mmSpeaker === 'magician' ? '🔊 点我听语音' : '🔊 读我的话';

@@ -302,7 +302,7 @@ export function stripSpeechTextForTts(raw) {
         .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, " ")
         .replace(/\s+/g, " ")
         .trim()
-        .slice(0, 320);
+        .slice(0, 600);
 }
 
 function escapeXml(str) {
@@ -384,7 +384,7 @@ export async function synthesizeNeuralMp3Base64(rawText, roleKey = "magician") {
         const timeout = setTimeout(() => {
             try { ws.close(); } catch (_) {}
             reject(new Error("edge_tts_timeout"));
-        }, 7500);
+        }, 12000);
 
         const finish = () => {
             clearTimeout(timeout);
