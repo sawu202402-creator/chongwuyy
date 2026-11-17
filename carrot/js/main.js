@@ -19,7 +19,13 @@ import { MathEngine, MATH_QUESTION_TYPES, ALL_MATH_TYPE_IDS } from './mathEngine
 import { GameEngine } from './gameEngine.js?v=20261113_opt_v1';
 import { MapEditor } from './editor.js?v=20261113_opt_v1';
 import { LevelSelectManager } from './levelSelect.js?v=20261113_opt_v1';
-import { profileManager } from '../../shared/unifiedProfile.js';
+import {
+    profileManager,
+    DEFAULT_DAILY_TIME_LIMIT_MIN,
+    DAILY_TIME_LIMIT_OPTIONS,
+    sanitizeDailyTimeLimitMin,
+    formatTimeLimitOptionLabel
+} from '../../shared/unifiedProfile.js';
 import { SmartChalkboard } from '../../shared/smartChalkboard.js';
 import { sharedSpeech } from '../../shared/audioTTS.js';
 import { ENGLISH_LEVELS, WORD_PACKS, ALL_WORDS, ENGLISH_QUESTION_TYPES, ALL_ENGLISH_TYPE_IDS } from '../../shared/englishEngine.js';
@@ -27,6 +33,7 @@ import { renderEnabledTypesSelector } from '../../shared/questionWidgets.js';
 import { DAILY_BADGE_CAP_OPTIONS } from '../../pet/js/config.js';
 import { requireParentGate } from '../../shared/parentGate.js';
 import { magicMailbox } from '../../shared/magicMailbox.js';
+import { screenTimeGuard } from '../../shared/screenTimeGuard.js';
 
 // DOM 元素
 const canvas = document.getElementById('battleCanvas');
@@ -1626,6 +1633,7 @@ let modalEditPreset = 'grade1_2';
 let modalEditEnLevel = 'level2_match';
 let modalEditEnPack = 'all';
 let modalEditDailyCap = 30;
+let modalEditDailyTimeLimit = DEFAULT_DAILY_TIME_LIMIT_MIN;
 let modalEditMathTypes = [...ALL_MATH_TYPE_IDS];
 let modalEditEnTypes = [...ALL_ENGLISH_TYPE_IDS];
 
@@ -1716,6 +1724,7 @@ function populateUserForm(user, isNew = false) {
     modalEditEnLevel = user.englishConfig?.level || 'level2_match';
     modalEditEnPack = user.englishConfig?.packId || 'all';
     modalEditDailyCap = user.dailyBadgeCap || 30;
+    modalEditDailyTimeLimit = sanitizeDailyTimeLimitMin(user.dailyTimeLimitMin);
     modalEditMathTypes = Array.isArray(user.difficulty?.enabledTypes) && user.difficulty.enabledTypes.length > 0
         ? [...user.difficulty.enabledTypes]
         : [...ALL_MATH_TYPE_IDS];
@@ -1924,6 +1933,23 @@ function populateUserForm(user, isNew = false) {
             capGrid.appendChild(btn);
         });
     }
+
+    const timeGrid = document.getElementById('carrotDailyTimeGrid');
+    if (timeGrid) {
+        timeGrid.innerHTML = '';
+        DAILY_TIME_LIMIT_OPTIONS.forEach(minVal => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `range-chip ${minVal === modalEditDailyTimeLimit ? 'selected' : ''}`;
+            btn.textContent = formatTimeLimitOptionLabel(minVal, true);
+            btn.addEventListener('click', () => {
+                modalEditDailyTimeLimit = minVal;
+                timeGrid.querySelectorAll('.range-chip').forEach(c => c.classList.remove('selected'));
+                btn.classList.add('selected');
+            });
+            timeGrid.appendChild(btn);
+        });
+    }
 }
 
 function openUserProfileModal(targetUserId = null) {
@@ -2019,16 +2045,21 @@ function saveUserProfileModal() {
         const created = profileManager.addUser({
             name,
             avatar,
+            dailyTimeLimitMin: modalEditDailyTimeLimit,
             difficulty: diff,
             englishConfig
         });
-        profileManager.updateUserSettings(created.id, { dailyBadgeCap: modalEditDailyCap });
+        profileManager.updateUserSettings(created.id, {
+            dailyBadgeCap: modalEditDailyCap,
+            dailyTimeLimitMin: modalEditDailyTimeLimit
+        });
         profileManager.setActiveUser(created.id);
     } else {
         profileManager.updateUserSettings(editingUserId, {
             name,
             avatar,
             dailyBadgeCap: modalEditDailyCap,
+            dailyTimeLimitMin: modalEditDailyTimeLimit,
             difficulty: diff,
             englishConfig
         });
@@ -2242,6 +2273,33 @@ magicMailbox.init({
             gameEngine.togglePause();
         }
         _carrotPausedByMailbox = false;
+    }
+});
+
+let _carrotPausedByScreenTime = false;
+screenTimeGuard.init({
+    appSource: 'carrot',
+    isGameActivelyRunning: () => Boolean(gameEngine && gameEngine.state === 'WAVE_RUNNING'),
+    onLockPause: () => {
+        if (gameEngine && gameEngine.state === 'WAVE_RUNNING') {
+            _carrotPausedByScreenTime = true;
+            gameEngine.togglePause();
+        } else {
+            _carrotPausedByScreenTime = false;
+        }
+    },
+    onUnlockResume: () => {
+        if (_carrotPausedByScreenTime && gameEngine && gameEngine.state === 'PAUSED') {
+            gameEngine.togglePause();
+        }
+        _carrotPausedByScreenTime = false;
+    },
+    onKidSwitched: (nextKid) => {
+        if (nextKid) {
+            mathEngine.setDifficulty(nextKid.difficulty);
+            syncUserProfileUI();
+            updateQuestionUI();
+        }
     }
 });
 

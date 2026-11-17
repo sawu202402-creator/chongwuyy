@@ -343,6 +343,32 @@ html, body {
     border-radius: 999px;
 }
 
+.banner-time-pill {
+    background: #ecfdf5;
+    color: #047857;
+    border-color: #6ee7b7;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform 0.12s ease, background 0.2s ease;
+}
+
+.banner-time-pill:hover {
+    transform: translateY(-1px);
+    background: #d1fae5;
+}
+
+.banner-time-pill.warn {
+    background: #fffbeb;
+    color: #b45309;
+    border-color: #fcd34d;
+}
+
+.banner-time-pill.expired {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #fca5a5;
+}
+
 .banner-sub-hint {
     font-size: 12px;
     font-weight: 700;

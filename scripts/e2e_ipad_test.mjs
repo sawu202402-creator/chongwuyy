@@ -1327,6 +1327,94 @@ async function main() {
     await sleep(220);
     await saveShot('pet_ai_chat_modal.png');
 
+    // 8) Test Daily Screen Time Control (Default 30 min, Rest Overlay, Sibling Free Switch, Force-Prompt Parent Gate +15m)
+    await cdp.send('Page.navigate', { url: `${origin}/index.html` }, sessionId);
+    await sleep(1100);
+    const screenTimeCheck = await evalJs(`(async () => {
+        const { profileManager } = await import('./shared/unifiedProfile.js');
+        const { screenTimeGuard } = await import('./shared/screenTimeGuard.js');
+        profileManager.setActiveUser('child_xiaowandou');
+        profileManager.resetTodayScreenTime();
+        profileManager.updateUserSettings('child_xiaowandou', { dailyTimeLimitMin: 30 });
+        profileManager.updateUserSettings('child_chuan', { dailyTimeLimitMin: 30 });
+        profileManager.resetTodayScreenTime(profileManager.getUser('child_chuan'));
+        window.portalHub.renderAll();
+
+        const defaultBannerPill = document.getElementById('bannerTimeSummary')?.textContent?.trim() || '';
+        const noScrollHub = document.documentElement.scrollHeight <= window.innerHeight + 2;
+
+        // Simulate Xiaowandou reaching 30 minutes (1800s)
+        profileManager.addPlaySeconds(1800, null, true);
+        screenTimeGuard.refreshState(false);
+
+        const overlayEl = document.getElementById('cwyyScreenTimeRestOverlay');
+        const overlayShownForPea = overlayEl?.classList.contains('show') === true;
+        const overlayTitle = overlayEl?.querySelector('.cwyy-st-title')?.textContent || '';
+
+        return {
+            defaultBannerPill,
+            noScrollHub,
+            overlayShownForPea,
+            overlayTitle
+        };
+    })()`);
+    console.log('Daily Screen Time Rest Overlay Check:', screenTimeCheck);
+    assert.ok(screenTimeCheck.defaultBannerPill.includes('30分'), 'Hub banner must display 30-minute default daily time pill');
+    assert.equal(screenTimeCheck.noScrollHub, true, 'Hub with time pill must keep zero overflow at 1180x820');
+    assert.equal(screenTimeCheck.overlayShownForPea, true, 'Reaching 30 minutes must display Eye-Care Rest Overlay');
+    assert.ok(screenTimeCheck.overlayTitle.includes('护眼休息时间到啦'), 'Rest overlay title must render eye-care message');
+    await sleep(220);
+    await saveShot('screen_time_rest_overlay.png');
+
+    const screenTimeSwitchAndUnlock = await evalJs(`(async () => {
+        const { profileManager } = await import('./shared/unifiedProfile.js');
+        const { screenTimeGuard } = await import('./shared/screenTimeGuard.js');
+        const overlayEl = document.getElementById('cwyyScreenTimeRestOverlay');
+
+        // 1) Sibling switch button must immediately switch to Chuan (without password) and hide rest overlay!
+        const sibBtn = overlayEl.querySelector('[data-switch-kid="child_chuan"]');
+        sibBtn.click();
+        const unlockedForChuan = !overlayEl.classList.contains('show') && profileManager.getActiveUser().id === 'child_chuan';
+
+        // 2) Switch back to Xiaowandou -> Rest overlay re-appears; clicking +15m MUST force Parent Gate prompt!
+        profileManager.setActiveUser('child_xiaowandou');
+        screenTimeGuard.refreshState(false);
+        const relockedForPea = overlayEl.classList.contains('show');
+
+        document.getElementById('cwyyStBonus15Btn').click();
+        const pgModal = document.getElementById('cwyyParentGateModal');
+        const pgShown = pgModal?.classList.contains('show') === true;
+        // Solve the math challenge in Parent Gate
+        const qText = document.getElementById('cwyyPgQuestion')?.textContent || '';
+        const m = qText.match(/(\\d+)\\s*×\\s*(\\d+)\\s*\\+\\s*(\\d+)/);
+        const ans = m ? String(Number(m[1]) * Number(m[2]) + Number(m[3])) : '';
+        for (const ch of ans) {
+            document.querySelector('#cwyyPgKeypad [data-k="' + ch + '"]')?.click();
+        }
+        document.getElementById('cwyyPgConfirm')?.click();
+
+        const unlockedAfterBonus = !overlayEl.classList.contains('show');
+        const remMinAfterBonus = profileManager.getDailyTimeStatus().remainingMinutesCeil;
+
+        // Clean up back to 0s used
+        profileManager.resetTodayScreenTime();
+        window.portalHub.renderAll();
+
+        return {
+            unlockedForChuan,
+            relockedForPea,
+            pgShown,
+            unlockedAfterBonus,
+            remMinAfterBonus
+        };
+    })()`);
+    console.log('Daily Screen Time Sibling Switch & Parent Gate +15m Check:', screenTimeSwitchAndUnlock);
+    assert.equal(screenTimeSwitchAndUnlock.unlockedForChuan, true, 'Sibling Chuan must be able to switch and play immediately');
+    assert.equal(screenTimeSwitchAndUnlock.relockedForPea, true, 'Switching back to expired Xiaowandou must re-show rest screen');
+    assert.equal(screenTimeSwitchAndUnlock.pgShown, true, 'Parent +15m button on rest screen must force fresh Parent Gate verification');
+    assert.equal(screenTimeSwitchAndUnlock.unlockedAfterBonus, true, 'Passing Parent Gate +15m must unlock rest overlay');
+    assert.equal(screenTimeSwitchAndUnlock.remMinAfterBonus, 15, 'Bonus +15m must grant 15 remaining minutes');
+
     console.log('Console errors:', consoleErrors.length);
     console.log('Failed local network requests:', failedLocalUrls.length);
     assert.equal(consoleErrors.length, 0, 'Console errors detected: ' + consoleErrors.join('; '));

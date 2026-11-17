@@ -168,7 +168,7 @@ function ensureStylesAndDOM() {
             <div class="cwyy-pg-card" role="dialog" aria-modal="true">
                 <div class="cwyy-pg-badge">🔒 家长守护验证</div>
                 <h3 class="cwyy-pg-title" id="cwyyPgTitle">请家长协助验证</h3>
-                <p class="cwyy-pg-desc" id="cwyyPgDesc">防止小朋友误改难度、每日上限或删除档案（验证后 20 分钟内免输）</p>
+                <p class="cwyy-pg-desc" id="cwyyPgDesc">防止小朋友误改难度、每日时长/徽章上限或删除档案</p>
                 <div class="cwyy-pg-question" id="cwyyPgQuestion">16 × 4 + 7 = ?</div>
                 <input type="text" class="cwyy-pg-input" id="cwyyPgInput" placeholder="请点击下方数字输入" readonly inputmode="none" />
                 <div class="cwyy-pg-err" id="cwyyPgErr"></div>
@@ -294,11 +294,15 @@ export function lockParentGateNow() {
 /**
  * 触发家长守护锁验证
  * @param {() => void} onApproved 验证通过后的回调
- * @param {{ profileManager?: any, actionLabel?: string }} [opts]
+ * @param {{ profileManager?: any, actionLabel?: string, forcePrompt?: boolean }} [opts]
  */
 export function requireParentGate(onApproved, opts = {}) {
     const pm = opts.profileManager || null;
-    if (isParentGateUnlocked(pm)) {
+    if (pm?.data?.parentLockEnabled === false) {
+        onApproved();
+        return;
+    }
+    if (!opts.forcePrompt && isParentGateUnlocked(pm)) {
         onApproved();
         return;
     }

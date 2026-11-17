@@ -17,6 +17,8 @@ import {
     GACHA_BADGE_COST,
     DEFAULT_DAILY_BADGE_CAP,
     DAILY_BADGE_CAP_OPTIONS,
+    DEFAULT_DAILY_TIME_LIMIT_MIN,
+    DAILY_TIME_LIMIT_OPTIONS,
     TOWN_PLOTS,
     TOWN_DECORS,
     getPetById,
@@ -43,7 +45,9 @@ import {
 import {
     profileManager,
     sanitizeMathEnabledTypes,
-    sanitizeEnglishEnabledTypes
+    sanitizeEnglishEnabledTypes,
+    sanitizeDailyTimeLimitMin,
+    formatTimeLimitOptionLabel
 } from './profileManager.js';
 import {
     renderMathInteractiveWidget,
@@ -54,6 +58,7 @@ import {
 import { openRandomFilterModal } from '../../shared/randomFilterModal.js';
 import { requireParentGate } from '../../shared/parentGate.js';
 import { magicMailbox } from '../../shared/magicMailbox.js';
+import { screenTimeGuard } from '../../shared/screenTimeGuard.js';
 import { PetAiChatController } from './petAiChat.js';
 import {
     BLINDBOX_SERIES,
@@ -3188,6 +3193,7 @@ class PetWonderTownApp {
         this.editingUserId = u.id;
         this.draftAvatar = u.avatar || '🐰';
         this.draftDailyCap = u.dailyBadgeCap || DEFAULT_DAILY_BADGE_CAP;
+        this.draftDailyTimeLimit = sanitizeDailyTimeLimitMin(u.dailyTimeLimitMin);
         const mc = u.mathConfig || {};
         this.draftMathMode = mc.mode || 'custom';
         this.draftMathPreset = mc.presetGrade || 'grade1_2';
@@ -3252,6 +3258,23 @@ class PetWonderTownApp {
             };
             avGrid.appendChild(b);
         });
+
+        // 2.4 每日游玩时长上限选择胶囊（默认 30 分钟）
+        const timeGrid = document.getElementById('dailyTimeLimitPills');
+        if (timeGrid) {
+            timeGrid.innerHTML = '';
+            DAILY_TIME_LIMIT_OPTIONS.forEach(m => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = `radio-pill-btn ${this.draftDailyTimeLimit === m ? 'active' : ''}`;
+                b.textContent = formatTimeLimitOptionLabel(m, true);
+                b.onclick = () => {
+                    this.draftDailyTimeLimit = m;
+                    this.renderProfileModalControls();
+                };
+                timeGrid.appendChild(b);
+            });
+        }
 
         // 2.5 每日徽章获取上限选择胶囊
         const capGrid = document.getElementById('dailyCapPills');
@@ -3416,6 +3439,7 @@ class PetWonderTownApp {
             name: document.getElementById('inputKidName').value,
             avatar: this.draftAvatar,
             dailyBadgeCap: this.draftDailyCap,
+            dailyTimeLimitMin: this.draftDailyTimeLimit,
             mathConfig,
             englishConfig
         });
@@ -4125,5 +4149,15 @@ window.addEventListener('DOMContentLoaded', () => {
         insertBeforeEl: btnFs,
         compact: true,
         buttonLabel: '对话'
+    });
+    screenTimeGuard.init({
+        appSource: 'pet',
+        onKidSwitched: () => {
+            if (window.__petTownApp) {
+                window.__petTownApp.syncEnginesWithActiveUser();
+                window.__petTownApp.renderAll();
+                window.__petTownApp.switchSubjectTab(window.__petTownApp.activeSubject, false, true);
+            }
+        }
     });
 });

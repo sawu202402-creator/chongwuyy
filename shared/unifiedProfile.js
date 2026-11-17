@@ -16,11 +16,14 @@ import {
     SHOP_UPGRADE_EXP_GAIN,
     GACHA_BADGE_COST,
     DEFAULT_DAILY_BADGE_CAP,
+    DEFAULT_DAILY_TIME_LIMIT_MIN,
+    DAILY_TIME_LIMIT_OPTIONS,
     DAILY_TICKET_CAP,
     TOWN_DECORS,
     getPetById,
     getShopById
 } from '../pet/js/config.js';
+export { DEFAULT_DAILY_TIME_LIMIT_MIN, DAILY_TIME_LIMIT_OPTIONS };
 import { ALL_MATH_TYPE_IDS } from './mathEngine.js';
 import { ALL_ENGLISH_TYPE_IDS, ALL_COURSE_SUB_IDS, DEFAULT_EASY_ENGLISH_TYPES, COURSE_LESSONS } from './englishEngine.js';
 import {
@@ -56,6 +59,29 @@ export function isValidSmartMode(mode) {
     return ALL_MATH_TYPE_IDS.includes(mode) || ALL_ENGLISH_TYPE_IDS.includes(mode) || ALL_COURSE_SUB_IDS.includes(mode);
 }
 
+/**
+ * 校验并标准化每日游玩时长上限（分钟）：
+ * 0 表示“不限时”，未设置或非法值默认返回 30（半小时）。
+ */
+export function sanitizeDailyTimeLimitMin(val) {
+    if (val === 0 || val === '0') return 0;
+    if (val === undefined || val === null || val === '') return DEFAULT_DAILY_TIME_LIMIT_MIN;
+    const num = Number(val);
+    if (Number.isFinite(num) && num > 0) {
+        return Math.min(480, Math.max(5, Math.round(num)));
+    }
+    return DEFAULT_DAILY_TIME_LIMIT_MIN;
+}
+
+export function formatTimeLimitOptionLabel(minutes, compact = false) {
+    const m = sanitizeDailyTimeLimitMin(minutes);
+    if (m === 0) return '♾️ 不限时';
+    if (m === 30) return compact ? '30分钟(默认)' : '30分钟 (默认推荐)';
+    if (m === 60) return compact ? '60分钟(1h)' : '60分钟 (1小时)';
+    if (m === 90) return compact ? '90分钟(1.5h)' : '90分钟 (1.5小时)';
+    return `${m}分钟`;
+}
+
 function todayDateKey() {
     const d = new Date();
     const yyyy = d.getFullYear();
@@ -78,7 +104,11 @@ function createFreshDailyState() {
         dailyMathQuestClaimed: false,
         dailyCourseQuestClaimed: false,
         dailyAllClearClaimed: false,
-        siblingGiftClaimed: false
+        siblingGiftClaimed: false,
+        usedSeconds: 0,
+        bonusMinutesToday: 0,
+        timeReminded5Min: false,
+        timeReminded1Min: false
     };
 }
 
@@ -144,6 +174,7 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
         badges: 6,
         gachaTickets: 0,
         dailyBadgeCap: DEFAULT_DAILY_BADGE_CAP,
+        dailyTimeLimitMin: DEFAULT_DAILY_TIME_LIMIT_MIN,
         dailyState: createFreshDailyState(),
         stageMode: 'pet',
         activePetId: activePetId || 'rabbit',
@@ -508,6 +539,7 @@ export class UserProfileManager {
                 u.statsAttemptBackfilled_v1 = true;
             }
             if (!u.dailyBadgeCap || u.dailyBadgeCap < 5) u.dailyBadgeCap = DEFAULT_DAILY_BADGE_CAP;
+            u.dailyTimeLimitMin = sanitizeDailyTimeLimitMin(u.dailyTimeLimitMin);
             this._ensureDailyState(u);
         });
 
@@ -546,15 +578,24 @@ export class UserProfileManager {
         return this.getUser(this.data.activeUserId) || this.data.users[0];
     }
 
+    _emitProfileUpdated(reason = 'update') {
+        try {
+            if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function' && typeof CustomEvent === 'function') {
+                window.dispatchEvent(new CustomEvent('cwyy-profile-updated', { detail: { reason } }));
+            }
+        } catch (_) {}
+    }
+
     setActiveUser(id) {
         if (this.data.users.some(u => u.id === id)) {
             this.data.activeUserId = id;
             this.save();
+            this._emitProfileUpdated('setActiveUser');
         }
         return this.getActiveUser();
     }
 
-    addUser({ name, avatar, mathConfig, difficulty, englishConfig }) {
+    addUser({ name, avatar, dailyTimeLimitMin, mathConfig, difficulty, englishConfig }) {
         const id = 'child_' + Date.now();
         const mergedMath = mathConfig || difficulty || null;
         const startPet = avatar === '🐸' ? 'frog' : 'rabbit';
@@ -566,6 +607,9 @@ export class UserProfileManager {
             mathRange: mergedMath?.range || 20,
             ops: mergedMath?.operations || ['add', 'sub']
         });
+        if (dailyTimeLimitMin !== undefined) {
+            newUser.dailyTimeLimitMin = sanitizeDailyTimeLimitMin(dailyTimeLimitMin);
+        }
         if (mergedMath) {
             newUser.mathConfig = {
                 ...newUser.mathConfig,
@@ -584,16 +628,20 @@ export class UserProfileManager {
         this.data.users.push(newUser);
         this.data.activeUserId = id;
         this.save();
+        this._emitProfileUpdated('addUser');
         return newUser;
     }
 
-    updateUserSettings(id, { name, avatar, dailyBadgeCap, mathConfig, difficulty, englishConfig }) {
+    updateUserSettings(id, { name, avatar, dailyBadgeCap, dailyTimeLimitMin, mathConfig, difficulty, englishConfig }) {
         const u = this.getUser(id);
         if (!u) return null;
         if (name !== undefined && name.trim()) u.name = name.trim();
         if (avatar !== undefined) u.avatar = avatar;
         if (dailyBadgeCap !== undefined && Number(dailyBadgeCap) >= 5) {
             u.dailyBadgeCap = Number(dailyBadgeCap);
+        }
+        if (dailyTimeLimitMin !== undefined) {
+            u.dailyTimeLimitMin = sanitizeDailyTimeLimitMin(dailyTimeLimitMin);
         }
         const incomingMath = mathConfig || difficulty;
         if (incomingMath) {
@@ -630,6 +678,7 @@ export class UserProfileManager {
             u.englishConfig = mergedEn;
         }
         this.save();
+        this._emitProfileUpdated('updateUserSettings');
         return u;
     }
 
@@ -659,7 +708,115 @@ export class UserProfileManager {
         if (typeof user.dailyState.dailyMathQuestClaimed !== 'boolean') user.dailyState.dailyMathQuestClaimed = false;
         if (typeof user.dailyState.dailyCourseQuestClaimed !== 'boolean') user.dailyState.dailyCourseQuestClaimed = false;
         if (typeof user.dailyState.dailyAllClearClaimed !== 'boolean') user.dailyState.dailyAllClearClaimed = false;
+        if (typeof user.dailyState.usedSeconds !== 'number' || user.dailyState.usedSeconds < 0) user.dailyState.usedSeconds = 0;
+        if (typeof user.dailyState.bonusMinutesToday !== 'number' || user.dailyState.bonusMinutesToday < 0) user.dailyState.bonusMinutesToday = 0;
+        if (typeof user.dailyState.timeReminded5Min !== 'boolean') user.dailyState.timeReminded5Min = false;
+        if (typeof user.dailyState.timeReminded1Min !== 'boolean') user.dailyState.timeReminded1Min = false;
         return user.dailyState;
+    }
+
+    /**
+     * 获取当前宝贝今日游玩时长护眼状态（跨 4 端共用，自然日零点自动清零）
+     */
+    getDailyTimeStatus(user = null) {
+        const u = user || this.getActiveUser();
+        const ds = this._ensureDailyState(u);
+        const limitMin = sanitizeDailyTimeLimitMin(u.dailyTimeLimitMin);
+        const bonusMin = Math.max(0, Number(ds.bonusMinutesToday) || 0);
+        const isUnlimited = limitMin === 0;
+        const effectiveLimitMin = isUnlimited ? 0 : (limitMin + bonusMin);
+        const effectiveLimitSec = isUnlimited ? Infinity : effectiveLimitMin * 60;
+        const usedSeconds = Math.max(0, Math.floor(ds.usedSeconds || 0));
+        const remainingSeconds = isUnlimited ? Infinity : Math.max(0, effectiveLimitSec - usedSeconds);
+        const isExpired = !isUnlimited && usedSeconds >= effectiveLimitSec;
+        return {
+            dateKey: ds.dateKey,
+            limitMin,
+            bonusMin,
+            effectiveLimitMin,
+            effectiveLimitSec,
+            usedSeconds,
+            usedMinutesFloor: Math.floor(usedSeconds / 60),
+            remainingSeconds,
+            remainingMinutesCeil: isUnlimited ? Infinity : Math.ceil(remainingSeconds / 60),
+            isUnlimited,
+            isExpired,
+            reminded5Min: Boolean(ds.timeReminded5Min),
+            reminded1Min: Boolean(ds.timeReminded1Min)
+        };
+    }
+
+    /**
+     * 累加今日活跃游玩秒数（内置跨标签页/bfcache 单调同步，防回退覆盖）
+     */
+    addPlaySeconds(deltaSec = 1, user = null, saveImmediately = false) {
+        const u = user || this.getActiveUser();
+        if (!u) return null;
+        const ds = this._ensureDailyState(u);
+        const add = Math.max(0, Math.round(Number(deltaSec) || 0));
+        if (add > 0) {
+            try {
+                if (typeof localStorage !== 'undefined' && typeof localStorage.getItem === 'function') {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        const savedU = parsed?.users?.find(x => x.id === u.id);
+                        if (savedU?.dailyState?.dateKey === ds.dateKey) {
+                            const savedSec = Number(savedU.dailyState.usedSeconds) || 0;
+                            if (savedSec > ds.usedSeconds) {
+                                ds.usedSeconds = savedSec;
+                            }
+                            const savedBonus = Number(savedU.dailyState.bonusMinutesToday) || 0;
+                            if (savedBonus > ds.bonusMinutesToday) {
+                                ds.bonusMinutesToday = savedBonus;
+                            }
+                        }
+                    }
+                }
+            } catch (_) {}
+            ds.usedSeconds = Math.max(0, Math.floor(ds.usedSeconds || 0)) + add;
+        }
+        const status = this.getDailyTimeStatus(u);
+        if (saveImmediately || status.isExpired) {
+            this.save();
+        }
+        return status;
+    }
+
+    markTimeReminded(kind, user = null) {
+        const u = user || this.getActiveUser();
+        if (!u) return;
+        const ds = this._ensureDailyState(u);
+        if (kind === '5min') ds.timeReminded5Min = true;
+        if (kind === '1min') ds.timeReminded1Min = true;
+        this.save();
+    }
+
+    grantBonusScreenTime(minutes = 15, user = null) {
+        const u = user || this.getActiveUser();
+        if (!u) return null;
+        const ds = this._ensureDailyState(u);
+        const addMin = Math.max(1, Math.round(Number(minutes) || 15));
+        ds.bonusMinutesToday = Math.max(0, Number(ds.bonusMinutesToday) || 0) + addMin;
+        const nextStatus = this.getDailyTimeStatus(u);
+        if (nextStatus.remainingSeconds > 300) ds.timeReminded5Min = false;
+        if (nextStatus.remainingSeconds > 60) ds.timeReminded1Min = false;
+        this.save();
+        this._emitProfileUpdated('grantBonusScreenTime');
+        return nextStatus;
+    }
+
+    resetTodayScreenTime(user = null) {
+        const u = user || this.getActiveUser();
+        if (!u) return null;
+        const ds = this._ensureDailyState(u);
+        ds.usedSeconds = 0;
+        ds.bonusMinutesToday = 0;
+        ds.timeReminded5Min = false;
+        ds.timeReminded1Min = false;
+        this.save();
+        this._emitProfileUpdated('resetTodayScreenTime');
+        return this.getDailyTimeStatus(u);
     }
 
     getDailyQuestStatus(user = null) {
@@ -1851,6 +2008,7 @@ export class UserProfileManager {
 
         this.data = parsedObj;
         this.ensureIntegrity();
+        this._emitProfileUpdated('importBackup');
         const names = this.data.users.map(u => `${u.avatar || '🐰'}${u.name}`).join('、');
         return {
             ok: true,

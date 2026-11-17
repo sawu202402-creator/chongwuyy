@@ -713,6 +713,35 @@ const starUpPull = pmBbx.drawBlindBox('dino');
 assert.equal(starUpPull.prize.isStarUpgrade, true, '13th pull in a mastered series must upgrade an item to 2-star shiny card');
 assert.equal(starUpPull.prize.starLevel, 2);
 
+// Verify Daily Screen Time Control (default 30 min = half an hour, per-child tracking, +15m bonus, unlimited=0, reset)
+const { DEFAULT_DAILY_TIME_LIMIT_MIN, sanitizeDailyTimeLimitMin } = await import('../shared/unifiedProfile.js');
+assert.equal(DEFAULT_DAILY_TIME_LIMIT_MIN, 30, 'Default daily time limit must be 30 minutes (half an hour)');
+assert.equal(sanitizeDailyTimeLimitMin(undefined), 30);
+assert.equal(sanitizeDailyTimeLimitMin(0), 0, '0 must represent unlimited mode');
+const peaTime0 = pmBbx.getDailyTimeStatus();
+assert.equal(peaTime0.limitMin, 30);
+assert.equal(peaTime0.isExpired, false);
+assert.equal(peaTime0.remainingSeconds, 1800);
+pmBbx.addPlaySeconds(1800, null, true);
+assert.equal(pmBbx.getDailyTimeStatus().isExpired, true, 'Reaching 1800s (30m) must trigger expired rest state');
+// Sibling Chuan must still have his own independent 30 minutes!
+const chuanUser = pmBbx.getUsers().find(u => u.id === 'child_chuan');
+assert.equal(pmBbx.getDailyTimeStatus(chuanUser).isExpired, false);
+assert.equal(pmBbx.getDailyTimeStatus(chuanUser).remainingSeconds, 1800);
+// Parent grants +15 min bonus to Xiaowandou
+const afterBonus = pmBbx.grantBonusScreenTime(15);
+assert.equal(afterBonus.isExpired, false);
+assert.equal(afterBonus.remainingSeconds, 900);
+// Parent switches Xiaowandou to Unlimited (0)
+pmBbx.updateUserSettings(pmBbx.getActiveUser().id, { dailyTimeLimitMin: 0 });
+assert.equal(pmBbx.getDailyTimeStatus().isUnlimited, true);
+assert.equal(pmBbx.getDailyTimeStatus().isExpired, false);
+// Reset today's timer and restore 30 min default
+pmBbx.updateUserSettings(pmBbx.getActiveUser().id, { dailyTimeLimitMin: 30 });
+pmBbx.resetTodayScreenTime();
+assert.equal(pmBbx.getDailyTimeStatus().usedSeconds, 0);
+assert.equal(pmBbx.getDailyTimeStatus().remainingSeconds, 1800);
+
 console.log('   ✅ Unified UserProfileManager, Daily Fixed Quests, 74-Item Blindbox Museum, Live Question Counter & 12 Pet Voices verified!');
 
 console.log('6. Verifying Magic Mailbox Voice Dialog, Neural MP3 Clips & Cloudflare Worker Config...');

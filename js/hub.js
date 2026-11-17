@@ -10,7 +10,11 @@
 import {
     profileManager,
     sanitizeMathEnabledTypes,
-    sanitizeEnglishEnabledTypes
+    sanitizeEnglishEnabledTypes,
+    DEFAULT_DAILY_TIME_LIMIT_MIN,
+    DAILY_TIME_LIMIT_OPTIONS,
+    sanitizeDailyTimeLimitMin,
+    formatTimeLimitOptionLabel
 } from '../shared/unifiedProfile.js';
 import {
     MathEngine,
@@ -48,6 +52,7 @@ import {
 import { sharedSpeech } from '../shared/audioTTS.js';
 import { requireParentGate } from '../shared/parentGate.js';
 import { magicMailbox } from '../shared/magicMailbox.js';
+import { screenTimeGuard, formatRemainingBadgeText } from '../shared/screenTimeGuard.js';
 
 class PortalHubApp {
     constructor() {
@@ -55,6 +60,7 @@ class PortalHubApp {
         this.formState = {
             avatar: '🐰',
             dailyBadgeCap: 30,
+            dailyTimeLimitMin: DEFAULT_DAILY_TIME_LIMIT_MIN,
             mode: 'custom',
             presetGrade: 'grade1_2',
             ops: ['add', 'sub'],
@@ -135,7 +141,13 @@ class PortalHubApp {
         document.getElementById('btnHubSettings')?.addEventListener('click', () => {
             requireParentGate(() => this.openSettingsModal(), {
                 profileManager,
-                actionLabel: '进入家长难度与上限管理'
+                actionLabel: '进入家长难度与时长/上限管理'
+            });
+        });
+        document.getElementById('bannerTimeSummary')?.addEventListener('click', () => {
+            requireParentGate(() => this.openSettingsModal(), {
+                profileManager,
+                actionLabel: '配置每日游玩时长控制'
             });
         });
         document.getElementById('btnHubQuickTypesCfg')?.addEventListener('click', () => {
@@ -375,6 +387,7 @@ class PortalHubApp {
         document.getElementById('bannerKidName').textContent = `${active.avatar || '🐰'} ${active.name}`;
         document.getElementById('bannerMathSummary').textContent = `🎯 数学：${mathSummary}`;
         document.getElementById('bannerEnSummary').textContent = `🔤 英语：${enSummary}`;
+        this.renderTimeBannerPill(profileManager.getDailyTimeStatus(active));
         document.getElementById('bannerBadgesVal').textContent = active.badges || 0;
         document.getElementById('bannerTicketsVal').textContent = active.gachaTickets || 0;
 
@@ -432,6 +445,15 @@ class PortalHubApp {
                 <span>🔤 已掌握 ${masteredWords}/${ALL_WORDS.length} 词</span>
             `;
         }
+    }
+
+    renderTimeBannerPill(timeStatus = null) {
+        const el = document.getElementById('bannerTimeSummary');
+        if (!el) return;
+        const st = timeStatus || profileManager.getDailyTimeStatus();
+        el.textContent = formatRemainingBadgeText(st);
+        el.classList.toggle('warn', !st.isUnlimited && !st.isExpired && st.remainingSeconds <= 300);
+        el.classList.toggle('expired', Boolean(st.isExpired));
     }
 
     renderSmartModeStrip(active) {
@@ -519,6 +541,7 @@ class PortalHubApp {
         this.formState = {
             avatar: user?.avatar || '🐰',
             dailyBadgeCap: user?.dailyBadgeCap || 30,
+            dailyTimeLimitMin: sanitizeDailyTimeLimitMin(user?.dailyTimeLimitMin),
             mode: mc.mode === 'preset' ? 'preset' : 'custom',
             presetGrade: mc.presetGrade || 'grade1_2',
             ops: Array.isArray(mc.operations) && mc.operations.length > 0 ? [...mc.operations] : ['add', 'sub'],
@@ -582,7 +605,7 @@ class PortalHubApp {
         addBtn.textContent = '➕ 新增小朋友';
         addBtn.addEventListener('click', () => {
             this.editingKidId = '__NEW__';
-            this.loadKidIntoForm({ avatar: '🦄', dailyBadgeCap: 30 }, true);
+            this.loadKidIntoForm({ avatar: '🦄', dailyBadgeCap: 30, dailyTimeLimitMin: DEFAULT_DAILY_TIME_LIMIT_MIN }, true);
             this.renderSettingsModal();
             document.getElementById('hubInputName')?.focus();
         });
@@ -608,7 +631,55 @@ class PortalHubApp {
             avGrid.appendChild(b);
         });
 
-        // 2. 每日徽章上限
+        // 2A. 每日游玩时长护眼控制（默认 30 分钟）
+        const timeWrap = document.getElementById('hubDailyTimePills');
+        if (timeWrap) {
+            timeWrap.innerHTML = '';
+            DAILY_TIME_LIMIT_OPTIONS.forEach(minVal => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = `hub-opt-pill ${this.formState.dailyTimeLimitMin === minVal ? 'selected' : ''}`;
+                b.textContent = formatTimeLimitOptionLabel(minVal, false);
+                b.addEventListener('click', () => {
+                    this.formState.dailyTimeLimitMin = minVal;
+                    this.renderSettingsModal();
+                });
+                timeWrap.appendChild(b);
+            });
+        }
+
+        const timeRuntimeRow = document.getElementById('hubDailyTimeRuntimeRow');
+        if (timeRuntimeRow) {
+            const editingUser = (!isNew && this.editingKidId) ? profileManager.getUser(this.editingKidId) : null;
+            if (!editingUser) {
+                timeRuntimeRow.innerHTML = `<span style="font-size:12px;color:#636e72;font-weight:700;">💡 新小朋友档案默认启用每日 30 分钟（半小时）护眼休息守护。</span>`;
+            } else {
+                const ts = profileManager.getDailyTimeStatus(editingUser);
+                const usedMin = Math.floor(ts.usedSeconds / 60);
+                const usedRemSec = ts.usedSeconds % 60;
+                const usedStr = usedMin > 0 ? `${usedMin}分${usedRemSec > 0 ? `${usedRemSec}秒` : ''}` : `${usedRemSec}秒`;
+                const bonusStr = ts.bonusMin > 0 ? `（含今日临时加时 +${ts.bonusMin} 分钟）` : '';
+                timeRuntimeRow.innerHTML = `
+                    <span style="font-size:12.5px;color:#047857;font-weight:800;">
+                        📊 【${editingUser.name}】今日已玩：${usedStr}${bonusStr}
+                    </span>
+                    <button type="button" class="hub-opt-pill" id="btnHubBonusTime15">➕ 今日临时+15分钟</button>
+                    <button type="button" class="hub-opt-pill" id="btnHubResetTodayTime">🔄 清零今日已用时长</button>
+                `;
+                timeRuntimeRow.querySelector('#btnHubBonusTime15')?.addEventListener('click', () => {
+                    profileManager.grantBonusScreenTime(15, editingUser);
+                    this.renderSettingsModal();
+                    this.renderAll();
+                });
+                timeRuntimeRow.querySelector('#btnHubResetTodayTime')?.addEventListener('click', () => {
+                    profileManager.resetTodayScreenTime(editingUser);
+                    this.renderSettingsModal();
+                    this.renderAll();
+                });
+            }
+        }
+
+        // 2B. 每日徽章上限
         const capWrap = document.getElementById('hubDailyCapPills');
         capWrap.innerHTML = '';
         DAILY_BADGE_CAP_OPTIONS.forEach(cap => {
@@ -825,17 +896,20 @@ class PortalHubApp {
             const created = profileManager.addUser({
                 name: rawName || `小宝贝${profileManager.getUsers().length + 1}`,
                 avatar: this.formState.avatar,
+                dailyTimeLimitMin: this.formState.dailyTimeLimitMin,
                 mathConfig,
                 englishConfig
             });
             profileManager.updateUserSettings(created.id, {
-                dailyBadgeCap: this.formState.dailyBadgeCap
+                dailyBadgeCap: this.formState.dailyBadgeCap,
+                dailyTimeLimitMin: this.formState.dailyTimeLimitMin
             });
         } else {
             profileManager.updateUserSettings(this.editingKidId, {
                 name: rawName || '小豌豆',
                 avatar: this.formState.avatar,
                 dailyBadgeCap: this.formState.dailyBadgeCap,
+                dailyTimeLimitMin: this.formState.dailyTimeLimitMin,
                 mathConfig,
                 englishConfig
             });
@@ -1873,5 +1947,14 @@ window.addEventListener('DOMContentLoaded', () => {
     magicMailbox.init({
         appSource: 'hub',
         mountButton: document.getElementById('btnMagicMailbox')
+    });
+    screenTimeGuard.init({
+        appSource: 'hub',
+        onTick: (st) => {
+            window.portalHub?.renderTimeBannerPill(st);
+        },
+        onKidSwitched: () => {
+            window.portalHub?.renderAll();
+        }
     });
 });

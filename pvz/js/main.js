@@ -15,8 +15,15 @@ import { sharedSpeech } from '../../shared/audioTTS.js';
 import { ENGLISH_LEVELS, WORD_PACKS, ALL_WORDS, ENGLISH_QUESTION_TYPES, ALL_ENGLISH_TYPE_IDS } from '../../shared/englishEngine.js';
 import { renderEnabledTypesSelector } from '../../shared/questionWidgets.js';
 import { DAILY_BADGE_CAP_OPTIONS, DEFAULT_DAILY_BADGE_CAP } from '../../pet/js/config.js';
+import {
+    DEFAULT_DAILY_TIME_LIMIT_MIN,
+    DAILY_TIME_LIMIT_OPTIONS,
+    sanitizeDailyTimeLimitMin,
+    formatTimeLimitOptionLabel
+} from '../../shared/unifiedProfile.js';
 import { requireParentGate } from '../../shared/parentGate.js';
 import { magicMailbox } from '../../shared/magicMailbox.js';
+import { screenTimeGuard } from '../../shared/screenTimeGuard.js';
 
 window.createPlant = createPlant;
 window.Zombie = Zombie;
@@ -138,6 +145,7 @@ class GameApp {
             pvzEnLevelGrid: document.getElementById('pvzEnLevelGrid'),
             pvzEnPackSelect: document.getElementById('pvzEnPackSelect'),
             pvzDailyCapGrid: document.getElementById('pvzDailyCapGrid'),
+            pvzDailyTimeGrid: document.getElementById('pvzDailyTimeGrid'),
             btnSaveUserProfile: document.getElementById('btnSaveUserProfile'),
             btnCancelUserProfile: document.getElementById('btnCancelUserProfile'),
 
@@ -1304,6 +1312,7 @@ class GameApp {
             ? [...enConf.enabledTypes]
             : [...ALL_ENGLISH_TYPE_IDS];
         this.selectedDailyBadgeCap = (targetUser && targetUser.dailyBadgeCap) || DEFAULT_DAILY_BADGE_CAP;
+        this.selectedDailyTimeLimit = sanitizeDailyTimeLimitMin(targetUser ? targetUser.dailyTimeLimitMin : DEFAULT_DAILY_TIME_LIMIT_MIN);
 
         const pvzEnTypesBox = document.getElementById('pvzEnTypesBox');
         const drawPvzEnTypes = () => {
@@ -1364,6 +1373,22 @@ class GameApp {
                 this.dom.pvzDailyCapGrid.appendChild(pill);
             });
         }
+
+        if (this.dom.pvzDailyTimeGrid) {
+            this.dom.pvzDailyTimeGrid.innerHTML = '';
+            DAILY_TIME_LIMIT_OPTIONS.forEach(minVal => {
+                const pill = document.createElement('button');
+                pill.type = 'button';
+                pill.className = `range-pill range-pill-btn ${minVal === this.selectedDailyTimeLimit ? 'selected' : ''}`;
+                pill.innerText = formatTimeLimitOptionLabel(minVal, true);
+                pill.addEventListener('click', () => {
+                    this.selectedDailyTimeLimit = minVal;
+                    this.dom.pvzDailyTimeGrid.querySelectorAll('.range-pill, .range-pill-btn').forEach(p => p.classList.remove('selected'));
+                    pill.classList.add('selected');
+                });
+                this.dom.pvzDailyTimeGrid.appendChild(pill);
+            });
+        }
     }
 
     saveUserProfileSettings() {
@@ -1403,14 +1428,15 @@ class GameApp {
             enabledTypes: this.selectedEnTypes
         };
         const dailyBadgeCap = this.selectedDailyBadgeCap || DEFAULT_DAILY_BADGE_CAP;
+        const dailyTimeLimitMin = sanitizeDailyTimeLimitMin(this.selectedDailyTimeLimit);
 
         if (this.editingKidId === 'NEW') {
-            const created = profileManager.addUser({ name, avatar, difficulty, englishConfig });
+            const created = profileManager.addUser({ name, avatar, dailyTimeLimitMin, difficulty, englishConfig });
             if (profileManager.updateUserSettings) {
-                profileManager.updateUserSettings(created.id, { dailyBadgeCap });
+                profileManager.updateUserSettings(created.id, { dailyBadgeCap, dailyTimeLimitMin });
             }
         } else if (profileManager.updateUserSettings) {
-            profileManager.updateUserSettings(this.editingKidId, { name, avatar, dailyBadgeCap, difficulty, englishConfig });
+            profileManager.updateUserSettings(this.editingKidId, { name, avatar, dailyBadgeCap, dailyTimeLimitMin, difficulty, englishConfig });
         } else {
             profileManager.updateUser(this.editingKidId, { name, avatar, difficulty, englishConfig });
         }
@@ -1988,6 +2014,43 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
             pausedByMailbox = false;
+        }
+    });
+
+    let pausedByScreenTime = false;
+    screenTimeGuard.init({
+        appSource: 'pvz',
+        isGameActivelyRunning: () => {
+            const eng = window.gameApp && window.gameApp.pvzEngine;
+            return Boolean(eng && !eng.isPaused && !eng.isGameOver && !eng.isVictory);
+        },
+        onLockPause: () => {
+            const eng = window.gameApp && window.gameApp.pvzEngine;
+            if (eng && !eng.isPaused) {
+                pausedByScreenTime = true;
+                eng.isPaused = true;
+                if (window.gameApp.dom && window.gameApp.dom.btnPause) {
+                    window.gameApp.dom.btnPause.innerText = '▶️';
+                }
+            } else {
+                pausedByScreenTime = false;
+            }
+        },
+        onUnlockResume: () => {
+            const eng = window.gameApp && window.gameApp.pvzEngine;
+            if (pausedByScreenTime && eng && eng.isPaused) {
+                eng.isPaused = false;
+                if (window.gameApp.dom && window.gameApp.dom.btnPause) {
+                    window.gameApp.dom.btnPause.innerText = '⏸️';
+                }
+            }
+            pausedByScreenTime = false;
+        },
+        onKidSwitched: () => {
+            if (window.gameApp) {
+                window.gameApp.updateProfileUI();
+                window.gameApp.syncQuestionToBlackboard();
+            }
         }
     });
 });

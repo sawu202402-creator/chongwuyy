@@ -16,9 +16,9 @@
     <meta name="theme-color" content="#7c5cfc">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/hub.css?v=20261117_turbo_v6">
-    <link rel="stylesheet" href="shared/smartChalkboard.css?v=20261117_turbo_v6">
-    <link rel="stylesheet" href="shared/magicMailbox.css?v=20261117_turbo_v6">
+    <link rel="stylesheet" href="css/hub.css?v=20261117_time_v7">
+    <link rel="stylesheet" href="shared/smartChalkboard.css?v=20261117_time_v7">
+    <link rel="stylesheet" href="shared/magicMailbox.css?v=20261117_time_v7">
 </head>
 <body>
     <div class="hub-app" id="hubApp">
@@ -72,6 +72,7 @@
                         <span id="bannerKidName">🐰 小豌豆</span>
                         <span class="banner-diff-pill" id="bannerMathSummary">🎯 数学：20以内加减乘</span>
                         <span class="banner-diff-pill" id="bannerEnSummary">🔤 英语：看图识词</span>
+                        <button type="button" class="banner-diff-pill banner-time-pill" id="bannerTimeSummary" title="点击经家长验证后设置每日游玩时长（默认30分钟）">⏱️ 剩余 30分/30分</button>
                     </div>
                     <div class="banner-sub-hint" id="bannerSubHint">
                         ✨ 在下方任意游戏答题闯关均可累积今日萌宠徽章，历史错题还会在闯关时智能重温哦！
@@ -254,7 +255,10 @@
             </div>
 
             <div class="hub-form-section">
-                <div class="hub-sec-label">2. 每日萌宠徽章获取上限（防刷腻 · 细水长流养成好习惯）：</div>
+                <div class="hub-sec-label">2. ⏱️ 每日游玩时长护眼控制（默认半小时 · 跨 4 端统一计时，到点自动暂停休息）：</div>
+                <div class="hub-pill-row" id="hubDailyTimePills"></div>
+                <div class="hub-pill-row" id="hubDailyTimeRuntimeRow" style="margin-top:8px;"></div>
+                <div class="hub-sec-label" style="margin-top:10px;">🏅 每日萌宠徽章获取上限（防刷腻 · 细水长流养成好习惯）：</div>
                 <div class="hub-pill-row" id="hubDailyCapPills"></div>
             </div>
 
@@ -403,11 +407,11 @@
         </div>
     </div>
 
-    <script type="module" src="js/hub.js?v=20261117_turbo_v6"></script>
+    <script type="module" src="js/hub.js?v=20261117_time_v7"></script>
     <script>
         if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=20261117_turbo_v6').catch(() => {});
+                navigator.serviceWorker.register('./sw.js?v=20261117_time_v7').catch(() => {});
             });
         }
     </script>

@@ -110,6 +110,8 @@ export const GACHA_BADGE_COST = 25;       // 无扭蛋券时消耗 25 徽章可�
 // 每日防刷腻习惯养成上限配置 (自然日零点自动重置，可在家长设置中按孩子调整)
 export const DEFAULT_DAILY_BADGE_CAP = 30;
 export const DAILY_BADGE_CAP_OPTIONS = [15, 25, 30, 45, 60];
+export const DEFAULT_DAILY_TIME_LIMIT_MIN = 30; // 默认每天半小时（30分钟）游玩时长控制
+export const DAILY_TIME_LIMIT_OPTIONS = [15, 20, 30, 45, 60, 90, 0]; // 0 表示不限时
 export const DAILY_TICKET_CAP = 5;        // 连对/背词营等随机掉落盲盒券上限（每日固定打卡送券独立必得！）
 
 export const PETS_CATALOG = [
