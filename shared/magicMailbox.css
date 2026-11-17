@@ -402,6 +402,37 @@
     border: 1px solid #bae6fd;
 }
 
+.mm-tag-ai-live {
+    background: linear-gradient(135deg, #ede9fe 0%, #fce7f3 100%);
+    color: #6d28d9;
+    border: 1px solid #c4b5fd;
+}
+
+.mm-thinking-dots {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-left: 6px;
+    vertical-align: middle;
+}
+
+.mm-thinking-dots i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #9333ea;
+    display: inline-block;
+    animation: mmThinkBounce 0.9s ease-in-out infinite;
+}
+
+.mm-thinking-dots i:nth-child(2) { animation-delay: 0.18s; background: #ec4899; }
+.mm-thinking-dots i:nth-child(3) { animation-delay: 0.36s; background: #f59e0b; }
+
+@keyframes mmThinkBounce {
+    0%, 100% { transform: translateY(0); opacity: 0.45; }
+    50% { transform: translateY(-4px); opacity: 1; }
+}
+
 .mm-tag-fulfilled {
     background: linear-gradient(135deg, #fef08a 0%, #fde047 100%);
     color: #854d0e;
@@ -648,8 +679,11 @@
     user-select: none;
 }
 
-.mm-mic-btn:active {
-    transform: scale(0.96);
+.mm-mic-btn.mm-transcribing {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    border-color: #ddd6fe;
+    opacity: 0.92;
+    cursor: wait;
 }
 
 .mm-mic-btn.mm-recording {

@@ -32,12 +32,12 @@ const APP_LABELS = {
 };
 
 const INSPIRATION_CHIPS = [
+    { icon: '🦖', label: '问十万个为什么', prefix: '魔法师，我想问你：' },
     { icon: '🌱', label: '加新植物/炮塔', prefix: '我想在游戏里新加一个：' },
     { icon: '👗', label: '加萌宠新装扮', prefix: '我想给小萌宠做一件新衣服：' },
     { icon: '🎁', label: '加新盲盒宝贝', prefix: '我希望盲盒里能抽到：' },
     { icon: '📚', label: '题目难度建议', prefix: '我觉得现在的数学或英语题：' },
-    { icon: '🛠️', label: '发现小问题', prefix: '魔法师，我发现了一个小问题：' },
-    { icon: '👋', label: '找魔法师聊天', prefix: '嗨魔法师！我想跟你说：' }
+    { icon: '👋', label: '跟魔法师聊天', prefix: '嗨魔法师！跟你说件好玩的事：' }
 ];
 
 function nowTimeStr() {
@@ -57,6 +57,16 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;');
 }
 
+function arrayBufferToBase64(ab) {
+    const u8 = new Uint8Array(ab);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < u8.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, u8.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+}
+
 function resolveAudioHref(audioFileOrUrl = '') {
     if (!audioFileOrUrl) return '';
     if (/^https?:\/\//i.test(audioFileOrUrl) || audioFileOrUrl.startsWith('/')) {
@@ -67,6 +77,85 @@ function resolveAudioHref(audioFileOrUrl = '') {
         return AUDIO_BASE_URL + fname;
     }
     return AUDIO_BASE_URL + audioFileOrUrl;
+}
+
+/**
+ * 将麦克风采集的 Float32 PCM 采样块降采样为 16kHz 单声道 16-bit 标准 WAV 并编码为 Base64
+ * 兼容 iPad Safari / 主屏幕 PWA / 微信 / Chrome / 安卓全平台，直传 Cloudflare Whisper 识别
+ */
+function encodePcmChunksToWav16kBase64(chunks, srcSampleRate = 48000) {
+    let totalLen = 0;
+    for (const c of chunks) totalLen += c.length;
+    if (totalLen === 0) return { base64: '', durationSec: 0, maxPeak: 0 };
+
+    const merged = new Float32Array(totalLen);
+    let offset = 0;
+    let maxPeak = 0;
+    for (const c of chunks) {
+        merged.set(c, offset);
+        for (let i = 0; i < c.length; i++) {
+            const a = Math.abs(c[i]);
+            if (a > maxPeak) maxPeak = a;
+        }
+        offset += c.length;
+    }
+
+    const targetRate = 16000;
+    const ratio = srcSampleRate > targetRate ? (srcSampleRate / targetRate) : 1;
+    const outSamples = Math.max(1, Math.floor(totalLen / ratio));
+    const wavBytes = new ArrayBuffer(44 + outSamples * 2);
+    const view = new DataView(wavBytes);
+
+    const writeAscii = (pos, str) => {
+        for (let i = 0; i < str.length; i++) {
+            view.setUint8(pos + i, str.charCodeAt(i));
+        }
+    };
+
+    writeAscii(0, 'RIFF');
+    view.setUint32(4, 36 + outSamples * 2, true);
+    writeAscii(8, 'WAVE');
+    writeAscii(12, 'fmt ');
+    view.setUint32(16, 16, true);          // PCM chunk size
+    view.setUint16(20, 1, true);           // AudioFormat = 1 (PCM)
+    view.setUint16(22, 1, true);           // NumChannels = 1 (Mono)
+    view.setUint32(24, targetRate, true);  // SampleRate = 16000
+    view.setUint32(28, targetRate * 2, true); // ByteRate
+    view.setUint16(32, 2, true);           // BlockAlign
+    view.setUint16(34, 16, true);          // BitsPerSample = 16
+    writeAscii(36, 'data');
+    view.setUint32(40, outSamples * 2, true);
+
+    // 若录音音量偏轻（小朋友离 iPad 稍远），自动做温和增益归一化，显著提升 Whisper 识别率
+    const normGain = (maxPeak > 0.012 && maxPeak < 0.35) ? Math.min(3.2, 0.55 / maxPeak) : 1.0;
+
+    let bytePos = 44;
+    for (let i = 0; i < outSamples; i++) {
+        const start = Math.floor(i * ratio);
+        const end = Math.min(totalLen, Math.floor((i + 1) * ratio));
+        let sum = 0;
+        let cnt = 0;
+        for (let j = start; j < end; j++) {
+            sum += merged[j];
+            cnt++;
+        }
+        const sample = cnt > 0 ? (sum / cnt) * normGain : merged[start] * normGain;
+        const clamped = Math.max(-1, Math.min(1, sample));
+        view.setInt16(bytePos, clamped < 0 ? clamped * 0x8000 : clamped * 0x7FFF, true);
+        bytePos += 2;
+    }
+
+    const u8 = new Uint8Array(wavBytes);
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < u8.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, u8.subarray(i, i + chunkSize));
+    }
+    return {
+        base64: btoa(binary),
+        durationSec: totalLen / srcSampleRate,
+        maxPeak
+    };
 }
 
 class MagicMailboxController {
@@ -80,10 +169,15 @@ class MagicMailboxController {
         this.selectedSpeaker = 'pea'; // 'pea' | 'chuan' | 'both'
         this.isOpen = false;
         this.isRecording = false;
+        this.isTranscribing = false;
         this.recognition = null;
+        this._pcmRecorder = null;
+        this._recTimer = null;
+        this._recSeconds = 0;
         this._recBaseText = '';
         this._recFinalText = '';
         this._playingKey = null;
+        this._thinkingWishId = null;
         this._audioEl = null;
         this._audioCtx = null;
 
@@ -379,7 +473,7 @@ class MagicMailboxController {
 
                         <button type="button" class="mm-send-btn" id="mmSendBtn" disabled>
                             <span>🚀</span>
-                            <span>发送愿望</span>
+                            <span>发送消息</span>
                         </button>
                     </div>
 
@@ -486,8 +580,9 @@ class MagicMailboxController {
         });
 
         d.micBtn.addEventListener('click', () => {
+            if (this.isTranscribing) return;
             if (this.isRecording) {
-                this.stopSpeechRecognition();
+                this.stopSpeechRecognition({ transcribeNow: true });
             } else {
                 this.startSpeechRecognition();
             }
@@ -567,8 +662,13 @@ class MagicMailboxController {
     _syncInputButtons() {
         if (!this.dom.textInput) return;
         const hasText = this.dom.textInput.value.trim().length > 0;
-        this.dom.sendBtn.disabled = !hasText;
-        this.dom.clearInputBtn.classList.toggle('mm-visible', hasText);
+        // 录音中也允许直接点右侧“发送”按钮（自动完成语音转文字并立即发送！）
+        this.dom.sendBtn.disabled = this.isTranscribing || (!hasText && !this.isRecording);
+        const sendLabel = this.dom.sendBtn.querySelector('span:last-child');
+        if (sendLabel) {
+            sendLabel.textContent = this.isRecording ? '说完直发' : '发送消息';
+        }
+        this.dom.clearInputBtn.classList.toggle('mm-visible', hasText && !this.isRecording);
     }
 
     open() {
@@ -637,7 +737,7 @@ class MagicMailboxController {
         if (!this.isOpen) return;
         this.isOpen = false;
         if (this.isRecording) {
-            this.stopSpeechRecognition();
+            this.stopSpeechRecognition({ transcribeNow: false });
         }
         this.stopAllVoice();
         if (this.overlayEl) {
@@ -666,13 +766,21 @@ class MagicMailboxController {
             });
             if (w.instantReplyText) {
                 const clip = INSTANT_REPLY_CLIPS[w.instantReplyKey];
+                const isAiLive = w.instantReplyKey === 'ai_live';
                 timeline.push({
                     sortTs: (Number(w.createdAt) || 0) + 1,
                     kind: 'instant_reply',
                     key: `inst_${w.id}`,
                     createdStr: w.createdStr,
                     text: w.instantReplyText,
+                    isAiLive,
                     audioHref: clip ? resolveAudioHref(clip.audioFile) : ''
+                });
+            } else if (this._thinkingWishId === w.id) {
+                timeline.push({
+                    sortTs: (Number(w.createdAt) || 0) + 1,
+                    kind: 'thinking',
+                    kidName: w.kidName || '小宝贝'
                 });
             }
         }
@@ -707,11 +815,27 @@ class MagicMailboxController {
         for (const item of timeline) {
             if (item.kind === 'kid_wish') {
                 htmlParts.push(this._renderKidBubble(item.wish));
+            } else if (item.kind === 'thinking') {
+                htmlParts.push(`
+                    <div class="mm-msg-row mm-from-magician" id="mmThinkingRow">
+                        <div class="mm-avatar-circle" aria-hidden="true">🔮</div>
+                        <div class="mm-bubble-wrap">
+                            <div class="mm-meta-line">
+                                <span>游戏魔法师</span>
+                                <span class="mm-badge-tag mm-tag-ai-live">🧠 正在思考中</span>
+                            </div>
+                            <div class="mm-bubble-box">
+                                ✨ 正在转动水晶球，认真回答 ${escapeHtml(item.kidName)} 的话
+                                <span class="mm-thinking-dots"><i></i><i></i><i></i></span>
+                            </div>
+                        </div>
+                    </div>
+                `);
             } else if (item.kind === 'instant_reply') {
                 htmlParts.push(this._renderMagicianBubble({
                     playKey: item.key,
-                    badgeClass: 'mm-tag-instant',
-                    badgeText: '⚡ 魔法工坊秒收',
+                    badgeClass: item.isAiLive ? 'mm-tag-ai-live' : 'mm-tag-instant',
+                    badgeText: item.isAiLive ? '🧠 魔法师实时陪聊' : '⚡ 魔法工坊秒收',
                     timeStr: item.createdStr,
                     text: item.text,
                     audioHref: item.audioHref,
@@ -810,17 +934,155 @@ class MagicMailboxController {
         `;
     }
 
-    /* ==================== 语音识别转文字 (Speech-to-Text) ==================== */
-    startSpeechRecognition() {
-        const SpeechRec = typeof window !== 'undefined'
-            ? (window.SpeechRecognition || window.webkitSpeechRecognition)
-            : null;
+    /* ==================== 语音识别转文字 (双引擎：云端 Whisper 录音识别优先 + 浏览器原生兜底) ==================== */
+    async startSpeechRecognition() {
+        if (this.isRecording || this.isTranscribing) return;
 
         // 开始录音前先停掉正在播放的语音，避免话筒把自己播报的声音录进去
         this.stopAllVoice();
 
+        this._recBaseText = this.dom.textInput.value.trim();
+        if (this._recBaseText && !/[：:，,。！？!\s]$/.test(this._recBaseText)) {
+            this._recBaseText += '，';
+        }
+        this._recFinalText = '';
+
+        // 引擎 1（主力）：线上 HTTPS 环境优先使用 getUserMedia + Cloudflare Whisper
+        // 彻底解决国内网络 Google 语音接口被墙、iPad 添加到主屏幕 PWA 禁用 webkitSpeechRecognition 的问题！
+        const canUseMicStream = Boolean(
+            typeof navigator !== 'undefined' &&
+            navigator.mediaDevices &&
+            typeof navigator.mediaDevices.getUserMedia === 'function' &&
+            this._shouldUseCloudApi() &&
+            window.__FORCE_MOCK_SPEECH_REC !== true
+        );
+
+        if (canUseMicStream) {
+            await this._startCloudWhisperRecording();
+            return;
+        }
+
+        // 引擎 2（本地/离线兜底）：浏览器原生 SpeechRecognition
+        this._startBrowserSpeechRecognition();
+    }
+
+    async _startCloudWhisperRecording() {
+        const meta = this._getSpeakerMeta(this.selectedSpeaker);
+        try {
+            this.dom.statusHint.textContent = '🎙️ 正在开启麦克风，如弹出授权提示请点“允许”…';
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
+
+            // 优先使用直接由麦克风输入流驱动的 MediaRecorder（不受静音开关/扬声器挂起影响，iPad Safari 与国内 Chrome 全兼容）
+            if (typeof MediaRecorder !== 'undefined') {
+                const mimeCandidates = [
+                    'audio/webm;codecs=opus',
+                    'audio/webm',
+                    'audio/mp4',
+                    'audio/ogg;codecs=opus'
+                ];
+                let chosenMime = '';
+                if (typeof MediaRecorder.isTypeSupported === 'function') {
+                    chosenMime = mimeCandidates.find(m => MediaRecorder.isTypeSupported(m)) || '';
+                }
+                const mediaRecorder = chosenMime
+                    ? new MediaRecorder(stream, { mimeType: chosenMime })
+                    : new MediaRecorder(stream);
+
+                const blobParts = [];
+                mediaRecorder.ondataavailable = (ev) => {
+                    if (ev.data && ev.data.size > 0) {
+                        blobParts.push(ev.data);
+                    }
+                };
+                mediaRecorder.start(150);
+
+                this._pcmRecorder = {
+                    mode: 'mediarecorder',
+                    stream,
+                    mediaRecorder,
+                    blobParts,
+                    startedAt: Date.now()
+                };
+            } else {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                const recCtx = new Ctx();
+                if (recCtx.state === 'suspended') {
+                    await recCtx.resume();
+                }
+                const source = recCtx.createMediaStreamSource(stream);
+                const processor = recCtx.createScriptProcessor(4096, 1, 1);
+                const zeroGain = recCtx.createGain();
+                zeroGain.gain.value = 0;
+                const chunks = [];
+                processor.onaudioprocess = (ev) => {
+                    if (!this.isRecording) return;
+                    chunks.push(new Float32Array(ev.inputBuffer.getChannelData(0)));
+                };
+                source.connect(processor);
+                processor.connect(zeroGain);
+                zeroGain.connect(recCtx.destination);
+                this._pcmRecorder = {
+                    mode: 'webaudio',
+                    stream,
+                    recCtx,
+                    source,
+                    processor,
+                    zeroGain,
+                    chunks,
+                    sampleRate: recCtx.sampleRate || 48000,
+                    startedAt: Date.now()
+                };
+            }
+
+            this.isRecording = true;
+            this._recSeconds = 0;
+            this._playSparkleTone([523.25, 659.25]);
+
+            this.dom.micBtn.classList.add('mm-recording');
+            this.dom.micBtnIcon.textContent = '⏹️';
+            this.dom.micBtnText.textContent = '说完点我 (0s)';
+            this.dom.recBanner.classList.add('mm-active');
+            this.dom.recBannerText.textContent = `🎙️ 正在录音听 ${meta.kidAvatar} ${meta.kidName} 说话！说完点红色「⏹️ 说完点我」转文字，或直接点右侧「🚀 说完直发」！`;
+            this._syncInputButtons();
+
+            if (this._recTimer) clearInterval(this._recTimer);
+            this._recTimer = setInterval(() => {
+                if (!this.isRecording) return;
+                this._recSeconds += 1;
+                if (this.dom.micBtnText) {
+                    this.dom.micBtnText.textContent = `说完点我 (${this._recSeconds}s)`;
+                }
+                if (this._recSeconds >= 25) {
+                    this.stopSpeechRecognition({ transcribeNow: true });
+                }
+            }, 1000);
+        } catch (err) {
+            this.isRecording = false;
+            const errName = String(err && err.name ? err.name : '');
+            if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+                this.dom.statusHint.textContent = '⚠️ 麦克风权限被拒绝啦：请点浏览器地址栏左侧图标开启「麦克风 → 允许」，或点输入框后按键盘 🎤 听写！';
+            } else if (errName === 'NotFoundError') {
+                this.dom.statusHint.textContent = '⚠️ 未检测到可用麦克风设备，请检查麦克风或直接使用键盘输入哦！';
+            } else {
+                this._startBrowserSpeechRecognition();
+            }
+            this._syncInputButtons();
+        }
+    }
+
+    _startBrowserSpeechRecognition() {
+        const SpeechRec = typeof window !== 'undefined'
+            ? (window.SpeechRecognition || window.webkitSpeechRecognition)
+            : null;
+
         if (!SpeechRec) {
-            this.dom.statusHint.textContent = '💡 当前浏览器不支持直接语音按钮，请点输入框后按 iPad 键盘左下角的小话筒 🎤 说话转文字哦！';
+            this.dom.statusHint.textContent = '💡 请在 https://52shuxue.cc 下点击允许麦克风录音，或点输入框后按 iPad 键盘左下角 🎤 说话转文字哦！';
             this.dom.textInput.focus();
             return;
         }
@@ -838,20 +1100,15 @@ class MagicMailboxController {
             rec.interimResults = true;
             rec.maxAlternatives = 1;
 
-            this._recBaseText = this.dom.textInput.value.trim();
-            if (this._recBaseText && !/[：:，,。！？!\s]$/.test(this._recBaseText)) {
-                this._recBaseText += '，';
-            }
-            this._recFinalText = '';
-
             rec.onstart = () => {
                 this.isRecording = true;
                 this._playSparkleTone([523.25, 659.25]);
                 this.dom.micBtn.classList.add('mm-recording');
                 this.dom.micBtnIcon.textContent = '⏹️';
-                this.dom.micBtnText.textContent = '说完点此';
+                this.dom.micBtnText.textContent = '说完点我';
                 this.dom.recBanner.classList.add('mm-active');
-                this.dom.recBannerText.textContent = `🎙️ 正在听 ${meta.kidAvatar} ${meta.kidName} 说话（边说边变文字，说完点红色按钮或直接点发送）…`;
+                this.dom.recBannerText.textContent = `🎙️ 正在听 ${meta.kidAvatar} ${meta.kidName} 说话（说完点红色按钮或直接点发送）…`;
+                this._syncInputButtons();
             };
 
             rec.onresult = (event) => {
@@ -877,11 +1134,11 @@ class MagicMailboxController {
             rec.onerror = (event) => {
                 const errCode = event && event.error ? event.error : '';
                 if (errCode === 'not-allowed' || errCode === 'service-not-allowed') {
-                    this.dom.statusHint.textContent = '⚠️ 请在浏览器弹窗中点“允许使用麦克风”，或点输入框后按 iPad 键盘左下角 🎤 听写！';
+                    this.dom.statusHint.textContent = '⚠️ 浏览器禁止了语音识别：请检查麦克风权限，或点输入框后按 iPad 键盘左下角 🎤 听写！';
+                } else if (errCode === 'network') {
+                    this.dom.statusHint.textContent = '⚠️ 浏览器自带语音受网络限制，刷新页面升级至云端语音识别即可顺畅说话！';
                 } else if (errCode === 'no-speech') {
                     this.dom.statusHint.textContent = '🎙️ 刚才没听清小宝贝的声音，靠近一点再按大话筒说一次吧～';
-                } else if (errCode !== 'aborted') {
-                    this.dom.statusHint.textContent = '💡 语音识别已结束，可以直接检查文字或使用键盘 🎤 补充哦！';
                 }
             };
 
@@ -896,14 +1153,141 @@ class MagicMailboxController {
 
             this.recognition = rec;
             rec.start();
-        } catch (err) {
+        } catch (_) {
             this.isRecording = false;
             this.dom.statusHint.textContent = '💡 请点输入框后使用 iPad 键盘左下角的小话筒 🎤 语音输入哦！';
             this.dom.textInput.focus();
+            this._syncInputButtons();
         }
     }
 
-    stopSpeechRecognition() {
+    async stopSpeechRecognition({ transcribeNow = true } = {}) {
+        if (this._recTimer) {
+            clearInterval(this._recTimer);
+            this._recTimer = null;
+        }
+
+        // 若正在跑云端 Whisper 录音，立即收尾并释放麦克风轨道（恢复 iPad 扬声器满音量），再上传转文字
+        if (this._pcmRecorder) {
+            const recObj = this._pcmRecorder;
+            this._pcmRecorder = null;
+            this.isRecording = false;
+
+            this.dom.micBtn.classList.remove('mm-recording');
+            this.dom.recBanner.classList.remove('mm-active');
+
+            let audioBase64 = '';
+            const elapsedSec = (Date.now() - (recObj.startedAt || Date.now())) / 1000;
+
+            if (recObj.mode === 'mediarecorder' && recObj.mediaRecorder) {
+                await new Promise((resolve) => {
+                    if (recObj.mediaRecorder.state === 'inactive') {
+                        resolve();
+                        return;
+                    }
+                    recObj.mediaRecorder.onstop = () => resolve();
+                    try {
+                        recObj.mediaRecorder.stop();
+                    } catch (_) {
+                        resolve();
+                    }
+                });
+                try { recObj.stream.getTracks().forEach(t => t.stop()); } catch (_) {}
+
+                if (transcribeNow && recObj.blobParts.length > 0 && elapsedSec >= 0.25) {
+                    const rawBlob = new Blob(recObj.blobParts, {
+                        type: recObj.mediaRecorder.mimeType || 'audio/webm'
+                    });
+                    const rawBuf = await rawBlob.arrayBuffer();
+                    // 优先离线解码归一化为标准 16kHz 单声道 WAV；若解码器不支持该容器则直接发送原始音频流交由云端 Whisper 解码
+                    try {
+                        const Ctx = window.AudioContext || window.webkitAudioContext;
+                        if (Ctx && rawBuf.byteLength > 64) {
+                            const decodeCtx = new Ctx();
+                            const decoded = await decodeCtx.decodeAudioData(rawBuf.slice(0));
+                            try { await decodeCtx.close(); } catch (_) {}
+                            const wav = encodePcmChunksToWav16kBase64([decoded.getChannelData(0)], decoded.sampleRate);
+                            if (wav.maxPeak >= 0.004) {
+                                audioBase64 = wav.base64;
+                            }
+                        } else if (rawBuf.byteLength > 200) {
+                            audioBase64 = arrayBufferToBase64(rawBuf);
+                        }
+                    } catch (_) {
+                        if (rawBuf.byteLength > 200) {
+                            audioBase64 = arrayBufferToBase64(rawBuf);
+                        }
+                    }
+                }
+            } else {
+                try { recObj.processor.disconnect(); } catch (_) {}
+                try { recObj.source.disconnect(); } catch (_) {}
+                try { recObj.zeroGain.disconnect(); } catch (_) {}
+                try { recObj.stream.getTracks().forEach(t => t.stop()); } catch (_) {}
+                try { recObj.recCtx.close(); } catch (_) {}
+
+                if (transcribeNow) {
+                    const wav = encodePcmChunksToWav16kBase64(recObj.chunks, recObj.sampleRate);
+                    if (wav.base64 && wav.durationSec >= 0.25 && wav.maxPeak >= 0.005) {
+                        audioBase64 = wav.base64;
+                    }
+                }
+            }
+
+            if (!transcribeNow) {
+                this.dom.micBtnIcon.textContent = '🎙️';
+                this.dom.micBtnText.textContent = '点我说话';
+                this._syncInputButtons();
+                return '';
+            }
+
+            if (!audioBase64) {
+                this.dom.micBtnIcon.textContent = '🎙️';
+                this.dom.micBtnText.textContent = '点我说话';
+                this.dom.statusHint.textContent = '🎙️ 刚才声音太轻或时间太短没录到哦，再点一下「🎙️ 点我说话」大声说出来吧～';
+                this._syncInputButtons();
+                return '';
+            }
+
+            this.isTranscribing = true;
+            this.dom.micBtn.classList.add('mm-transcribing');
+            this.dom.micBtnIcon.textContent = '⏳';
+            this.dom.micBtnText.textContent = '正在转文字…';
+            this.dom.statusHint.textContent = '🪄 魔法耳朵正在把刚才的语音变成文字…';
+            this._syncInputButtons();
+
+            let recognized = '';
+            try {
+                const res = await fetch('/api/mailbox/transcribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ audioBase64 })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.ok && data.text) {
+                        recognized = String(data.text).trim();
+                    }
+                }
+            } catch (_) {}
+
+            this.isTranscribing = false;
+            this.dom.micBtn.classList.remove('mm-transcribing');
+            this.dom.micBtnIcon.textContent = '🎙️';
+            this.dom.micBtnText.textContent = '点我说话';
+
+            if (recognized) {
+                const combined = `${this._recBaseText}${recognized}`.slice(0, 500);
+                this.dom.textInput.value = combined;
+                this._playSparkleTone([659.25, 880]);
+                this.dom.statusHint.textContent = '✅ 语音已经变成文字啦！点右边绿色「🚀 发送消息」就能跟魔法师对话！';
+            } else {
+                this.dom.statusHint.textContent = '🎙️ 刚才周围有点吵没听清，请靠近麦克风再说一遍吧～';
+            }
+            this._syncInputButtons();
+            return recognized;
+        }
+
         if (this.recognition) {
             try {
                 this.recognition.stop();
@@ -916,12 +1300,19 @@ class MagicMailboxController {
             this.dom.micBtnText.textContent = '点我说话';
             this.dom.recBanner.classList.remove('mm-active');
         }
+        this._syncInputButtons();
+        return this.dom.textInput ? this.dom.textInput.value.trim() : '';
     }
 
-    /* ==================== 提交愿望 + 真人语音秒回 + 云端投递 ==================== */
+    /* ==================== 提交消息 + 云端大模型实时陪聊 + 愿望同步 ==================== */
     async submitCurrentWish() {
+        // 在点击手势内预先唤醒 iPad Safari 语音队列，确保大模型异步返回后能自动朗读出声
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+            try { window.speechSynthesis.resume(); } catch (_) {}
+        }
+
         if (this.isRecording) {
-            this.stopSpeechRecognition();
+            await this.stopSpeechRecognition({ transcribeNow: true });
         }
         const rawText = this.dom.textInput ? this.dom.textInput.value.trim() : '';
         if (!rawText) return;
@@ -933,6 +1324,7 @@ class MagicMailboxController {
             text: rawText
         });
 
+        const useCloud = this._shouldUseCloudApi();
         const now = Date.now();
         const wish = {
             id: `wish_${now}_${Math.random().toString(36).slice(2, 6)}`,
@@ -942,8 +1334,8 @@ class MagicMailboxController {
             appSource: this.appSource,
             appLabel: APP_LABELS[this.appSource] || '游乐园大厅',
             text: rawText,
-            instantReplyKey: matchedClip.key,
-            instantReplyText: matchedClip.text,
+            instantReplyKey: useCloud ? '' : matchedClip.key,
+            instantReplyText: useCloud ? '' : matchedClip.text,
             status: 'pending',
             syncedCloud: false,
             createdAt: now,
@@ -963,49 +1355,108 @@ class MagicMailboxController {
         this._syncInputButtons();
         this._playSparkleTone([587.33, 783.99, 1046.5]);
 
-        this.renderChatStream();
-        this.dom.statusHint.textContent = `✨ 已收到 ${meta.kidAvatar} ${meta.kidName} 的好点子，正在飞向云端魔法工坊…`;
-
-        // 0.5 秒后自动播放点名专属真人语音鼓励！
-        if (this.state.autoVoice) {
-            setTimeout(() => {
-                if (this.isOpen) {
-                    this.playMagicianVoice({
-                        key: `inst_${wish.id}`,
-                        audioHref: resolveAudioHref(matchedClip.audioFile),
-                        text: matchedClip.text
-                    });
-                }
-            }, 480);
+        if (useCloud) {
+            this._thinkingWishId = wish.id;
+            this.renderChatStream();
+            this.dom.statusHint.textContent = `🔮 魔法师正在认真听 ${meta.kidAvatar} ${meta.kidName} 的话并思考回答…`;
+            await this._postWishToCloud(wish, matchedClip);
+        } else {
+            this.renderChatStream();
+            this.dom.statusHint.textContent = `✨ 已记下 ${meta.kidAvatar} ${meta.kidName} 的好点子！`;
+            if (this.state.autoVoice) {
+                setTimeout(() => {
+                    if (this.isOpen) {
+                        this.playMagicianVoice({
+                            key: `inst_${wish.id}`,
+                            audioHref: resolveAudioHref(matchedClip.audioFile),
+                            text: matchedClip.text
+                        });
+                    }
+                }, 420);
+            }
         }
-
-        // 同步到 Cloudflare 云端信箱
-        await this._postWishToCloud(wish);
     }
 
-    async _postWishToCloud(wish) {
-        if (!this._shouldUseCloudApi()) {
-            return;
-        }
+    async _postWishToCloud(wish, matchedClip) {
+        let finalReplyKey = matchedClip.key;
+        let finalReplyText = matchedClip.text;
+
         try {
+            const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            const timer = ctrl ? setTimeout(() => ctrl.abort(), 9000) : null;
+
             const res = await fetch('/api/mailbox/wish', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(wish)
+                signal: ctrl ? ctrl.signal : undefined,
+                body: JSON.stringify({
+                    ...wish,
+                    fallbackReplyKey: matchedClip.key,
+                    fallbackReplyText: matchedClip.text
+                })
             });
-            if (!res.ok) return;
-            const data = await res.json();
-            if (data && data.ok) {
-                this.cloudOnline = true;
-                this._mergeCloudPayload(data);
-                if (this.dom.statusHint) {
-                    this.dom.statusHint.textContent = `☁️ 太棒啦！${wish.kidName}的话已经同步到云端，爸爸妈妈喊魔法师就能立刻看到啦！`;
-                }
-                if (this.isOpen) {
-                    this.renderChatStream();
+            if (timer) clearTimeout(timer);
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.ok) {
+                    this.cloudOnline = true;
+                    this._updateSyncPillUI(true);
+                    if (data.replyText) {
+                        finalReplyKey = data.replyKey || 'ai_live';
+                        finalReplyText = data.replyText;
+                    }
+                    this._thinkingWishId = null;
+                    this._mergeCloudPayload(data);
+
+                    // 确保本地该条记录也拿到最新 AI 回复
+                    const target = this.state.wishes.find(x => x.id === wish.id);
+                    if (target && !target.instantReplyText) {
+                        target.instantReplyKey = finalReplyKey;
+                        target.instantReplyText = finalReplyText;
+                        this._saveLocalState();
+                    }
+
+                    if (this.dom.statusHint) {
+                        this.dom.statusHint.textContent = data.aiGenerated
+                            ? `☁️ 魔法师已实时回复 ${wish.kidName}，同时把你们的对话同步到云端信箱啦！`
+                            : `☁️ ${wish.kidName}的话已经同步到云端信箱，爸爸妈妈喊魔法师就能立刻看到啦！`;
+                    }
+                    if (this.isOpen) {
+                        this.renderChatStream();
+                        if (this.state.autoVoice) {
+                            const clipObj = INSTANT_REPLY_CLIPS[finalReplyKey];
+                            this.playMagicianVoice({
+                                key: `inst_${wish.id}`,
+                                audioHref: clipObj ? resolveAudioHref(clipObj.audioFile) : '',
+                                text: finalReplyText
+                            });
+                        }
+                    }
+                    return;
                 }
             }
         } catch (_) {}
+
+        // 弱网或超时兜底：无缝回退本地预置真人语音包，绝不卡在加载态
+        this._thinkingWishId = null;
+        const target = this.state.wishes.find(x => x.id === wish.id);
+        if (target) {
+            target.instantReplyKey = finalReplyKey;
+            target.instantReplyText = finalReplyText;
+            this._saveLocalState();
+        }
+        if (this.isOpen) {
+            this.renderChatStream();
+            if (this.state.autoVoice) {
+                const clipObj = INSTANT_REPLY_CLIPS[finalReplyKey];
+                this.playMagicianVoice({
+                    key: `inst_${wish.id}`,
+                    audioHref: clipObj ? resolveAudioHref(clipObj.audioFile) : '',
+                    text: finalReplyText
+                });
+            }
+        }
     }
 
     async syncWithCloud({ silent = true, forceAttempt = false } = {}) {

@@ -735,6 +735,7 @@ assert.equal(matchInstantReply({ kidId: 'both', text: '嗨魔法师你好呀' })
 
 const wranglerCfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'wrangler.jsonc'), 'utf8'));
 assert.equal(wranglerCfg.main, 'worker.js');
+assert.equal(wranglerCfg.ai?.binding, 'AI', 'Cloudflare Workers AI binding must be configured');
 assert.equal(wranglerCfg.assets?.binding, 'ASSETS');
 assert.equal(wranglerCfg.durable_objects?.bindings?.[0]?.name, 'MAGIC_MAILBOX');
 assert.deepEqual(wranglerCfg.migrations?.[0]?.new_sqlite_classes, ['MagicMailboxDO']);

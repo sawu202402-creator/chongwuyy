@@ -205,6 +205,7 @@ class SharedSpeechHelper {
         const cleanText = String(text)
             .replace(/<[^>]+>/g, '')
             .replace(/\^_\^/g, '')
+            .replace(/\p{Extended_Pictographic}/gu, '')
             .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]/gu, '')
             .replace(/[✦✧★☆♪♫【】]/g, '')
             .trim();

@@ -36,10 +36,42 @@ function startStaticServer() {
                 req.on('data', chunk => { bodyRaw += chunk.toString(); });
                 req.on('end', () => {
                     const body = bodyRaw ? JSON.parse(bodyRaw) : {};
+                    if (req.method === 'POST' && urlPath === '/api/mailbox/transcribe') {
+                        const b64 = String(body.audioBase64 || '');
+                        const buf = Buffer.from(b64, 'base64');
+                        const hasAudio = buf.length > 100;
+                        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                        res.end(JSON.stringify({
+                            ok: hasAudio,
+                            audioBytes: buf.length,
+                            text: hasAudio ? '我想在植物大战僵尸里加一个彩虹豌豆射手！' : '',
+                            model: '@cf/openai/whisper-large-v3-turbo'
+                        }));
+                        return;
+                    }
                     if (req.method === 'POST' && urlPath === '/api/mailbox/wish') {
+                        const liveReply = `哈哈${body.kidName || '小宝贝'}！你说的「${body.text}」太有趣啦！我已经拿水晶球记在许愿本上，还会陪你一起探索哟！✨`;
+                        const saved = {
+                            ...body,
+                            instantReplyKey: 'ai_live',
+                            instantReplyText: liveReply,
+                            status: 'pending'
+                        };
                         if (!memWishes.some(w => w.id === body.id)) {
-                            memWishes.push({ ...body, status: 'pending' });
+                            memWishes.push(saved);
                         }
+                        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                        res.end(JSON.stringify({
+                            ok: true,
+                            aiGenerated: true,
+                            aiModel: '@cf/qwen/qwen3-30b-a3b-fp8',
+                            replyKey: 'ai_live',
+                            replyText: liveReply,
+                            wishes: memWishes,
+                            replies: memReplies,
+                            serverTime: Date.now()
+                        }));
+                        return;
                     } else if (req.method === 'POST' && urlPath === '/api/mailbox/sync') {
                         if (Array.isArray(body.wishes)) {
                             for (const w of body.wishes) {
@@ -86,6 +118,9 @@ function launchChrome() {
             '--disable-dev-shm-usage',
             '--disable-gpu',
             '--remote-debugging-port=0',
+            '--autoplay-policy=no-user-gesture-required',
+            '--use-fake-ui-for-media-stream',
+            '--use-fake-device-for-media-stream',
             '--window-size=1180,820',
             'about:blank'
         ]);
@@ -1117,47 +1152,26 @@ async function main() {
     await sleep(250);
     await saveShot('pet_blindbox_museum_74.png');
 
-    // 6) Test Magic Mailbox Voice-to-Text + Personalized Neural MP3 Reply + Cloud Sync Round-Trip
+    // 6) Test Magic Mailbox Real MediaRecorder + WAV/Opus Whisper Transcription + Workers AI Chat + Cloud Reply
     const magicRes = await evalJs(`(async () => {
         window.__ENABLE_LOCAL_MAILBOX_API = true;
-        // Mock webkitSpeechRecognition to test live speech-to-text streaming
-        class MockSpeechRecognition {
-            constructor() {
-                window.__lastSpeechRec = this;
-            }
-            start() {
-                if (this.onstart) this.onstart();
-                setTimeout(() => {
-                    if (this.onresult) {
-                        this.onresult({
-                            resultIndex: 0,
-                            results: [{ 0: { transcript: '我想在植物大战僵尸里加一个彩虹豌豆射手！' }, isFinal: true, length: 1 }]
-                        });
-                    }
-                }, 40);
-            }
-            stop() {
-                if (this.onend) this.onend();
-            }
-            abort() {
-                if (this.onend) this.onend();
-            }
-        }
-        window.SpeechRecognition = MockSpeechRecognition;
-        window.webkitSpeechRecognition = MockSpeechRecognition;
 
         const triggerBtn = document.getElementById('btnMagicMailbox');
         if (!triggerBtn) return { error: 'missing_trigger_btn' };
         triggerBtn.click();
         await new Promise(r => setTimeout(r, 120));
 
-        // Select 小豌豆 and tap the big microphone button!
+        // Select 小豌豆 and tap the big microphone button (uses real Chromium fake microphone beep stream)!
         document.querySelector('#mmSpeakerBar [data-speaker="pea"]').click();
         document.getElementById('mmMicBtn').click();
-        await new Promise(r => setTimeout(r, 90));
+        // Record ~550ms of real fake-mic audio
+        await new Promise(r => setTimeout(r, 550));
+        // Tap mic button again to stop recording & transcribe via /api/mailbox/transcribe!
+        document.getElementById('mmMicBtn').click();
+        await new Promise(r => setTimeout(r, 380));
         const recognizedText = document.getElementById('mmTextInput').value;
 
-        // Submit wish directly while recording (auto-stops mic & sends!)
+        // Now click Send!
         document.getElementById('mmSendBtn').click();
         await new Promise(r => setTimeout(r, 260));
 
@@ -1200,6 +1214,7 @@ async function main() {
         await new Promise(r => setTimeout(r, 320));
 
         const specialBubbles = document.querySelectorAll('.mm-is-special-reply').length;
+        const aiLiveBadges = document.querySelectorAll('.mm-tag-ai-live').length;
         const kidBubbles = document.querySelectorAll('.mm-from-kid').length;
         const noScrollModal = document.documentElement.scrollHeight <= window.innerHeight + 2;
         return {
@@ -1208,6 +1223,7 @@ async function main() {
             hasBanner,
             badgeVisible,
             specialBubbles,
+            aiLiveBadges,
             kidBubbles,
             noScrollModal
         };
@@ -1218,6 +1234,7 @@ async function main() {
     assert.equal(magicRes.hasBanner, true, 'New Magician reply must display top notification banner');
     assert.equal(magicRes.badgeVisible, true, 'New Magician reply must light up unread badge');
     assert.equal(magicRes.specialBubbles, 1, 'Magician fulfilled reply must render golden special bubble');
+    assert.equal(magicRes.aiLiveBadges, 2, 'Workers AI live chat replies must render 🧠 魔法师实时陪聊 badges');
     assert.equal(magicRes.kidBubbles, 2, 'Both kids bubbles must render in timeline');
     assert.equal(magicRes.noScrollModal, true, 'Viewport must remain zero-overflow with Magic Mailbox open');
     await sleep(250);

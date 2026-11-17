@@ -98,9 +98,14 @@ async function cmdPull(args) {
     }
 
     for (const w of wishes) {
-        const statusTag = w.status === 'fulfilled' ? '✅[已实现]' : (w.status === 'read' ? '👀[已读]' : '🌟[新愿望]');
+        const statusTag = w.status === 'fulfilled' ? '✅[已实现]' : (w.status === 'read' ? '👀[已读]' : '🌟[新消息]');
         console.log(`${statusTag} [${w.createdStr}] ${w.kidAvatar} ${w.kidName} (📍${w.appLabel}) [ID: ${w.id}]`);
-        console.log(`   💬 “${w.text}”\n`);
+        console.log(`   💬 小朋友说：“${w.text}”`);
+        if (w.instantReplyText) {
+            const tag = w.instantReplyKey === 'ai_live' ? '🧠 AI实时陪聊' : '⚡ 预置回应';
+            console.log(`   ${tag}：“${w.instantReplyText}”`);
+        }
+        console.log('');
     }
 }
 
