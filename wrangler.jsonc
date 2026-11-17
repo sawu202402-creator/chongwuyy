@@ -1,7 +1,25 @@
 {
   "name": "chongwuyy",
+  "main": "worker.js",
   "compatibility_date": "2026-09-01",
   "assets": {
-    "directory": "."
-  }
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MAGIC_MAILBOX",
+        "class_name": "MagicMailboxDO"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": [
+        "MagicMailboxDO"
+      ]
+    }
+  ]
 }

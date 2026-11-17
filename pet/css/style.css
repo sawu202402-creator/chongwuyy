@@ -80,20 +80,20 @@ button:active {
     align-items: center;
     justify-content: space-between;
     height: 56px;
-    padding: 0 14px;
+    padding: 0 10px;
     background: rgba(255, 255, 255, 0.88);
     backdrop-filter: blur(12px);
     border: 2px solid #ffffff;
     border-radius: 20px;
     box-shadow: 0 6px 20px rgba(105, 75, 195, 0.10);
     flex-shrink: 0;
-    gap: 10px;
+    gap: 6px;
 }
 
 .hud-left, .hud-right {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
 }
 
 /* 左上角对标参考图3/5的橙紫切换学生胶囊 */
@@ -215,15 +215,15 @@ button:active {
     display: flex;
     align-items: center;
     background: #f1ecfb;
-    padding: 4px;
+    padding: 3px;
     border-radius: 16px;
-    gap: 4px;
+    gap: 3px;
 }
 
 .stage-nav-btn {
-    padding: 6px 10px;
+    padding: 5px 8px;
     border-radius: 12px;
-    font-size: 13px;
+    font-size: 12.5px;
     font-weight: 800;
     color: #685d8c;
     background: transparent;

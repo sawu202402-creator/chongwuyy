@@ -16,8 +16,9 @@
     <meta name="theme-color" content="#7c5cfc">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/hub.css?v=20261116_bbx_v1">
-    <link rel="stylesheet" href="shared/smartChalkboard.css?v=20261116_bbx_v1">
+    <link rel="stylesheet" href="css/hub.css?v=20261117_magic_v1">
+    <link rel="stylesheet" href="shared/smartChalkboard.css?v=20261117_magic_v1">
+    <link rel="stylesheet" href="shared/magicMailbox.css?v=20261117_magic_v1">
 </head>
 <body>
     <div class="hub-app" id="hubApp">
@@ -107,6 +108,17 @@
                         <div class="banner-stat-lbl">打卡·抽盲盒 ▸</div>
                     </div>
                 </div>
+
+                <button type="button" class="banner-stat-box banner-magic-clickable" id="btnMagicMailbox" title="点击打开游戏魔法师对话框：语音说出你的奇思妙想，收听魔法师给小豌豆和川川的语音回信！">
+                    <span class="banner-stat-icon mm-hud-trigger-icon">🪄</span>
+                    <div style="text-align:left;">
+                        <div class="banner-stat-val banner-magic-title">
+                            <span>跟魔法师说话</span>
+                            <span class="mm-unread-badge" data-mm-badge style="display:none;">1</span>
+                        </div>
+                        <div class="banner-stat-lbl banner-magic-sub">🎙️语音提点子·听回信 ▸</div>
+                    </div>
+                </button>
             </div>
         </section>
 
@@ -391,11 +403,11 @@
         </div>
     </div>
 
-    <script type="module" src="js/hub.js?v=20261116_bbx_v1"></script>
+    <script type="module" src="js/hub.js?v=20261117_magic_v1"></script>
     <script>
         if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=20261116_bbx_v1').catch(() => {});
+                navigator.serviceWorker.register('./sw.js?v=20261117_magic_v1').catch(() => {});
             });
         }
     </script>

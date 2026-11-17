@@ -47,6 +47,7 @@ import {
 } from '../shared/blindboxCatalog.js';
 import { sharedSpeech } from '../shared/audioTTS.js';
 import { requireParentGate } from '../shared/parentGate.js';
+import { magicMailbox } from '../shared/magicMailbox.js';
 
 class PortalHubApp {
     constructor() {
@@ -1869,4 +1870,8 @@ class PortalHubApp {
 
 window.addEventListener('DOMContentLoaded', () => {
     window.portalHub = new PortalHubApp();
+    magicMailbox.init({
+        appSource: 'hub',
+        mountButton: document.getElementById('btnMagicMailbox')
+    });
 });

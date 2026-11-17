@@ -16,6 +16,7 @@ import { ENGLISH_LEVELS, WORD_PACKS, ALL_WORDS, ENGLISH_QUESTION_TYPES, ALL_ENGL
 import { renderEnabledTypesSelector } from '../../shared/questionWidgets.js';
 import { DAILY_BADGE_CAP_OPTIONS, DEFAULT_DAILY_BADGE_CAP } from '../../pet/js/config.js';
 import { requireParentGate } from '../../shared/parentGate.js';
+import { magicMailbox } from '../../shared/magicMailbox.js';
 
 window.createPlant = createPlant;
 window.Zombie = Zombie;
@@ -1959,4 +1960,34 @@ class GameApp {
 // 页面加载完成后启动
 window.addEventListener('DOMContentLoaded', () => {
     window.gameApp = new GameApp();
+    let pausedByMailbox = false;
+    magicMailbox.init({
+        appSource: 'pvz',
+        containerEl: document.querySelector('.wood-hud .hud-left-group'),
+        insertBeforeEl: document.querySelector('.wood-hud .hud-pill-lives'),
+        compact: true,
+        buttonLabel: '魔法师',
+        onOpenPause: () => {
+            const eng = window.gameApp && window.gameApp.pvzEngine;
+            if (eng && !eng.isPaused) {
+                pausedByMailbox = true;
+                eng.isPaused = true;
+                if (window.gameApp.dom && window.gameApp.dom.btnPause) {
+                    window.gameApp.dom.btnPause.innerText = '▶️';
+                }
+            } else {
+                pausedByMailbox = false;
+            }
+        },
+        onCloseResume: () => {
+            const eng = window.gameApp && window.gameApp.pvzEngine;
+            if (pausedByMailbox && eng && eng.isPaused) {
+                eng.isPaused = false;
+                if (window.gameApp.dom && window.gameApp.dom.btnPause) {
+                    window.gameApp.dom.btnPause.innerText = '⏸️';
+                }
+            }
+            pausedByMailbox = false;
+        }
+    });
 });

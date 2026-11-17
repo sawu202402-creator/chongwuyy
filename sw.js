@@ -6,7 +6,7 @@
  * 3. PNG / JPG / GIF / SVG / ICO 静态美术资源采用 Stale-While-Revalidate（二次秒开）。
  */
 
-const CACHE_VERSION = 'chongwuyy-v20261116-bbx-v1';
+const CACHE_VERSION = 'chongwuyy-v20261117-magic-v1';
 const PRECACHE_URLS = [
     './',
     './index.html',
@@ -22,7 +22,10 @@ const PRECACHE_URLS = [
     './shared/audioTTS.js',
     './shared/parentGate.js',
     './shared/smartChalkboard.js',
-    './shared/smartChalkboard.css'
+    './shared/smartChalkboard.css',
+    './shared/magicMailbox.js',
+    './shared/magicMailbox.css',
+    './shared/aiReplies/letters.js'
 ];
 
 self.addEventListener('install', (event) => {
@@ -54,8 +57,9 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // 仅托管同源静态文件，外部请求不拦截
+    // 仅托管同源静态文件，外部请求与云端魔法信箱动态 API 不拦截缓存
     if (url.origin !== self.location.origin) return;
+    if (url.pathname.startsWith('/api/')) return;
 
     const isAsset = /\.(png|jpe?g|gif|webp|svg|ico|woff2?|mp3|ogg|wav)$/i.test(url.pathname) && !req.headers.has('range');
 

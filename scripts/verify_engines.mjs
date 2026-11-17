@@ -714,4 +714,33 @@ assert.equal(starUpPull.prize.isStarUpgrade, true, '13th pull in a mastered seri
 assert.equal(starUpPull.prize.starLevel, 2);
 
 console.log('   ✅ Unified UserProfileManager, Daily Fixed Quests, 74-Item Blindbox Museum, Live Question Counter & 12 Pet Voices verified!');
-console.log('\n🎉 ALL ENGINE, NON-REPETITION, QUESTION COUNTER, VOCABULARY (360 WORDS), & PET EVOLUTION CHECKS PASSED!');
+
+console.log('6. Verifying Magic Mailbox Voice Dialog, Neural MP3 Clips & Cloudflare Worker Config...');
+const { WELCOME_LETTER, INSTANT_REPLY_CLIPS, matchInstantReply } = await import('../shared/aiReplies/letters.js');
+const audioDir = path.join(ROOT, 'shared', 'aiReplies', 'audio');
+assert.ok(fs.existsSync(path.join(audioDir, WELCOME_LETTER.audioFile)), 'Welcome MP3 must exist');
+assert.ok(fs.statSync(path.join(audioDir, WELCOME_LETTER.audioFile)).size > 50000, 'Welcome MP3 must be valid neural audio');
+
+for (const [key, clip] of Object.entries(INSTANT_REPLY_CLIPS)) {
+    const mp3Path = path.join(audioDir, clip.audioFile);
+    assert.ok(fs.existsSync(mp3Path), `Missing instant reply MP3 for ${key}: ${clip.audioFile}`);
+    assert.ok(fs.statSync(mp3Path).size > 40000, `Instant reply MP3 too small for ${key}`);
+}
+
+assert.equal(matchInstantReply({ kidId: 'child_xiaowandou', text: '我想加一个新植物' }).key, 'pea_pvz_tower');
+assert.equal(matchInstantReply({ kidId: 'child_xiaowandou', text: '给小兔子穿公主裙' }).key, 'pea_pet_dress');
+assert.equal(matchInstantReply({ kidId: 'child_chuan', text: '盲盒里加个霸王龙' }).key, 'chuan_gacha_reward');
+assert.equal(matchInstantReply({ kidId: 'child_chuan', text: '这道数学题有点难' }).key, 'chuan_question_fix');
+assert.equal(matchInstantReply({ kidId: 'both', text: '嗨魔法师你好呀' }).key, 'both_hello');
+
+const wranglerCfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'wrangler.jsonc'), 'utf8'));
+assert.equal(wranglerCfg.main, 'worker.js');
+assert.equal(wranglerCfg.assets?.binding, 'ASSETS');
+assert.equal(wranglerCfg.durable_objects?.bindings?.[0]?.name, 'MAGIC_MAILBOX');
+assert.deepEqual(wranglerCfg.migrations?.[0]?.new_sqlite_classes, ['MagicMailboxDO']);
+assert.ok(fs.existsSync(path.join(ROOT, 'worker.js')));
+assert.ok(fs.existsSync(path.join(ROOT, 'shared', 'magicMailbox.js')));
+assert.ok(fs.existsSync(path.join(ROOT, 'shared', 'magicMailbox.css')));
+console.log('   ✅ Magic Mailbox 15 neural MP3s, speaker/topic router, & Cloudflare SQLite DO config verified!');
+
+console.log('\n🎉 ALL ENGINE, NON-REPETITION, QUESTION COUNTER, VOCABULARY (360 WORDS), PET EVOLUTION & MAGIC MAILBOX CHECKS PASSED!');

@@ -26,6 +26,7 @@ import { ENGLISH_LEVELS, WORD_PACKS, ALL_WORDS, ENGLISH_QUESTION_TYPES, ALL_ENGL
 import { renderEnabledTypesSelector } from '../../shared/questionWidgets.js';
 import { DAILY_BADGE_CAP_OPTIONS } from '../../pet/js/config.js';
 import { requireParentGate } from '../../shared/parentGate.js';
+import { magicMailbox } from '../../shared/magicMailbox.js';
 
 // DOM 元素
 const canvas = document.getElementById('battleCanvas');
@@ -2220,6 +2221,29 @@ if (resumeStage > 1) {
 } else {
     switchLevel(1, false, false);
 }
+
+let _carrotPausedByMailbox = false;
+magicMailbox.init({
+    appSource: 'carrot',
+    containerEl: document.querySelector('.carrot-hud .hud-left-group'),
+    insertBeforeEl: document.querySelector('.carrot-hud .hud-pill-gold'),
+    compact: true,
+    buttonLabel: '魔法师',
+    onOpenPause: () => {
+        if (gameEngine && gameEngine.state === 'WAVE_RUNNING') {
+            _carrotPausedByMailbox = true;
+            gameEngine.togglePause();
+        } else {
+            _carrotPausedByMailbox = false;
+        }
+    },
+    onCloseResume: () => {
+        if (_carrotPausedByMailbox && gameEngine && gameEngine.state === 'PAUSED') {
+            gameEngine.togglePause();
+        }
+        _carrotPausedByMailbox = false;
+    }
+});
 
 assetsManager.loadAll().then(() => {
     console.log('Carrot Fantasy 商业级贴图资源已全部就绪！');

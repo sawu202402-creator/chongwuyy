@@ -4,6 +4,8 @@ node_modules
 package.json
 package-lock.json
 scripts
+worker.js
 wrangler.jsonc
+.mailbox-config.json
 *.md
 .DS_Store

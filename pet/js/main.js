@@ -53,6 +53,7 @@ import {
 } from '../../shared/questionWidgets.js';
 import { openRandomFilterModal } from '../../shared/randomFilterModal.js';
 import { requireParentGate } from '../../shared/parentGate.js';
+import { magicMailbox } from '../../shared/magicMailbox.js';
 import {
     BLINDBOX_SERIES,
     BLINDBOX_RARITY_META,
@@ -4073,4 +4074,13 @@ class PetWonderTownApp {
 window.addEventListener('DOMContentLoaded', () => {
     window.__petSoundEngine = soundEngine;
     window.__petTownApp = new PetWonderTownApp();
+    const hudRight = document.querySelector('.top-hud .hud-right');
+    const btnFs = document.getElementById('btnFullscreen');
+    magicMailbox.init({
+        appSource: 'pet',
+        containerEl: hudRight,
+        insertBeforeEl: btnFs,
+        compact: true,
+        buttonLabel: '对话'
+    });
 });

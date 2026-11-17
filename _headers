@@ -13,6 +13,9 @@
 /shared/*
   Cache-Control: public, max-age=0, must-revalidate
 
+/shared/aiReplies/audio/*
+  Cache-Control: public, max-age=604800, stale-while-revalidate=86400
+
 /carrot/js/*
   Cache-Control: public, max-age=0, must-revalidate
 
