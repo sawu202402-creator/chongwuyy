@@ -28,9 +28,31 @@ const MIME = {
 function startStaticServer() {
     const memWishes = [];
     const memReplies = [];
+    const sampleMp3Base64 = fs.readFileSync(path.join(ROOT, 'shared/aiReplies/audio/pea_hello.mp3')).toString('base64');
     return new Promise((resolve) => {
         const srv = http.createServer((req, res) => {
             const urlPath = decodeURIComponent(req.url.split('?')[0]);
+            if (urlPath === '/api/tts') {
+                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                res.end(JSON.stringify({ ok: true, audioBase64: sampleMp3Base64 }));
+                return;
+            }
+            if (urlPath === '/api/pet/chat') {
+                let bodyRaw = '';
+                req.on('data', chunk => { bodyRaw += chunk.toString(); });
+                req.on('end', () => {
+                    const body = bodyRaw ? JSON.parse(bodyRaw) : {};
+                    const pName = body.petName || '萌宠';
+                    const kName = body.kidName || '小主人';
+                    const acc = body.accessoryName && body.accessoryName !== '无配饰' ? `戴着【${body.accessoryName}】` : '';
+                    const reply = body.mode === 'spontaneous'
+                        ? `呱呱～${kName}你看我${acc}在荷叶上转圈圈，今天你已经答对${body.todayCorrect || 0}道题啦，真棒！🌿✨`
+                        : `呱呱～${kName}问我的「${body.userText}」超有趣！我是你的【${body.stageTitle}】${pName}，最爱陪你闯关探险啦！🐸💖`;
+                    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                    res.end(JSON.stringify({ ok: true, text: reply, audioBase64: sampleMp3Base64, model: '@cf/qwen/qwen3-30b-a3b-fp8' }));
+                });
+                return;
+            }
             if (urlPath.startsWith('/api/mailbox')) {
                 let bodyRaw = '';
                 req.on('data', chunk => { bodyRaw += chunk.toString(); });
@@ -67,6 +89,7 @@ function startStaticServer() {
                             aiModel: '@cf/qwen/qwen3-30b-a3b-fp8',
                             replyKey: 'ai_live',
                             replyText: liveReply,
+                            audioBase64: sampleMp3Base64,
                             wishes: memWishes,
                             replies: memReplies,
                             serverTime: Date.now()
@@ -1152,9 +1175,18 @@ async function main() {
     await sleep(250);
     await saveShot('pet_blindbox_museum_74.png');
 
-    // 6) Test Magic Mailbox Real MediaRecorder + WAV/Opus Whisper Transcription + Workers AI Chat + Cloud Reply
+    // 6) Test Magic Mailbox Real MediaRecorder + WAV/Opus Whisper Transcription + Workers AI Chat + Neural MP3 Replies (0 robotic TTS!)
     const magicRes = await evalJs(`(async () => {
         window.__ENABLE_LOCAL_MAILBOX_API = true;
+        let roboticSpeechCalls = 0;
+        if (window.speechSynthesis) {
+            const origSpeak = window.speechSynthesis.speak.bind(window.speechSynthesis);
+            window.speechSynthesis.speak = (u) => {
+                if (u && u.text && u.text.trim()) roboticSpeechCalls++;
+                return origSpeak(u);
+            };
+        }
+        window.__getRoboticCalls = () => roboticSpeechCalls;
 
         const triggerBtn = document.getElementById('btnMagicMailbox');
         if (!triggerBtn) return { error: 'missing_trigger_btn' };
@@ -1225,6 +1257,7 @@ async function main() {
             specialBubbles,
             aiLiveBadges,
             kidBubbles,
+            roboticCallsInMailbox: window.__getRoboticCalls(),
             noScrollModal
         };
     })()`);
@@ -1236,9 +1269,55 @@ async function main() {
     assert.equal(magicRes.specialBubbles, 1, 'Magician fulfilled reply must render golden special bubble');
     assert.equal(magicRes.aiLiveBadges, 2, 'Workers AI live chat replies must render 🧠 魔法师实时陪聊 badges');
     assert.equal(magicRes.kidBubbles, 2, 'Both kids bubbles must render in timeline');
+    assert.equal(magicRes.roboticCallsInMailbox, 0, 'Dynamic AI replies must play Neural MP3 audio, NEVER robotic speechSynthesis!');
     assert.equal(magicRes.noScrollModal, true, 'Viewport must remain zero-overflow with Magic Mailbox open');
     await sleep(250);
     await saveShot('magic_mailbox_voice_dialog.png');
+
+    // 7) Test 12-Pet Exclusive AI Voice/Text Chat & Spontaneous Stage Line Refresh
+    const petAiRes = await evalJs(`(async () => {
+        document.getElementById('mmCloseBtn')?.click();
+        window.__petTownApp.switchWorldView('home');
+        window.__petTownApp.renderAll();
+        await new Promise(r => setTimeout(r, 120));
+
+        const noScrollHomeWithAiBtn = document.documentElement.scrollHeight <= window.innerHeight + 2;
+        const refreshBtn = document.getElementById('btnRefreshPetAiLine');
+        refreshBtn.click();
+        await new Promise(r => setTimeout(r, 220));
+        const spontaneousBubble = document.getElementById('heroSpeechBubble')?.textContent || '';
+
+        const openChatBtn = document.getElementById('btnOpenPetAiChat');
+        const btnLabel = openChatBtn?.textContent?.trim() || '';
+        openChatBtn.click();
+        await new Promise(r => setTimeout(r, 150));
+
+        // Click a fun quick-talk chip (e.g., 讲个冒险小故事)
+        document.querySelector('#paiChipsBar [data-pai-chip="1"]').click();
+        await new Promise(r => setTimeout(r, 260));
+
+        const petChatBubbles = document.querySelectorAll('#paiChatStream .pai-from-pet').length;
+        const kidChatBubbles = document.querySelectorAll('#paiChatStream .pai-from-kid').length;
+        const stageSynced = (document.getElementById('heroSpeechBubble')?.textContent || '').includes('冒险小故事');
+        return {
+            noScrollHomeWithAiBtn,
+            btnLabel,
+            spontaneousBubble,
+            petChatBubbles,
+            kidChatBubbles,
+            stageSynced,
+            roboticCallsAfterPetAi: window.__getRoboticCalls()
+        };
+    })()`);
+    console.log('Pet Exclusive AI Chat & Spontaneous Line Check:', petAiRes);
+    assert.equal(petAiRes.noScrollHomeWithAiBtn, true, 'Pet Home with AI Chat button must maintain zero overflow');
+    assert.ok(petAiRes.spontaneousBubble.includes('转圈圈'), 'Spontaneous AI refresh must update stage speech bubble');
+    assert.ok(petAiRes.petChatBubbles >= 2, 'Pet AI Chat modal must show greeting + AI reply');
+    assert.equal(petAiRes.kidChatBubbles, 1, 'Pet AI Chat modal must show kid message');
+    assert.equal(petAiRes.stageSynced, true, 'Pet AI Chat reply must sync back to main stage speech bubble');
+    assert.equal(petAiRes.roboticCallsAfterPetAi, 0, 'Pet AI Chat must play Neural MP3 audio, NEVER robotic speechSynthesis!');
+    await sleep(220);
+    await saveShot('pet_ai_chat_modal.png');
 
     console.log('Console errors:', consoleErrors.length);
     console.log('Failed local network requests:', failedLocalUrls.length);

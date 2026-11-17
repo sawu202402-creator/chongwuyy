@@ -5,6 +5,7 @@ package.json
 package-lock.json
 scripts
 worker.js
+edgeTtsMod.js
 wrangler.jsonc
 .mailbox-config.json
 *.md

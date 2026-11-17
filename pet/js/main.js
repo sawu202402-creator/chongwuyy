@@ -54,6 +54,7 @@ import {
 import { openRandomFilterModal } from '../../shared/randomFilterModal.js';
 import { requireParentGate } from '../../shared/parentGate.js';
 import { magicMailbox } from '../../shared/magicMailbox.js';
+import { PetAiChatController } from './petAiChat.js';
 import {
     BLINDBOX_SERIES,
     BLINDBOX_RARITY_META,
@@ -862,6 +863,17 @@ class PetWonderTownApp {
     constructor() {
         this.fx = new CelebrationFX('fxOverlayCanvas');
 
+        // 12萌宠专属 AI 语音/文字陪聊控制器
+        this.petAiChat = new PetAiChatController({
+            profileManager,
+            soundEngine,
+            onUpdateStageSpeech: (txt, ms) => this.setHeroSpeech(txt, ms || 8000),
+            onTriggerStageAnim: (petMeta) => {
+                this.triggerPetRigAnimation('anim-joy-spin');
+                this.spawnStageEmotes(['💬', '✨', petMeta?.stageProps?.[0] || '💖']);
+            }
+        });
+
         // 界面导航状态
         this.activeWorldView = 'home';     // 'home' | 'selector' | 'town' | 'gacha'
         this.activeHomeRecTab = 'scores';  // 'scores' | 'ledger' | 'grads'
@@ -1381,6 +1393,8 @@ class PetWonderTownApp {
             mainSprite.src = petMeta.img;
             subSprite.style.display = 'none';
             if (tapHintTag) tapHintTag.textContent = '👆 点我摸摸头互动';
+            const chatBtnTxt = document.getElementById('petAiChatBtnText');
+            if (chatBtnTxt) chatBtnTxt.textContent = `跟${petMeta.name}聊天`;
 
             if (pState.accessory && pState.accessory !== 'none') {
                 const visualHtml = renderAccessoryVisualHtml(pState.accessory, false);
@@ -1464,6 +1478,8 @@ class PetWonderTownApp {
             if (styleBarEl) styleBarEl.style.display = 'none';
             if (freeTreatBtn) freeTreatBtn.style.display = 'none';
             if (tapHintTag) tapHintTag.textContent = '👆 点店铺收银互动';
+            const chatBtnTxtShop = document.getElementById('petAiChatBtnText');
+            if (chatBtnTxtShop) chatBtnTxtShop.textContent = `跟${mgrPet.name}店长聊`;
 
             document.getElementById('heroTitle').textContent = `${mgrPet.name}的${shopMeta.name}`;
             document.getElementById('heroStageSubtitle').textContent =
@@ -2909,6 +2925,15 @@ class PetWonderTownApp {
         ];
         const move = moves[step % moves.length];
 
+        // 连续摸头超过一轮后（第5次起每隔一次），在线自动触发 AI 鲜活新台词，让萌宠说话源源不断不重样！
+        if (step >= 4 && step % 2 === 1 && this.petAiChat && this.petAiChat._shouldUseCloudApi()) {
+            this.triggerPetRigAnimation(move.anim);
+            this.spawnStageEmotes([move.tag, '💬', petMeta.stageProps?.[0] || '✨']);
+            this.fx.spawnBurst(e?.clientX || window.innerWidth * 0.35, e?.clientY || window.innerHeight * 0.4, 16);
+            this.petAiChat.triggerSpontaneousStageLine({ trigger: 'tap', speakAloud: true });
+            return;
+        }
+
         const enList = petMeta.enInteractPhrases?.length ? petMeta.enInteractPhrases : [petMeta.enGreeting];
         const zhList = petMeta.interactLines?.length ? petMeta.interactLines : petMeta.talkLines;
         const zhIdx = step % zhList.length;
@@ -3697,8 +3722,26 @@ class PetWonderTownApp {
 
         // 主页3D萌宠点击多态互动（特色台词+英语问候+专属叫声+4种互动动作）
         document.getElementById('heroDioramaStage').onclick = (e) => {
+            if (e.target.closest('#btnRefreshPetAiLine')) return;
             this.triggerPetInteractSequence(e);
         };
+
+        const btnOpenPetAiChat = document.getElementById('btnOpenPetAiChat');
+        if (btnOpenPetAiChat) {
+            btnOpenPetAiChat.onclick = () => {
+                soundEngine.playTap();
+                this.petAiChat.open();
+            };
+        }
+
+        const btnRefreshPetAiLine = document.getElementById('btnRefreshPetAiLine');
+        if (btnRefreshPetAiLine) {
+            btnRefreshPetAiLine.onclick = (e) => {
+                e.stopPropagation();
+                soundEngine.playTap();
+                this.petAiChat.triggerSpontaneousStageLine({ trigger: 'tap', speakAloud: true });
+            };
+        }
 
         // 主页投喂美食 / 扩建店铺主按钮（飞行食物+咔嚓咀嚼动画+特色满足发言）
         document.getElementById('btnPrimaryNurture').onclick = () => {

@@ -14,9 +14,9 @@
     <meta name="apple-mobile-web-app-title" content="萌宠店长">
     <link rel="manifest" href="site.webmanifest">
     <meta name="theme-color" content="#7c5cfc">
-    <link rel="stylesheet" href="css/style.css?v=20261117_whisper_v3">
-    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261117_whisper_v3">
-    <link rel="stylesheet" href="../shared/magicMailbox.css?v=20261117_whisper_v3">
+    <link rel="stylesheet" href="css/style.css?v=20261117_neural_v5">
+    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261117_neural_v5">
+    <link rel="stylesheet" href="../shared/magicMailbox.css?v=20261117_neural_v5">
 </head>
 <body>
     <!-- 全屏飞行徽章与彩虹礼花粒子画布 -->
@@ -112,6 +112,10 @@
                                     <button class="btn-soft-action" id="btnQuickChange" type="button">⇄ 更换宠/店</button>
                                     <button class="btn-soft-action" id="btnOpenDressup" type="button">🎀 换装·样式</button>
                                 </div>
+                                <button class="btn-pet-ai-chat" id="btnOpenPetAiChat" type="button" title="打开萌宠专属AI语音聊天屋：跟它说话、听故事、猜谜语！">
+                                    <span>💬</span>
+                                    <span id="petAiChatBtnText">跟垂耳兔聊天</span>
+                                </button>
                             </div>
                         </div>
 
@@ -134,6 +138,7 @@
                             <img src="assets/pets/rabbit.png" alt="店长萌宠" class="hero-manager-sub-sprite" id="heroManagerSubSprite" style="display:none;" />
                             <!-- 喂食飞行食物、互动爱心音符与+EXP飘字动画层 -->
                             <div class="pet-anim-fx-layer" id="heroAnimFxLayer"></div>
+                            <button class="stage-ai-refresh-pill" id="btnRefreshPetAiLine" type="button" title="点击让萌宠说一句不重样的全新AI悄悄话！">✨ 换句新话</button>
                             <div class="tap-hint-tag" id="heroTapHintTag">👆 点我摸摸头互动</div>
                         </div>
 
@@ -591,6 +596,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=20261117_whisper_v3"></script>
+    <script type="module" src="js/main.js?v=20261117_neural_v5"></script>
 </body>
 </html>

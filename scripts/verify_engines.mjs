@@ -740,6 +740,8 @@ assert.equal(wranglerCfg.assets?.binding, 'ASSETS');
 assert.equal(wranglerCfg.durable_objects?.bindings?.[0]?.name, 'MAGIC_MAILBOX');
 assert.deepEqual(wranglerCfg.migrations?.[0]?.new_sqlite_classes, ['MagicMailboxDO']);
 assert.ok(fs.existsSync(path.join(ROOT, 'worker.js')));
+assert.ok(fs.existsSync(path.join(ROOT, 'edgeTtsMod.js')));
+assert.ok(fs.existsSync(path.join(ROOT, 'pet', 'js', 'petAiChat.js')));
 assert.ok(fs.existsSync(path.join(ROOT, 'shared', 'magicMailbox.js')));
 assert.ok(fs.existsSync(path.join(ROOT, 'shared', 'magicMailbox.css')));
 console.log('   ✅ Magic Mailbox 15 neural MP3s, speaker/topic router, & Cloudflare SQLite DO config verified!');

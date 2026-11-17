@@ -67,6 +67,14 @@ function arrayBufferToBase64(ab) {
     return btoa(binary);
 }
 
+function base64ToArrayBuffer(b64) {
+    const clean = String(b64 || '').replace(/^data:audio\/[^;]+;base64,/i, '').trim();
+    const bin = atob(clean);
+    const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return u8.buffer;
+}
+
 function resolveAudioHref(audioFileOrUrl = '') {
     if (!audioFileOrUrl) return '';
     if (/^https?:\/\//i.test(audioFileOrUrl) || audioFileOrUrl.startsWith('/')) {
@@ -179,6 +187,9 @@ class MagicMailboxController {
         this._playingKey = null;
         this._thinkingWishId = null;
         this._audioEl = null;
+        this._activeBufferSrc = null;
+        this._voiceToken = 0;
+        this._ttsMemCache = new Map();
         this._audioCtx = null;
 
         this.triggerButtons = new Set();
@@ -1406,6 +1417,9 @@ class MagicMailboxController {
                         finalReplyKey = data.replyKey || 'ai_live';
                         finalReplyText = data.replyText;
                     }
+                    if (data.audioBase64) {
+                        this._ttsMemCache.set(`inst_${wish.id}`, data.audioBase64);
+                    }
                     this._thinkingWishId = null;
                     this._mergeCloudPayload(data);
 
@@ -1419,7 +1433,7 @@ class MagicMailboxController {
 
                     if (this.dom.statusHint) {
                         this.dom.statusHint.textContent = data.aiGenerated
-                            ? `☁️ 魔法师已实时回复 ${wish.kidName}，同时把你们的对话同步到云端信箱啦！`
+                            ? `☁️ 魔法师已用真人语音实时回复 ${wish.kidName}，对话也已同步到云端信箱！`
                             : `☁️ ${wish.kidName}的话已经同步到云端信箱，爸爸妈妈喊魔法师就能立刻看到啦！`;
                     }
                     if (this.isOpen) {
@@ -1429,6 +1443,7 @@ class MagicMailboxController {
                             this.playMagicianVoice({
                                 key: `inst_${wish.id}`,
                                 audioHref: clipObj ? resolveAudioHref(clipObj.audioFile) : '',
+                                audioBase64: data.audioBase64 || '',
                                 text: finalReplyText
                             });
                         }
@@ -1551,9 +1566,85 @@ class MagicMailboxController {
         }
     }
 
-    /* ==================== 真人级 MP3 语音播报 + 自然人声兜底 ==================== */
-    playMagicianVoice({ key, audioHref = '', text = '' }) {
+    /* ==================== 真人级神经网络 MP3 语音播报（云端实时合成 + 静态MP3 + 离线兜底） ==================== */
+    async _playMp3Base64OrUrl({ token, audioBase64 = '', audioHref = '' }, onDone) {
+        if (token !== this._voiceToken) return false;
+
+        // 优先使用已解锁的 WebAudio 解码播放（完全不受 iPadOS Safari 异步请求后自动播放拦截限制！）
+        try {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (Ctx) {
+                if (!this._audioCtx) this._audioCtx = new Ctx();
+                if (this._audioCtx.state === 'suspended') {
+                    await this._audioCtx.resume().catch(() => {});
+                }
+                let arrayBuf = null;
+                if (audioBase64) {
+                    arrayBuf = base64ToArrayBuffer(audioBase64);
+                } else if (audioHref) {
+                    const r = await fetch(audioHref);
+                    if (r.ok) arrayBuf = await r.arrayBuffer();
+                }
+                if (arrayBuf && arrayBuf.byteLength > 100 && token === this._voiceToken) {
+                    const decoded = await this._audioCtx.decodeAudioData(arrayBuf.slice(0));
+                    if (token !== this._voiceToken) return true;
+                    const src = this._audioCtx.createBufferSource();
+                    src.buffer = decoded;
+                    src.connect(this._audioCtx.destination);
+                    this._activeBufferSrc = src;
+                    src.onended = () => {
+                        if (this._activeBufferSrc === src) this._activeBufferSrc = null;
+                        if (onDone) onDone();
+                    };
+                    src.start(0);
+                    return true;
+                }
+            }
+        } catch (_) {}
+
+        // 备选 HTMLAudioElement 播放
+        const srcUrl = audioBase64 ? `data:audio/mpeg;base64,${audioBase64}` : audioHref;
+        if (srcUrl && token === this._voiceToken) {
+            try {
+                const audio = new Audio(srcUrl);
+                audio.preload = 'auto';
+                this._audioEl = audio;
+                audio.onended = onDone;
+                await audio.play();
+                return true;
+            } catch (_) {
+                this._audioEl = null;
+            }
+        }
+        return false;
+    }
+
+    async _fetchCloudNeuralTts(text, role = 'magician') {
+        if (!text || !this._shouldUseCloudApi()) return '';
+        const cacheKey = `${role}::${text}`;
+        if (this._ttsMemCache.has(cacheKey)) {
+            return this._ttsMemCache.get(cacheKey);
+        }
+        try {
+            const res = await fetch('/api/tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, role })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data && data.ok && data.audioBase64) {
+                    this._ttsMemCache.set(cacheKey, data.audioBase64);
+                    return data.audioBase64;
+                }
+            }
+        } catch (_) {}
+        return '';
+    }
+
+    async playMagicianVoice({ key, audioHref = '', audioBase64 = '', text = '' }) {
         this.stopAllVoice();
+        const token = ++this._voiceToken;
         this._playingKey = key;
         this._syncPlayingBtnHighlight();
 
@@ -1564,46 +1655,52 @@ class MagicMailboxController {
             }
         };
 
-        if (audioHref) {
-            try {
-                const audio = new Audio(audioHref);
-                audio.preload = 'auto';
-                this._audioEl = audio;
-                audio.onended = onDone;
-                audio.onerror = () => {
-                    this._audioEl = null;
-                    this._fallbackSpeakText(text, { pitch: 1.04, rate: 0.98, preferAltVoice: false }, onDone);
-                };
-                const playPromise = audio.play();
-                if (playPromise && typeof playPromise.then === 'function') {
-                    playPromise.catch(() => {
-                        this._audioEl = null;
-                        this._fallbackSpeakText(text, { pitch: 1.04, rate: 0.98, preferAltVoice: false }, onDone);
-                    });
-                }
-                return;
-            } catch (_) {}
+        let b64 = audioBase64 || this._ttsMemCache.get(key) || '';
+        if (!b64 && !audioHref && text && this._shouldUseCloudApi()) {
+            b64 = await this._fetchCloudNeuralTts(text, 'magician');
+            if (b64) this._ttsMemCache.set(key, b64);
         }
 
-        this._fallbackSpeakText(text, { pitch: 1.04, rate: 0.98, preferAltVoice: false }, onDone);
+        if (b64 || audioHref) {
+            const ok = await this._playMp3Base64OrUrl({ token, audioBase64: b64, audioHref }, onDone);
+            if (ok || token !== this._voiceToken) return;
+        }
+
+        if (token === this._voiceToken) {
+            this._fallbackSpeakText(text, { pitch: 1.04, rate: 0.98, preferAltVoice: false }, onDone);
+        }
     }
 
-    playKidEchoVoice({ key, speaker = 'pea', text = '' }) {
+    async playKidEchoVoice({ key, speaker = 'pea', text = '' }) {
         this.stopAllVoice();
+        const token = ++this._voiceToken;
         this._playingKey = key;
         this._syncPlayingBtnHighlight();
 
-        const isChuan = speaker === 'chuan';
-        this._fallbackSpeakText(
-            text,
-            { pitch: isChuan ? 1.0 : 1.08, rate: 0.98, preferAltVoice: isChuan },
-            () => {
-                if (this._playingKey === key) {
-                    this._playingKey = null;
-                    this._syncPlayingBtnHighlight();
-                }
+        const onDone = () => {
+            if (this._playingKey === key) {
+                this._playingKey = null;
+                this._syncPlayingBtnHighlight();
             }
-        );
+        };
+
+        const role = speaker === 'chuan' ? 'kid_chuan' : 'kid_pea';
+        if (text && this._shouldUseCloudApi()) {
+            const b64 = await this._fetchCloudNeuralTts(text, role);
+            if (b64) {
+                const ok = await this._playMp3Base64OrUrl({ token, audioBase64: b64 }, onDone);
+                if (ok || token !== this._voiceToken) return;
+            }
+        }
+
+        const isChuan = speaker === 'chuan';
+        if (token === this._voiceToken) {
+            this._fallbackSpeakText(
+                text,
+                { pitch: isChuan ? 1.0 : 1.08, rate: 0.98, preferAltVoice: isChuan },
+                onDone
+            );
+        }
     }
 
     _fallbackSpeakText(text, { pitch = 1.04, rate = 0.98, preferAltVoice = false } = {}, onDone = null) {
@@ -1624,9 +1721,14 @@ class MagicMailboxController {
     }
 
     stopAllVoice() {
+        this._voiceToken++;
         if (this._fallbackTimer) {
             clearTimeout(this._fallbackTimer);
             this._fallbackTimer = null;
+        }
+        if (this._activeBufferSrc) {
+            try { this._activeBufferSrc.stop(); } catch (_) {}
+            this._activeBufferSrc = null;
         }
         if (this._audioEl) {
             try {

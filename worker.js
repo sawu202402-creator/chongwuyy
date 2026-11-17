@@ -7,6 +7,7 @@
  * 3. 其余全部静态资源请求直接交由 Cloudflare Assets 边缘高速分发。
  */
 import { DurableObject } from "cloudflare:workers";
+import { synthesizeNeuralMp3Base64 } from "./edgeTtsMod.js";
 
 const CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
@@ -21,6 +22,22 @@ const AI_MODEL_CHAIN = [
     "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
     "@cf/meta/llama-3.1-8b-instruct"
 ];
+
+// 12只守护萌宠专属性格与说话口吻设定
+const PET_AI_PERSONAS = {
+    rabbit: "你是软萌粘人的【垂耳兔】，长耳朵软绵绵像棉花糖，说话喜欢带口头禅「噗啾～」，最爱吃甜脆胡萝卜礼盒，性格温柔甜美，超崇拜小主人。",
+    frog: "你是元气清脆的【荷叶小青蛙】，荷塘里的小歌唱家，说话喜欢带口头禅「呱呱～」，爱在荷叶上蹦高高，最爱吃森林露珠甜莓，性格阳光机灵。",
+    shiba: "你是热情忠诚的【奶油小柴】，摇着毛茸茸螺旋尾巴，说话喜欢带口头禅「汪呜～」，最爱香烤牛奶骨头饼，元气满满像运动小健将。",
+    panda: "你是憨厚软糯的【胖胖竹熊】，圆滚滚爱打滚，说话慢悠悠喜欢带「呼噜呼噜～」，最爱鲜嫩春笋团子，温和治愈又有点小吃货。",
+    tiger: "你是帅气威风又讲义气的森林小少年【白虎】，说话带口头禅「嗷呜～」，最爱星光能量肉排，把保护小主人闯关当成最自豪的事。",
+    unicorn: "你是梦幻优雅的【独角兽】，头顶水晶角会洒下彩虹星尘，说话温柔带口头禅「叮铃铃～」，最爱彩虹棉花糖云，充满童话想象力。",
+    succulent: "你是清甜水灵的【多肉精灵】，叶片亮晶晶的大自然小精灵，说话带口头禅「沙沙～」，喜欢晒暖暖太阳和喝七彩晨露甘霖。",
+    pixiu: "你是喜庆吉祥的瑞兽小福宝【貔貅】，说话欢快讨喜带口头禅「叮当～」，最爱金灿灿福气果，总想给小主人招来好运气和满口袋徽章。",
+    astro_rabbit: "你是勇敢好奇的月球探险家【宇航员兔兔】，戴着太空头盔，说话带口头禅「呼叫小店长～」，最爱银河星星软糖，懂好多宇宙和星球的奇妙故事。",
+    prince_frog: "你是彬彬有礼又有点幽默小骄傲的童话绅士【皇冠王子蛙】，说话带口头禅「呱哼～」，最爱皇家蓝莓松饼，说话优雅风趣。",
+    star_dragon: "你是神秘温暖的银河守护神兽【星空幻龙】，翅膀上闪耀着整片星座，说话带口头禅「星吟～」，最爱极光水晶果冻，博学又温柔。",
+    mecha_cat: "你是聪明俏皮的科幻小猫咪【未来机械喵】，小耳朵会闪霓虹灯，说话带口头禅「滴嘟喵～」，最爱超能闪电电池奶，脑袋里装满有趣的科学冷知识。"
+};
 
 function jsonResponse(data, status = 200) {
     return new Response(JSON.stringify(data), {
@@ -192,6 +209,105 @@ async function generateMagicianAiReply(aiBinding, { kidName, appLabel, text, rec
     return null;
 }
 
+async function generatePetAiDialogue(aiBinding, body = {}) {
+    if (!aiBinding || typeof aiBinding.run !== "function") {
+        throw new Error("ai_binding_unavailable");
+    }
+
+    const petId = cleanStr(body.petId, 32) || "rabbit";
+    const petName = cleanStr(body.petName, 32) || "垂耳兔";
+    const stageLevel = Math.min(5, Math.max(1, Number(body.stageLevel) || 1));
+    const stageTitle = cleanStr(body.stageTitle, 40) || petName;
+    const foodName = cleanStr(body.foodName, 40) || "美味点心";
+    const accessoryName = cleanStr(body.accessoryName, 40);
+    const companionName = cleanStr(body.companionName, 40);
+    const shopName = cleanStr(body.shopName, 40);
+    const kidName = cleanStr(body.kidName, 30) || "小主人";
+    const todayCorrect = Math.max(0, Number(body.todayCorrect) || 0);
+    const mode = cleanStr(body.mode, 20) || "chat"; // "chat" | "spontaneous"
+    const trigger = cleanStr(body.trigger, 24) || "tap";
+    const userText = cleanStr(body.userText, 400);
+    const recentLines = Array.isArray(body.recentLines) ? body.recentLines.slice(-5).map(s => cleanStr(s, 120)) : [];
+    const history = Array.isArray(body.history) ? body.history.slice(-6) : [];
+
+    const personaDesc = PET_AI_PERSONAS[petId] || `你是可爱活泼的电子萌宠【${petName}】，非常喜欢你的小主人。`;
+    const stateFacts = [
+        `你的小主人叫【${kidName}】。`,
+        `你当前等级是 Lv.${stageLevel}（称号：${stageTitle}），最爱吃的食物是【${foodName}】。`,
+        accessoryName && accessoryName !== "无配饰" ? `你身上正穿戴着漂亮的【${accessoryName}】。` : "",
+        companionName ? `你身边还跟着盲盒守护小伙伴【${companionName}】。` : "",
+        shopName ? `你在海滨萌宠小镇经营着【${shopName}】。` : "",
+        todayCorrect > 0 ? `${kidName}今天已经努力答对了 ${todayCorrect} 道数英题目啦！` : ""
+    ].filter(Boolean).join("");
+
+    const messages = [];
+
+    if (mode === "spontaneous") {
+        const avoidHint = recentLines.length > 0 ? `不要和这几句刚说过的话重复：${recentLines.join(" / ")}。` : "";
+        const scenePrompt = trigger === "feed"
+            ? `刚才${kidName}喂你吃了【${foodName}】，请用第一人称说一句超级开心满足的新鲜台词！`
+            : `刚才${kidName}在萌宠舞台摸了摸你的头想听你撒娇聊天，请结合你的性格、穿戴或小镇日常，主动对${kidName}说一句新鲜有趣的话（也可以顺便抛个可爱的小互动问题）！`;
+
+        messages.push({
+            role: "system",
+            content: [
+                personaDesc,
+                stateFacts,
+                "请严格遵守：字数控制在 22 到 52 个汉字之间，第一人称口语，充满灵气与童趣，不要使用星号或Markdown符号，最多带1到2个可爱表情，直接输出台词本身，不要输出思考过程。",
+                avoidHint
+            ].filter(Boolean).join("\n")
+        });
+        messages.push({
+            role: "user",
+            content: scenePrompt
+        });
+    } else {
+        messages.push({
+            role: "system",
+            content: [
+                personaDesc,
+                stateFacts,
+                "你正在【萌宠悄悄话屋】里和小主人直接语音/文字聊天！请严格遵守：",
+                "1. 始终保持你这只萌宠的第一人称口吻、口头禅和小动物习惯，千万不要暴露自己是AI或大模型。",
+                "2. 认真回应小主人的每一句话：如果小主人让你讲故事、考英语单词、出脑筋急转弯、聊恐龙太空或日常趣事，都用生动可爱的萌宠视角陪他玩！",
+                "3. 字数控制在 35 到 95 个汉字之间，纯自然口语段落，不要换行列表或星号，最多1到2个表情，方便直接用萌宠声音读出来，积极健康充满童心。"
+            ].join("\n")
+        });
+
+        for (const h of history) {
+            const txt = cleanStr(h?.text, 300);
+            if (!txt) continue;
+            messages.push({
+                role: h.role === "pet" ? "assistant" : "user",
+                content: txt
+            });
+        }
+        messages.push({
+            role: "user",
+            content: userText || `你好呀${petName}，陪我聊聊天吧！`
+        });
+    }
+
+    for (const modelId of AI_MODEL_CHAIN) {
+        try {
+            const payload = {
+                messages,
+                max_tokens: mode === "spontaneous" ? 140 : 240,
+                temperature: 0.82
+            };
+            if (modelId.includes("qwen3")) {
+                payload.chat_template_kwargs = { enable_thinking: false };
+            }
+            const rawRes = await aiBinding.run(modelId, payload);
+            const cleaned = sanitizeAiReplyText(extractModelContent(rawRes));
+            if (cleaned && cleaned.length >= 4) {
+                return { text: cleaned, model: modelId };
+            }
+        } catch (_) {}
+    }
+    return null;
+}
+
 export class MagicMailboxDO extends DurableObject {
     constructor(ctx, env) {
         super(ctx, env);
@@ -314,6 +430,7 @@ export class MagicMailboxDO extends DurableObject {
                 let replyText = cleanStr(body.fallbackReplyText || body.instantReplyText, 600);
                 let aiGenerated = false;
                 let aiModel = "";
+                let audioBase64 = "";
 
                 const aiRes = await generateMagicianAiReply(this.env?.AI, {
                     kidName,
@@ -327,6 +444,11 @@ export class MagicMailboxDO extends DurableObject {
                     replyText = aiRes.text;
                     aiGenerated = true;
                     aiModel = aiRes.model;
+                    try {
+                        audioBase64 = await synthesizeNeuralMp3Base64(replyText, "magician");
+                    } catch (_) {
+                        audioBase64 = "";
+                    }
                 }
 
                 this._upsertWish({
@@ -342,6 +464,7 @@ export class MagicMailboxDO extends DurableObject {
                     aiModel,
                     replyKey,
                     replyText,
+                    audioBase64,
                     wishes,
                     replies,
                     serverTime: Date.now()
@@ -426,6 +549,52 @@ export class MagicMailboxDO extends DurableObject {
 export default {
     async fetch(request, env) {
         const url = new URL(request.url);
+        if (url.pathname === "/api/tts") {
+            if (request.method === "OPTIONS") {
+                return new Response(null, { status: 204, headers: CORS_HEADERS });
+            }
+            if (request.method === "POST") {
+                try {
+                    const body = await request.json().catch(() => ({}));
+                    const text = cleanStr(body.text, 400);
+                    const role = cleanStr(body.role, 32) || "magician";
+                    if (!text) {
+                        return jsonResponse({ ok: false, error: "empty_text" }, 400);
+                    }
+                    const audioBase64 = await synthesizeNeuralMp3Base64(text, role);
+                    return jsonResponse({ ok: true, audioBase64 });
+                } catch (err) {
+                    return jsonResponse({
+                        ok: false,
+                        error: String(err && err.message ? err.message : err)
+                    }, 503);
+                }
+            }
+        }
+        if (url.pathname === "/api/pet/chat") {
+            if (request.method === "OPTIONS") {
+                return new Response(null, { status: 204, headers: CORS_HEADERS });
+            }
+            if (request.method === "POST") {
+                try {
+                    const body = await request.json().catch(() => ({}));
+                    const res = await generatePetAiDialogue(env?.AI, body);
+                    if (res && res.text) {
+                        let audioBase64 = "";
+                        try {
+                            audioBase64 = await synthesizeNeuralMp3Base64(res.text, cleanStr(body.petId, 32) || "rabbit");
+                        } catch (_) {}
+                        return jsonResponse({ ok: true, text: res.text, model: res.model, audioBase64 });
+                    }
+                    return jsonResponse({ ok: false, error: "empty_pet_ai_reply" }, 503);
+                } catch (err) {
+                    return jsonResponse({
+                        ok: false,
+                        error: String(err && err.message ? err.message : err)
+                    }, 503);
+                }
+            }
+        }
         if (url.pathname.startsWith("/api/mailbox")) {
             if (request.method === "OPTIONS") {
                 return new Response(null, { status: 204, headers: CORS_HEADERS });
