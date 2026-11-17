@@ -746,7 +746,7 @@ export class MathEngine {
                 readText: `${actor.name}在${actor.shop}准备补给，每${item.box}装${perBox}${item.unit}${item.name}，装满${boxes}${item.box}，一共需要多少${item.unit}${item.name}？`,
                 expr: `[应用题] ${perBox} × ${boxes}`,
                 formula: `${perBox} × ${boxes} = ${ans}`,
-                visualTip: `${groupVisual} ➔ 列式：${perBox} × ${boxes} = ${ans} (${item.unit})`,
+                visualTip: `${groupVisual} ➔ 思路：每${item.box}${perBox}${item.unit}，共${boxes}${item.box}，列式：${perBox} × ${boxes} = ?`,
                 unitLabel: item.unit,
                 answer: ans
             };
@@ -764,7 +764,7 @@ export class MathEngine {
                 readText: `${actor.name}上午收集了${base}${item.unit}${item.name}，下午收集的数量是上午的${times}倍。下午收集了多少${item.unit}？`,
                 expr: `[应用题] ${base} 的 ${times} 倍`,
                 formula: `${base} × ${times} = ${ans}`,
-                visualTip: `上午：[${item.icon}×${base}] ｜ 下午有 ${times} 份 ➔ ${base} × ${times} = ${ans} (${item.unit})`,
+                visualTip: `上午：[${item.icon}×${base}] ｜ 下午有这样的 ${times} 份 ➔ 列式：${base} × ${times} = ?`,
                 unitLabel: item.unit,
                 answer: ans
             };
@@ -782,7 +782,7 @@ export class MathEngine {
                 readText: `${actor.name}准备了${total}${item.unit}${item.name}，要平均分给${friends}位小队友，每位小队友能分到几${item.unit}？`,
                 expr: `[应用题] ${total} ÷ ${friends}`,
                 formula: `${total} ÷ ${friends} = ${each}`,
-                visualTip: `把 ${total} 平均分成 ${friends} 份 ➔ 列式：${total} ÷ ${friends} = ${each} (${item.unit})`,
+                visualTip: `思路：把 ${total} 平均分成 ${friends} 份，求每份是几 ➔ 列式：${total} ÷ ${friends} = ?`,
                 unitLabel: item.unit,
                 answer: each
             };
@@ -800,7 +800,7 @@ export class MathEngine {
                 readText: `仓库新到${total}${item.unit}${item.name}，如果每${perBox}${item.unit}装满一${item.box}，一共可以装满几${item.box}？`,
                 expr: `[应用题] ${total} ÷ ${perBox}`,
                 formula: `${total} ÷ ${perBox} = ${boxes}`,
-                visualTip: `每 ${perBox} 个装 1 ${item.box}，看 ${total} 里有几个 ${perBox} ➔ ${total} ÷ ${perBox} = ${boxes} (${item.box})`,
+                visualTip: `思路：每 ${perBox} 个装 1 ${item.box}，想一想 ${total} 里面有几个 ${perBox} ➔ ${total} ÷ ${perBox} = ?`,
                 unitLabel: item.box,
                 answer: boxes
             };
@@ -820,7 +820,7 @@ export class MathEngine {
                 readText: `${actor.name}要把${total}${item.unit}${item.name}全部运走，每个箱子最多装${perBox}${item.unit}，至少需要准备几个箱子？`,
                 expr: `[进一法] ${total} ÷ ${perBox} 进一`,
                 formula: `${total} ÷ ${perBox} = ${fullBoxes}(箱)……${rem}(${item.unit}) ➔ ${ans}箱`,
-                visualTip: `${total} ÷ ${perBox} = ${fullBoxes} 箱余 ${rem} ${item.unit}，剩下的也需 1 箱 ➔ ${fullBoxes} + 1 = ${ans} (个)`,
+                visualTip: `思路：先算 ${total} ÷ ${perBox} 能装满几箱、还余几个？注意剩下的也要再加 1 个箱子哦！`,
                 unitLabel: '个箱子',
                 answer: ans
             };
@@ -838,7 +838,7 @@ export class MathEngine {
             readText: `买了${qty}${item.unit}单价${price}元的${item.name}，又买了1杯${drinkPrice}元的牛奶，一共要付多少元？`,
             expr: `[应用题] ${qty} × ${price} + ${drinkPrice}`,
             formula: `${qty} × ${price} + ${drinkPrice} = ${ans}`,
-            visualTip: `先算 ${qty} × ${price} = ${qty * price}(元)，再加牛奶 ${drinkPrice}(元) = ${ans}(元)`,
+            visualTip: `分两步算：① 先算 ${qty} × ${price} 等于几元；② 再加上牛奶 ${drinkPrice} 元！`,
             unitLabel: '元',
             answer: ans
         };
@@ -875,7 +875,7 @@ export class MathEngine {
                 readText: `看上方统计图，这三款补给平均每款卖出多少份？`,
                 expr: `[数据图] (${vals.join('+')})÷3`,
                 formula: `(${vals.join(' + ')}) ÷ 3 = ${avg}`,
-                visualTip: `总和 ${vals[0] + vals[1] + vals[2]} ÷ 3 款 = 平均每款 ${avg} 份`,
+                visualTip: `思路：先把三款数量加起来（${vals[0]} + ${vals[1]} + ${vals[2]}），再除以 3 款 = ?`,
                 unitLabel: '份',
                 answer: avg
             };
@@ -904,7 +904,7 @@ export class MathEngine {
                 readText: `看统计图，${big.name}比${small.name}多多少份？`,
                 expr: `[数据图] ${big.value} - ${small.value}`,
                 formula: `${big.value} - ${small.value} = ${ans}`,
-                visualTip: `${big.name}(${big.value}) - ${small.name}(${small.value}) = ${ans} 份`,
+                visualTip: `思路：看柱子上的数字，用 ${big.name}(${big.value}) - ${small.name}(${small.value}) = ?`,
                 unitLabel: '份',
                 answer: ans
             };
@@ -920,7 +920,7 @@ export class MathEngine {
                 readText: `看统计图，${b1.name}和${b2.name}一共多少份？`,
                 expr: `[数据图] ${b1.value} + ${b2.value}`,
                 formula: `${b1.value} + ${b2.value} = ${ans}`,
-                visualTip: `${b1.name}(${b1.value}) + ${b2.name}(${b2.value}) = ${ans} 份`,
+                visualTip: `思路：把两项合起来，算一算 ${b1.name}(${b1.value}) + ${b2.name}(${b2.value}) = ?`,
                 unitLabel: '份',
                 answer: ans
             };
@@ -934,7 +934,7 @@ export class MathEngine {
                 readText: `看统计图，图表里这三种物品一共多少份？`,
                 expr: `[数据图] ${bars[0].value}+${bars[1].value}+${bars[2].value}`,
                 formula: `${bars[0].value} + ${bars[1].value} + ${bars[2].value} = ${ans}`,
-                visualTip: `三项相加：${bars[0].value} + ${bars[1].value} + ${bars[2].value} = ${ans} 份`,
+                visualTip: `思路：把三根柱子的数连加起来：${bars[0].value} + ${bars[1].value} + ${bars[2].value} = ?`,
                 unitLabel: '份',
                 answer: ans
             };
@@ -1020,7 +1020,7 @@ export class MathEngine {
             expr: `[比大小] ${left.label} ○ ${right.label}`,
             formula: `${left.label} ${ans} ${right.label}`,
             display: `${left.label} ○ ${right.label}`,
-            visualTip: `左边 ${left.label} = ${left.val}，右边 ${right.label} = ${right.val}，所以填 ${ans}（${ansWord}）！`
+            visualTip: `思路：先分别算出左边（${left.label} = ?）和右边（${right.label} = ?），再比一比谁大（开口永远朝向大数）！`
         };
     }
 
@@ -1095,7 +1095,7 @@ export class MathEngine {
             expr: `[凑数消消乐] ${badgeText}`,
             formula: pairDesc,
             display: badgeText,
-            visualTip: `配对答案：${pairDesc}`
+            visualTip: `思路：先点选一个数字泡泡（例如 ${selectedPairs[0][0]}），想一想 ${selectedPairs[0][0]} ${bondOp} ? = ${targetValue}，再去池子里找它的搭档！`
         };
     }
 
@@ -1154,7 +1154,9 @@ export class MathEngine {
             expr: `[符号侦探] ${a} [ ? ] ${b} = ${c}`,
             formula: `${a} ${ansOp} ${b} = ${c}`,
             display: `${a} [ ? ] ${b} = ${c}`,
-            visualTip: `验证：${a} ${ansOp} ${b} = ${c}，唯一正确的符号是“${ansOp}”！`
+            visualTip: c >= a
+                ? `思路：从 ${a} 变成 ${c} 结果变大了，试试看用加法「+」还是乘法「×」能让等式成立？`
+                : `思路：从 ${a} 变成 ${c} 结果变小了，试试看用减法「-」还是除法「÷」能让等式成立？`
         };
     }
 
@@ -1254,7 +1256,7 @@ export class MathEngine {
             expr: `[找规律] ${displaySeq}`,
             formula: cars.join(' → '),
             display: displaySeq,
-            visualTip: `${ruleHint} ➔ 完整车厢：${cars.join(' → ')}`
+            visualTip: `思路：观察相邻车厢的变化秘密——【${ruleHint}】，顺着这个规律算一算问号车厢是几吧！`
         };
     }
 
@@ -1330,8 +1332,8 @@ export class MathEngine {
                 formula: deltaMinutes > 0 ? `${shownStr} + ${deltaMinutes}分 = ${ansStr}` : `钟面时间 = ${ansStr}`,
                 display: deltaMinutes > 0 ? `${shownStr} + ${deltaMinutes}分` : `认读钟面`,
                 visualTip: deltaMinutes > 0
-                    ? `现在是 ${shownStr}，再过 ${deltaMinutes} 分钟就是 ${ansStr}！`
-                    : `短针指向 ${hour} 点方向，长针对应 ${String(minute).padStart(2, '0')} 分，合起来是 ${ansStr}！`
+                    ? `思路：先认出钟面现在是 ${shownStr}，再把分钟数往后加 ${deltaMinutes} 分钟（满 60 分钟进 1 小时）！`
+                    : `思路：先看短针（时针）走过了几，再看长针（分针）指着大格数字几（每大格代表 5 分钟，指 12 是 :00，指 6 是 :30）！`
             };
         }
 
@@ -1397,7 +1399,9 @@ export class MathEngine {
             expr: `[购物找零] 付${paidNote}元 - (${items.map(i => i.price).join('+')})元`,
             formula: `${paidNote} - ${totalCost} = ${changeVal} (元)`,
             display: `付${paidNote}元 找零?`,
-            visualTip: `商品共 ${totalCost} 元，${paidNote} - ${totalCost} = 找回 ${changeVal} 元！`
+            visualTip: items.length > 1
+                ? `思路：① 先把商品价格加起来（${items.map(i => i.price).join(' + ')} 元）；② 再用付出的 ${paidNote} 元减去商品总价！`
+                : `思路：用付出的纸币减去商品价格，算一算 ${paidNote} - ${totalCost} = ?（元）`
         };
     }
 
@@ -1453,7 +1457,9 @@ export class MathEngine {
                 expr: `[数砖金字塔] 底(${b0},${b1},${b2}) 求 ?`,
                 formula: `${b0}+${b1}=${m0}, ${b1}+${b2}=${m1}, ${m0}+${m1}=${top}`,
                 display: `数砖金字塔 [ ? ]`,
-                visualTip: `左中 ${b0}+${b1}=${m0}，右中 ${b1}+${b2}=${m1}，顶层 ${m0}+${m1}=${top} ➔ [ ? ] = ${answer}！`
+                visualTip: (targetKey === 'b0' || targetKey === 'b2')
+                    ? `思路：向下求底砖用减法！用上面的数砖减去底下已知相邻的那块砖，就能算出 [ ? ] 啦！`
+                    : `思路：向上搭金字塔用加法！把底下相邻的两块砖相加，就能一层一层算出上面的数砖啦！`
             };
         }
 
@@ -1529,8 +1535,8 @@ export class MathEngine {
             formula: askPerimeter ? `外圈边数周长 = ${perimeter} 厘米` : `彩色方格数 = ${area} 格`,
             display: askPerimeter ? `求图形周长` : `求涂色格数`,
             visualTip: askPerimeter
-                ? `沿着图形最外圈数一圈，共有 ${perimeter} 段边长，周长是 ${perimeter} 厘米！（面积是 ${area} 格）`
-                : `逐行数一数涂色方块，一共占了 ${area} 个小方格！`
+                ? `思路：从左上角开始，沿着彩色图形【最外圈的边】一段一段数清楚共有几条边（注意图形里面的格线不算周长哦）！`
+                : `思路：从第一行到最后一行，一行一行数清楚每行有几个涂色小方格，再把它们加起来！`
         };
     }
 

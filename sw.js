@@ -6,7 +6,7 @@
  * 3. PNG / JPG / GIF / SVG / ICO 静态美术资源采用 Stale-While-Revalidate（二次秒开）。
  */
 
-const CACHE_VERSION = 'chongwuyy-v20261117-neural-v5';
+const CACHE_VERSION = 'chongwuyy-v20261117-turbo-v6';
 const PRECACHE_URLS = [
     './',
     './index.html',

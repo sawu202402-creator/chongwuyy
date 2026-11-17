@@ -108,7 +108,18 @@ export const INSTANT_REPLY_CLIPS = {
  *   text: '...'
  * }
  */
-export const MAGICIAN_LETTERS = [];
+export const MAGICIAN_LETTERS = [
+    {
+        "id": "reply_20261117_hint_fix",
+        "replyToId": "wish_1794913687269_ined",
+        "targetKid": "pea",
+        "senderName": "游戏魔法师",
+        "badgeTitle": "🎉 愿望已实现 · 火眼金睛奖！",
+        "createdAt": 1794916538311,
+        "createdStr": "11/17 17:25",
+        "audioFile": "reply_20261117_hint_fix.mp3",
+        "text": "小豌豆你好呀！你真是太细心、太厉害的小小游戏侦探啦！你发现的题目点提示会直接出现答案这个小秘密太关键了！魔法师刚刚已经挥动魔杖，把所有数学题和英语题的提示都升级成只给解题思路、不漏出最终答案啦！快去试试新的提示按钮吧，给你颁一枚金光闪闪的火眼金睛大勋章！"
+    },];
 
 export function detectSpeakerPrefix(kidId = '', kidName = '') {
     if (kidId === 'both' || /一起|两个/.test(kidName)) return 'both';

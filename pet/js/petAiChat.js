@@ -757,18 +757,19 @@ export class PetAiChatController {
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
-                audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+                audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: true }
             });
             const mimeCandidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
             const chosenMime = (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported)
                 ? (mimeCandidates.find(m => MediaRecorder.isTypeSupported(m)) || '')
                 : '';
-            const mediaRecorder = chosenMime ? new MediaRecorder(stream, { mimeType: chosenMime }) : new MediaRecorder(stream);
+            const recOpts = chosenMime ? { mimeType: chosenMime, audioBitsPerSecond: 32000 } : { audioBitsPerSecond: 32000 };
+            const mediaRecorder = new MediaRecorder(stream, recOpts);
             const blobParts = [];
             mediaRecorder.ondataavailable = (ev) => {
                 if (ev.data && ev.data.size > 0) blobParts.push(ev.data);
             };
-            mediaRecorder.start(150);
+            mediaRecorder.start();
 
             this._recorder = { stream, mediaRecorder, blobParts, startedAt: Date.now() };
             this.isRecording = true;
@@ -828,28 +829,15 @@ export class PetAiChatController {
             return '';
         }
 
-        let audioBase64 = '';
+        let rawBlob = null;
         const elapsedSec = (Date.now() - recObj.startedAt) / 1000;
         if (recObj.blobParts.length > 0 && elapsedSec >= 0.25) {
-            const rawBlob = new Blob(recObj.blobParts, { type: recObj.mediaRecorder.mimeType || 'audio/webm' });
-            const rawBuf = await rawBlob.arrayBuffer();
-            try {
-                const Ctx = window.AudioContext || window.webkitAudioContext;
-                if (Ctx && rawBuf.byteLength > 64) {
-                    const decodeCtx = new Ctx();
-                    const decoded = await decodeCtx.decodeAudioData(rawBuf.slice(0));
-                    try { await decodeCtx.close(); } catch (_) {}
-                    const wav = encodePcmToWav16kBase64(decoded.getChannelData(0), decoded.sampleRate);
-                    if (wav.maxPeak >= 0.004) audioBase64 = wav.base64;
-                } else if (rawBuf.byteLength > 200) {
-                    audioBase64 = arrayBufferToBase64(rawBuf);
-                }
-            } catch (_) {
-                if (rawBuf.byteLength > 200) audioBase64 = arrayBufferToBase64(rawBuf);
-            }
+            const mime = recObj.mediaRecorder.mimeType || 'audio/webm';
+            const b = new Blob(recObj.blobParts, { type: mime });
+            if (b.size > 120) rawBlob = b;
         }
 
-        if (!audioBase64) {
+        if (!rawBlob) {
             this.dom.micIcon.textContent = '🎙️';
             this.dom.micLabel.textContent = '按此说话';
             this.dom.recText.textContent = '🎙️ 刚才声音有点轻没录到，靠近一点再说一次吧～';
@@ -859,16 +847,16 @@ export class PetAiChatController {
 
         this.isTranscribing = true;
         this.dom.micIcon.textContent = '⏳';
-        this.dom.micLabel.textContent = '识别中…';
-        this.dom.recText.textContent = '🪄 正在把你的声音变成文字…';
+        this.dom.micLabel.textContent = '极速识别…';
+        this.dom.recText.textContent = '⚡ 正在极速识别语音…';
         this._syncButtons();
 
         let recognized = '';
         try {
             const res = await fetch('/api/mailbox/transcribe', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ audioBase64 })
+                headers: { 'Content-Type': rawBlob.type || 'audio/webm' },
+                body: rawBlob
             });
             if (res.ok) {
                 const data = await res.json();

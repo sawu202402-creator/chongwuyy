@@ -716,10 +716,27 @@ assert.equal(starUpPull.prize.starLevel, 2);
 console.log('   ✅ Unified UserProfileManager, Daily Fixed Quests, 74-Item Blindbox Museum, Live Question Counter & 12 Pet Voices verified!');
 
 console.log('6. Verifying Magic Mailbox Voice Dialog, Neural MP3 Clips & Cloudflare Worker Config...');
-const { WELCOME_LETTER, INSTANT_REPLY_CLIPS, matchInstantReply } = await import('../shared/aiReplies/letters.js');
+const { WELCOME_LETTER, INSTANT_REPLY_CLIPS, MAGICIAN_LETTERS, matchInstantReply } = await import('../shared/aiReplies/letters.js');
 const audioDir = path.join(ROOT, 'shared', 'aiReplies', 'audio');
 assert.ok(fs.existsSync(path.join(audioDir, WELCOME_LETTER.audioFile)), 'Welcome MP3 must exist');
 assert.ok(fs.statSync(path.join(audioDir, WELCOME_LETTER.audioFile)).size > 50000, 'Welcome MP3 must be valid neural audio');
+assert.ok(MAGICIAN_LETTERS.some(l => l.id === 'reply_20261117_hint_fix' && fs.existsSync(path.join(audioDir, l.audioFile))), 'Xiaowandou hint-fix voice reply must exist');
+
+// Verify across 240 generated math questions that visualTip NEVER reveals "= <answer>" directly!
+const { MathEngine: HintCheckMath } = await import('../shared/mathEngine.js');
+const hintMe = new HintCheckMath();
+hintMe.setDifficulty({ range: 100, operations: ['add', 'sub', 'mul', 'div'], maxMultiplier: 9 });
+for (const m of ['word', 'data', 'compare', 'bond_pop', 'operator_detective', 'sequence_train', 'clock_money', 'pyramid_grid']) {
+    hintMe.setSubMode(m);
+    for (let i = 0; i < 30; i++) {
+        const q = hintMe.nextQuestion();
+        const tip = String(q.visualTip || '');
+        if (m !== 'bond_pop') {
+            assert.ok(!tip.includes(`= ${q.answer}`), `visualTip leaked answer in ${m}: "${tip}" (ans=${q.answer})`);
+        }
+        assert.ok(!tip.includes('配对答案') && !tip.includes('唯一正确的符号是') && !tip.includes('完整车厢：'), `visualTip leaked answer phrase in ${m}: "${tip}"`);
+    }
+}
 
 for (const [key, clip] of Object.entries(INSTANT_REPLY_CLIPS)) {
     const mp3Path = path.join(audioDir, clip.audioFile);

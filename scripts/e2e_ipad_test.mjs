@@ -53,24 +53,32 @@ function startStaticServer() {
                 });
                 return;
             }
+            if (urlPath === '/api/mailbox/transcribe') {
+                const rawChunks = [];
+                req.on('data', chunk => rawChunks.push(chunk));
+                req.on('end', () => {
+                    const ctype = String(req.headers['content-type'] || '').toLowerCase();
+                    let buf = Buffer.concat(rawChunks);
+                    if (ctype.includes('application/json')) {
+                        const parsed = JSON.parse(buf.toString('utf8') || '{}');
+                        buf = Buffer.from(String(parsed.audioBase64 || ''), 'base64');
+                    }
+                    const hasAudio = buf.length > 100;
+                    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                    res.end(JSON.stringify({
+                        ok: hasAudio,
+                        audioBytes: buf.length,
+                        text: hasAudio ? '我想在植物大战僵尸里加一个彩虹豌豆射手！' : '',
+                        model: '@cf/openai/whisper-large-v3-turbo'
+                    }));
+                });
+                return;
+            }
             if (urlPath.startsWith('/api/mailbox')) {
                 let bodyRaw = '';
                 req.on('data', chunk => { bodyRaw += chunk.toString(); });
                 req.on('end', () => {
                     const body = bodyRaw ? JSON.parse(bodyRaw) : {};
-                    if (req.method === 'POST' && urlPath === '/api/mailbox/transcribe') {
-                        const b64 = String(body.audioBase64 || '');
-                        const buf = Buffer.from(b64, 'base64');
-                        const hasAudio = buf.length > 100;
-                        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-                        res.end(JSON.stringify({
-                            ok: hasAudio,
-                            audioBytes: buf.length,
-                            text: hasAudio ? '我想在植物大战僵尸里加一个彩虹豌豆射手！' : '',
-                            model: '@cf/openai/whisper-large-v3-turbo'
-                        }));
-                        return;
-                    }
                     if (req.method === 'POST' && urlPath === '/api/mailbox/wish') {
                         const liveReply = `哈哈${body.kidName || '小宝贝'}！你说的「${body.text}」太有趣啦！我已经拿水晶球记在许愿本上，还会陪你一起探索哟！✨`;
                         const saved = {
@@ -1266,7 +1274,7 @@ async function main() {
     assert.equal(magicRes.cloudWishCount, 2);
     assert.equal(magicRes.hasBanner, true, 'New Magician reply must display top notification banner');
     assert.equal(magicRes.badgeVisible, true, 'New Magician reply must light up unread badge');
-    assert.equal(magicRes.specialBubbles, 1, 'Magician fulfilled reply must render golden special bubble');
+    assert.ok(magicRes.specialBubbles >= 2, 'Magician fulfilled replies (static + dynamic) must render golden special bubbles');
     assert.equal(magicRes.aiLiveBadges, 2, 'Workers AI live chat replies must render 🧠 魔法师实时陪聊 badges');
     assert.equal(magicRes.kidBubbles, 2, 'Both kids bubbles must render in timeline');
     assert.equal(magicRes.roboticCallsInMailbox, 0, 'Dynamic AI replies must play Neural MP3 audio, NEVER robotic speechSynthesis!');

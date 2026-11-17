@@ -782,10 +782,11 @@ export function renderEnglishQuizWidget(containerEl, q, hooks = {}) {
                 </button>
             `).join('');
 
-            const guideHtml = w.phonics
+            const firstChunk = q.expectedChunks?.[0] || '';
+            const guideHtml = firstChunk
                 ? (showPhonicsHint
-                    ? `<span class="qw-phonics-guide-pill" title="自然拼读提示">${EnglishEngine.renderPhonicsHtml(w.phonics)}</span>`
-                    : `<button type="button" class="qw-mini-btn tip" data-ph-hint="1">💡 拼读提示</button>`)
+                    ? `<span class="qw-phonics-guide-pill" title="首音节积木提示">首块积木：【${firstChunk}】…（共${q.expectedChunks.length}块）</span>`
+                    : `<button type="button" class="qw-mini-btn tip" data-ph-hint="1">💡 首块提示</button>`)
                 : '';
 
             containerEl.innerHTML = `
@@ -1298,7 +1299,7 @@ function renderCourseSpecialQuestion(containerEl, q, ctx) {
                         <div class="qw-en-top">
                             <span class="qw-course-tag">${q.hint}</span>
                             <div style="display:flex;gap:4px;">
-                                <button type="button" class="qw-mini-btn hint-letter" data-dact="hint" ${locked || pickedTiles.length >= q.chars.length ? 'disabled' : ''}>💡 提示1字母</button>
+                                <button type="button" class="qw-mini-btn hint-letter" data-dact="hint" ${locked || pickedTiles.length >= Math.max(1, q.chars.length - 1) ? 'disabled' : ''} title="最多提示前几个字母，最后一个字母留给你自己拼出来哦！">💡 提示1字母</button>
                                 <button type="button" class="qw-mini-btn" data-dact="back" ${pickedTiles.length === 0 || locked ? 'disabled' : ''}>⌫ 退格</button>
                             </div>
                         </div>
@@ -1325,7 +1326,7 @@ function renderCourseSpecialQuestion(containerEl, q, ctx) {
                 speak(q.wordOnlySpeak || q.speakText, true, q.phonicsHint || '');
             });
             containerEl.querySelector('[data-dact="hint"]')?.addEventListener('click', () => {
-                if (locked || pickedTiles.length >= q.chars.length) return;
+                if (locked || pickedTiles.length >= Math.max(1, q.chars.length - 1)) return;
                 onTap();
                 // 若前面有填错的字母，先自动修正退回至正确前缀处
                 while (pickedTiles.length > 0 && pickedTiles[pickedTiles.length - 1].char.toLowerCase() !== q.chars[pickedTiles.length - 1]) {
@@ -1522,7 +1523,7 @@ function renderCourseSpecialQuestion(containerEl, q, ctx) {
                 <div class="qw-en-card compact qw-course-card">
                     <div class="qw-en-top">
                         <span class="qw-course-tag">${q.hint}</span>
-                        <button type="button" class="qw-mini-btn" data-cspeak="ans">💡 听答句提示</button>
+                        <button type="button" class="qw-mini-btn" data-cspeak="q">🔊 听问题</button>
                     </div>
                     <div class="qw-cloze-zh" style="font-weight:900;">Q: ${q.questionEn}</div>
                     <div class="qw-cloze-en">A: ${q.clozeSentence}</div>
@@ -1531,10 +1532,10 @@ function renderCourseSpecialQuestion(containerEl, q, ctx) {
                 <div class="qw-en-grid">${optsHtml}</div>
             </div>
         `;
-        containerEl.querySelector('[data-cspeak="ans"]')?.addEventListener('click', (e) => {
+        containerEl.querySelector('[data-cspeak="q"]')?.addEventListener('click', (e) => {
             e.stopPropagation();
             onTap();
-            speak(q.answerEn, false, '');
+            speak(q.questionEn, false, '');
         });
         if (autoSpeak) speak(q.questionEn, false, '');
 

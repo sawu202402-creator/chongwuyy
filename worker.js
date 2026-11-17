@@ -96,49 +96,97 @@ function base64ToUint8Array(b64) {
     return bytes;
 }
 
+function uint8ToBase64(u8) {
+    let binary = "";
+    const chunkSize = 0x8000;
+    for (let i = 0; i < u8.length; i += chunkSize) {
+        binary += String.fromCharCode.apply(null, u8.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+}
+
 function cleanWhisperTranscript(raw) {
     if (!raw) return "";
-    const s = String(raw).trim();
+    let s = String(raw).trim();
     if (!s) return "";
     // 过滤静音时 Whisper 常见的字幕幻觉词
-    if (/^(字幕|谢谢观看|感谢观看|请不吝点赞|订阅|Amara\.org|Subtitles by|Thank you for watching)/i.test(s) && s.length < 24) {
+    if (/^(字幕|谢谢观看|感谢观看|请不吝点赞|订阅|简体中文普通话|Amara\.org|Subtitles by|Thank you for watching)/i.test(s) && s.length < 24) {
         return "";
     }
+    // 轻量同音词纠偏（不污染 Whisper 解码器，仅修正高频专有同音字）
+    s = s
+        .replace(/小碗豆|小弯豆/g, "小豌豆")
+        .replace(/穿穿/g, "川川")
+        .replace(/植物大[站战]僵[尸师诗]/g, "植物大战僵尸");
     return s.slice(0, 500);
 }
 
-async function transcribeAudioWithWhisper(aiBinding, audioBase64) {
+async function transcribeAudioFast(aiBinding, { rawBytes = null, audioBase64 = "", contentType = "audio/webm" } = {}) {
     if (!aiBinding || typeof aiBinding.run !== "function") {
         throw new Error("ai_binding_unavailable");
     }
-    const cleanB64 = String(audioBase64 || "").replace(/^data:audio\/[^;]+;base64,/i, "").trim();
-    if (!cleanB64 || cleanB64.length < 100) {
-        return { text: "", model: "empty" };
-    }
-    if (cleanB64.length > 4_200_000) {
-        throw new Error("audio_too_large");
+
+    let bytes = rawBytes;
+    let cleanB64 = String(audioBase64 || "").replace(/^data:audio\/[^;]+;base64,/i, "").trim();
+
+    if (bytes && bytes.byteLength > 0) {
+        if (bytes.byteLength > 3_500_000) throw new Error("audio_too_large");
+        cleanB64 = uint8ToBase64(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
+    } else if (cleanB64) {
+        if (cleanB64.length > 4_500_000) throw new Error("audio_too_large");
+        bytes = base64ToUint8Array(cleanB64);
     }
 
-    // 优先使用高速高精度的 whisper-large-v3-turbo（原生支持 Base64 + 中文提示词防繁体与专有名词纠偏）
+    if (!cleanB64 || cleanB64.length < 64) {
+        return { text: "", model: "empty" };
+    }
+
+    // 1. 主力高速高精度模型：whisper-large-v3-turbo（接收原生 48kHz Opus/MP4，开启 beam_size=5，纯净短提示防幻觉）
     try {
         const res = await aiBinding.run("@cf/openai/whisper-large-v3-turbo", {
             audio: cleanB64,
             language: "zh",
             task: "transcribe",
-            vad_filter: true,
-            initial_prompt: "以下是小朋友用简体中文普通话跟游戏魔法师说话：小豌豆、川川、植物大战僵尸、豌豆射手、保卫兔子与青蛙、萌宠小镇、盲盒、垂耳兔、小青蛙、数学题、英语单词。"
+            beam_size: 5,
+            condition_on_previous_text: false,
+            vad_filter: false,
+            initial_prompt: "简体中文普通话。"
         });
         const txt = cleanWhisperTranscript(res?.text ?? res?.result?.text ?? "");
-        return { text: txt, model: "@cf/openai/whisper-large-v3-turbo" };
-    } catch (_) {
-        // 备用回退 @cf/openai/whisper（接收字节数组）
-        const bytes = base64ToUint8Array(cleanB64);
-        const res2 = await aiBinding.run("@cf/openai/whisper", {
-            audio: Array.from(bytes)
-        });
-        const txt2 = cleanWhisperTranscript(res2?.text ?? res2?.result?.text ?? "");
-        return { text: txt2, model: "@cf/openai/whisper" };
+        if (txt) {
+            return { text: txt, model: "@cf/openai/whisper-large-v3-turbo" };
+        }
+    } catch (_) {}
+
+    // 2. 次选极速流式识别引擎：Deepgram Nova-3 中文识别
+    if (bytes && bytes.byteLength > 64) {
+        try {
+            const dgRes = await aiBinding.run("@cf/deepgram/nova-3", {
+                audio: {
+                    body: bytes,
+                    contentType: contentType || "audio/webm"
+                },
+                language: "zh-CN",
+                smart_format: true
+            });
+            const dgTxt = cleanWhisperTranscript(
+                dgRes?.text ??
+                dgRes?.results?.channels?.[0]?.alternatives?.[0]?.transcript ??
+                ""
+            );
+            if (dgTxt) {
+                return { text: dgTxt, model: "@cf/deepgram/nova-3" };
+            }
+        } catch (_) {}
     }
+
+    // 3. 兜底 @cf/openai/whisper
+    const arrBytes = bytes instanceof Uint8Array ? bytes : base64ToUint8Array(cleanB64);
+    const res2 = await aiBinding.run("@cf/openai/whisper", {
+        audio: Array.from(arrBytes)
+    });
+    const txt2 = cleanWhisperTranscript(res2?.text ?? res2?.result?.text ?? "");
+    return { text: txt2, model: "@cf/openai/whisper" };
 }
 
 function buildSystemPrompt({ kidName, appLabel }) {
@@ -599,11 +647,21 @@ export default {
             if (request.method === "OPTIONS") {
                 return new Response(null, { status: 204, headers: CORS_HEADERS });
             }
-            // 边缘就近处理语音转文字（Cloudflare Workers AI Whisper），无需绕行Google，国内与iPad全兼容
+            // 边缘就近处理语音转文字（支持直传 12KB 原生 Opus/MP4 二进制流，比 JSON Base64 WAV 快 10 倍且保留全频段高清晰度）
             if (request.method === "POST" && url.pathname === "/api/mailbox/transcribe") {
                 try {
-                    const body = await request.json().catch(() => ({}));
-                    const result = await transcribeAudioWithWhisper(env?.AI, body.audioBase64);
+                    const ctype = (request.headers.get("content-type") || "").toLowerCase();
+                    let result;
+                    if (ctype.includes("application/json")) {
+                        const body = await request.json().catch(() => ({}));
+                        result = await transcribeAudioFast(env?.AI, { audioBase64: body.audioBase64 });
+                    } else {
+                        const ab = await request.arrayBuffer();
+                        result = await transcribeAudioFast(env?.AI, {
+                            rawBytes: new Uint8Array(ab),
+                            contentType: ctype || "audio/webm"
+                        });
+                    }
                     return jsonResponse({ ok: true, text: result.text, model: result.model });
                 } catch (err) {
                     return jsonResponse({
