@@ -19,8 +19,15 @@ import {
     DEFAULT_DAILY_TIME_LIMIT_MIN,
     DAILY_TIME_LIMIT_OPTIONS,
     sanitizeDailyTimeLimitMin,
-    formatTimeLimitOptionLabel
+    formatTimeLimitOptionLabel,
+    sanitizeChineseEnabledTypes,
+    sanitizeChineseGrade
 } from '../../shared/unifiedProfile.js';
+import {
+    CHINESE_GRADES,
+    CHINESE_QUESTION_TYPES,
+    DEFAULT_CHINESE_TYPES
+} from '../../shared/chineseEngine.js';
 import { requireParentGate } from '../../shared/parentGate.js';
 import { magicMailbox } from '../../shared/magicMailbox.js';
 import { screenTimeGuard } from '../../shared/screenTimeGuard.js';
@@ -1313,6 +1320,9 @@ class GameApp {
             : [...ALL_ENGLISH_TYPE_IDS];
         this.selectedDailyBadgeCap = (targetUser && targetUser.dailyBadgeCap) || DEFAULT_DAILY_BADGE_CAP;
         this.selectedDailyTimeLimit = sanitizeDailyTimeLimitMin(targetUser ? targetUser.dailyTimeLimitMin : DEFAULT_DAILY_TIME_LIMIT_MIN);
+        const defaultCnG = (targetUser && (targetUser.id === 'child_chuan' || /川/.test(targetUser.name || ''))) ? 'grade1_1' : 'grade2_1';
+        this.selectedCnGrade = sanitizeChineseGrade(targetUser?.chineseConfig?.grade || defaultCnG);
+        this.selectedCnTypes = sanitizeChineseEnabledTypes(targetUser?.chineseConfig?.enabledTypes);
 
         const pvzEnTypesBox = document.getElementById('pvzEnTypesBox');
         const drawPvzEnTypes = () => {
@@ -1389,6 +1399,34 @@ class GameApp {
                 this.dom.pvzDailyTimeGrid.appendChild(pill);
             });
         }
+
+        const pvzCnGradeGrid = document.getElementById('pvzCnGradeGrid');
+        if (pvzCnGradeGrid) {
+            pvzCnGradeGrid.innerHTML = '';
+            CHINESE_GRADES.forEach(g => {
+                const pill = document.createElement('button');
+                pill.type = 'button';
+                pill.className = `range-pill range-pill-btn ${g.id === this.selectedCnGrade ? 'selected' : ''}`;
+                pill.innerText = g.fullName;
+                pill.addEventListener('click', () => {
+                    this.selectedCnGrade = g.id;
+                    pvzCnGradeGrid.querySelectorAll('.range-pill, .range-pill-btn').forEach(p => p.classList.remove('selected'));
+                    pill.classList.add('selected');
+                });
+                pvzCnGradeGrid.appendChild(pill);
+            });
+        }
+
+        const pvzCnTypesBox = document.getElementById('pvzCnTypesBox');
+        if (pvzCnTypesBox) {
+            renderEnabledTypesSelector(
+                pvzCnTypesBox,
+                CHINESE_QUESTION_TYPES,
+                this.selectedCnTypes,
+                (nextIds) => { this.selectedCnTypes = nextIds; },
+                ['cn_word_fill', 'cn_sentence_fill', 'cn_pinyin_tone', 'cn_confusable', 'cn_poem_match']
+            );
+        }
     }
 
     saveUserProfileSettings() {
@@ -1429,16 +1467,24 @@ class GameApp {
         };
         const dailyBadgeCap = this.selectedDailyBadgeCap || DEFAULT_DAILY_BADGE_CAP;
         const dailyTimeLimitMin = sanitizeDailyTimeLimitMin(this.selectedDailyTimeLimit);
+        const prevCc = (this.editingKidId && this.editingKidId !== 'NEW')
+            ? (profileManager.getUser(this.editingKidId)?.chineseConfig || {})
+            : {};
+        const chineseConfig = {
+            ...prevCc,
+            grade: sanitizeChineseGrade(this.selectedCnGrade),
+            enabledTypes: sanitizeChineseEnabledTypes(this.selectedCnTypes)
+        };
 
         if (this.editingKidId === 'NEW') {
-            const created = profileManager.addUser({ name, avatar, dailyTimeLimitMin, difficulty, englishConfig });
+            const created = profileManager.addUser({ name, avatar, dailyTimeLimitMin, difficulty, englishConfig, chineseConfig });
             if (profileManager.updateUserSettings) {
-                profileManager.updateUserSettings(created.id, { dailyBadgeCap, dailyTimeLimitMin });
+                profileManager.updateUserSettings(created.id, { dailyBadgeCap, dailyTimeLimitMin, chineseConfig });
             }
         } else if (profileManager.updateUserSettings) {
-            profileManager.updateUserSettings(this.editingKidId, { name, avatar, dailyBadgeCap, dailyTimeLimitMin, difficulty, englishConfig });
+            profileManager.updateUserSettings(this.editingKidId, { name, avatar, dailyBadgeCap, dailyTimeLimitMin, difficulty, englishConfig, chineseConfig });
         } else {
-            profileManager.updateUser(this.editingKidId, { name, avatar, difficulty, englishConfig });
+            profileManager.updateUser(this.editingKidId, { name, avatar, difficulty, englishConfig, chineseConfig });
         }
 
         this.updateProfileUI();

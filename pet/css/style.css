@@ -1816,17 +1816,17 @@ button:active {
 
 .subject-main-tabs {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     background: rgba(0, 0, 0, 0.26);
     padding: 3px;
     border-radius: 13px;
-    gap: 3px;
+    gap: 2px;
 }
 
 .subj-tab {
-    padding: 7px 2px;
+    padding: 7px 1px;
     border-radius: 10px;
-    font-size: 11.5px;
+    font-size: 11px;
     font-weight: 900;
     color: #cbbef5;
     background: transparent;
@@ -2498,6 +2498,7 @@ button:active {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
     background: rgba(0, 0, 0, 0.24);
     padding: 6px 12px;
     border-radius: 12px;
@@ -2507,9 +2508,18 @@ button:active {
     cursor: pointer;
 }
 
+#footerDiffSummary {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .footer-gear-link {
     color: #ffd166;
     font-weight: 800;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 /* ==================== 模态大弹窗通用样式 ==================== */

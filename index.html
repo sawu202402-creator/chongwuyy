@@ -16,9 +16,9 @@
     <meta name="theme-color" content="#7c5cfc">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/hub.css?v=20261117_tts_v8">
-    <link rel="stylesheet" href="shared/smartChalkboard.css?v=20261117_tts_v8">
-    <link rel="stylesheet" href="shared/magicMailbox.css?v=20261117_tts_v8">
+    <link rel="stylesheet" href="css/hub.css?v=20261122_chinese_v9">
+    <link rel="stylesheet" href="shared/smartChalkboard.css?v=20261122_chinese_v9">
+    <link rel="stylesheet" href="shared/magicMailbox.css?v=20261122_chinese_v9">
 </head>
 <body>
     <div class="hub-app" id="hubApp">
@@ -71,6 +71,7 @@
                     <div class="banner-kid-title">
                         <span id="bannerKidName">🐰 小豌豆</span>
                         <span class="banner-diff-pill" id="bannerMathSummary">🎯 数学：20以内加减乘</span>
+                        <span class="banner-diff-pill" id="bannerCnSummary">📖 语文：🌿二上·8题型</span>
                         <span class="banner-diff-pill" id="bannerEnSummary">🔤 英语：看图识词</span>
                         <button type="button" class="banner-diff-pill banner-time-pill" id="bannerTimeSummary" title="点击经家长验证后设置每日游玩时长（默认30分钟）">⏱️ 剩余 30分/30分</button>
                     </div>
@@ -285,7 +286,13 @@
             </div>
 
             <div class="hub-form-section">
-                <div class="hub-sec-label">5. 🔒 家长防偷改守护锁（小朋友切账号免密，改难度/上限需验证）：</div>
+                <div class="hub-sec-label">5. 📖 统编版小学语文（一年级上册 & 二年级上册 · 共 8 种题型 · 含无选项词语填空与课文古诗默写）：</div>
+                <div class="hub-pill-row" id="hubCnGradeRow" style="margin-bottom:8px;"></div>
+                <div id="hubCnTypesBox"></div>
+            </div>
+
+            <div class="hub-form-section">
+                <div class="hub-sec-label">6. 🔒 家长防偷改守护锁（小朋友切账号免密，改难度/上限需验证）：</div>
                 <div class="hub-pill-row">
                     <button type="button" class="hub-opt-pill" id="btnToggleParentLock">🔒 守护锁：已开启</button>
                     <span style="font-size:12.5px;font-weight:800;color:#636e72;">可选4位PIN码(留空则用乘加口算题)：</span>
@@ -407,11 +414,11 @@
         </div>
     </div>
 
-    <script type="module" src="js/hub.js?v=20261117_tts_v8"></script>
+    <script type="module" src="js/hub.js?v=20261122_chinese_v9"></script>
     <script>
         if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=20261117_tts_v8').catch(() => {});
+                navigator.serviceWorker.register('./sw.js?v=20261122_chinese_v9').catch(() => {});
             });
         }
     </script>

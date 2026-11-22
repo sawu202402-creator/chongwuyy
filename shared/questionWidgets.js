@@ -7,6 +7,7 @@
  */
 import { sharedSpeech } from './audioTTS.js';
 import { EnglishEngine } from './englishEngine.js';
+import { normalizeChineseInput } from './chineseEngine.js';
 
 /**
  * 绘制清晰的 SVG 指针式圆盘钟表（含 1~12 刻度数字、分针格线、时针与分针）
@@ -1837,4 +1838,743 @@ export function renderCourseReadAloudBoard(containerEl, lesson, hooks = {}) {
     };
 
     draw();
+}
+
+function ensureChineseWidgetStyles() {
+    if (typeof document === 'undefined' || document.getElementById('cwyyChineseWidgetStyles')) return;
+    const style = document.createElement('style');
+    style.id = 'cwyyChineseWidgetStyles';
+    style.textContent = `
+        .qw-cn-card {
+            border-radius: 14px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            text-align: center;
+            background: rgba(255, 255, 255, 0.10);
+            border: 1.5px solid rgba(255, 255, 255, 0.2);
+        }
+        .qw-theme-light .qw-cn-card {
+            background: linear-gradient(180deg, #fffdf9 0%, #fff7ed 100%);
+            border: 2px solid #fed7aa;
+            color: #2d3436;
+        }
+        .qw-cn-meta-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+        }
+        .qw-cn-pinyin-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 10px;
+            border-radius: 999px;
+            background: rgba(251, 191, 36, 0.22);
+            border: 1.5px solid #fbbf24;
+            color: #fde68a;
+            font-size: 13px;
+            font-weight: 900;
+            letter-spacing: 0.5px;
+        }
+        .qw-theme-light .qw-cn-pinyin-pill {
+            background: #fef3c7;
+            color: #b45309;
+            border-color: #f59e0b;
+        }
+        .qw-cn-src-pill {
+            display: inline-flex;
+            padding: 2px 9px;
+            border-radius: 999px;
+            background: rgba(167, 139, 250, 0.24);
+            border: 1.5px solid rgba(196, 181, 253, 0.6);
+            color: #ede9fe;
+            font-size: 11.5px;
+            font-weight: 800;
+        }
+        .qw-theme-light .qw-cn-src-pill {
+            background: #ede9fe;
+            color: #5b21b6;
+            border-color: #c4b5fd;
+        }
+        .qw-cn-prompt-big {
+            font-size: 21px;
+            font-weight: 900;
+            line-height: 1.45;
+            letter-spacing: 1px;
+            margin: 4px 0;
+        }
+        .qw-cn-prompt-sentence {
+            font-size: 16.5px;
+            font-weight: 900;
+            line-height: 1.5;
+            margin: 4px 0;
+        }
+        .qw-cn-blank-slot {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 34px;
+            height: 32px;
+            padding: 0 6px;
+            margin: 0 2px;
+            border-radius: 8px;
+            border: 2px dashed #fbbf24;
+            background: rgba(251, 191, 36, 0.16);
+            color: #fde047;
+            font-weight: 900;
+            vertical-align: middle;
+        }
+        .qw-theme-light .qw-cn-blank-slot {
+            background: #fffbeb;
+            border-color: #f59e0b;
+            color: #d97706;
+        }
+        .qw-cn-blank-slot.filled-ok {
+            border-style: solid;
+            border-color: #10b981;
+            background: #10b981;
+            color: #ffffff;
+        }
+        .qw-cn-blank-slot.filled-err {
+            border-style: solid;
+            border-color: #ef4444;
+            background: #ef4444;
+            color: #ffffff;
+        }
+        .qw-cn-highlight {
+            display: inline-block;
+            padding: 0 5px;
+            margin: 0 2px;
+            border-radius: 7px;
+            background: rgba(244, 63, 94, 0.28);
+            border-bottom: 3px solid #fb7185;
+            color: #ffe4e6;
+            font-weight: 900;
+        }
+        .qw-theme-light .qw-cn-highlight {
+            background: #ffe4e6;
+            color: #be123c;
+            border-bottom-color: #f43f5e;
+        }
+        .qw-cn-meaning {
+            font-size: 12px;
+            font-weight: 700;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+        .qw-cn-free-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .qw-cn-free-input {
+            flex: 1;
+            min-width: 0;
+            height: 40px;
+            border-radius: 12px;
+            border: 2.5px solid #fbbf24;
+            background: #ffffff;
+            color: #1e293b;
+            font-size: 17px;
+            font-weight: 900;
+            padding: 0 12px;
+            text-align: center;
+            outline: none;
+            font-family: inherit;
+        }
+        .qw-cn-free-input:focus {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25);
+        }
+        .qw-cn-mic-btn {
+            height: 40px;
+            padding: 0 10px;
+            border-radius: 12px;
+            border: 2px solid #c084fc;
+            background: linear-gradient(135deg, #f3e8ff 0%, #fae8ff 100%);
+            color: #6b21a8;
+            font-size: 12.5px;
+            font-weight: 900;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .qw-cn-mic-btn.recording {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            border-color: #fca5a5;
+            color: #ffffff;
+        }
+        .qw-cn-submit-btn {
+            height: 40px;
+            padding: 0 15px;
+            border-radius: 12px;
+            border: none;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 900;
+            cursor: pointer;
+            box-shadow: 0 3px 0 #047857;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .qw-cn-submit-btn:active {
+            transform: translateY(1px);
+        }
+        .qw-cn-reveal-bar {
+            margin-top: 6px;
+            padding: 6px 10px;
+            border-radius: 10px;
+            font-size: 12.5px;
+            font-weight: 900;
+            text-align: center;
+            display: none;
+        }
+        .qw-cn-reveal-bar.ok {
+            display: block;
+            background: rgba(16, 185, 129, 0.22);
+            border: 1.5px solid #34d399;
+            color: #a7f3d0;
+        }
+        .qw-theme-light .qw-cn-reveal-bar.ok {
+            background: #ecfdf5;
+            color: #047857;
+            border-color: #6ee7b7;
+        }
+        .qw-cn-reveal-bar.err {
+            display: block;
+            background: rgba(239, 68, 68, 0.22);
+            border: 1.5px solid #fca5a5;
+            color: #fecaca;
+        }
+        .qw-theme-light .qw-cn-reveal-bar.err {
+            background: #fef2f2;
+            color: #b91c1c;
+            border-color: #fca5a5;
+        }
+        .qw-cn-pair-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .qw-cn-pair-col {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .qw-cn-bubble {
+            padding: 8px 10px;
+            border-radius: 12px;
+            border: 2px solid rgba(255, 255, 255, 0.28);
+            background: rgba(255, 255, 255, 0.13);
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 900;
+            cursor: pointer;
+            transition: all 0.14s ease;
+        }
+        .qw-theme-light .qw-cn-bubble {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            color: #1e293b;
+            box-shadow: 0 2px 0 #e2e8f0;
+        }
+        .qw-cn-bubble.selected {
+            border-color: #fbbf24;
+            background: rgba(251, 191, 36, 0.32);
+            transform: scale(1.02);
+        }
+        .qw-theme-light .qw-cn-bubble.selected {
+            background: #fef3c7;
+            border-color: #f59e0b;
+            color: #92400e;
+        }
+        .qw-cn-bubble.matched {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.35);
+            opacity: 0.45;
+            pointer-events: none;
+        }
+        .qw-cn-bubble.wrong {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.35);
+        }
+        .qw-cn-train-slots {
+            min-height: 40px;
+            padding: 7px 10px;
+            border-radius: 12px;
+            border: 2px dashed rgba(251, 191, 36, 0.65);
+            background: rgba(0, 0, 0, 0.18);
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+        .qw-theme-light .qw-cn-train-slots {
+            background: #fffbeb;
+            border-color: #f59e0b;
+        }
+        .qw-cn-tile-pool {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 6px;
+        }
+        .qw-cn-tile {
+            padding: 6px 11px;
+            border-radius: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.16);
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+        .qw-theme-light .qw-cn-tile {
+            background: #ffffff;
+            border-color: #c4b5fd;
+            color: #3b0764;
+            box-shadow: 0 2px 0 #ddd6fe;
+        }
+        .qw-cn-tile.used {
+            opacity: 0.32;
+            pointer-events: none;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+/**
+ * 渲染统编版小学语文 8 大题型通用组件（含小豌豆点名的无选项词语填空 & 无选项佳句默写）
+ */
+export function renderChineseQuizWidget(containerEl, q, hooks = {}) {
+    if (!containerEl || !q) return;
+    ensureChineseWidgetStyles();
+
+    const onEvaluate = typeof hooks.onEvaluate === 'function' ? hooks.onEvaluate : () => {};
+    const onTap = typeof hooks.onTapSound === 'function' ? hooks.onTapSound : () => {};
+    const speakZh = typeof hooks.speakChineseFn === 'function'
+        ? hooks.speakChineseFn
+        : (txt) => sharedSpeech.speakChinese(txt);
+    const themeClass = hooks.theme === 'light' ? 'qw-theme-light' : 'qw-theme-dark';
+    const badgeTitle = hooks.badgeTitle || '📖 趣味语文闯关';
+
+    let locked = false;
+    let showTip = false;
+
+    const topToolsHtml = `
+        <div class="qw-top-tools">
+            <span class="qw-mode-tag">${badgeTitle}</span>
+            <div class="qw-tool-btns">
+                <button type="button" class="qw-mini-btn" data-cn-read="1">🔊 读题</button>
+                <button type="button" class="qw-mini-btn tip" data-cn-tip="1">💡 提示</button>
+            </div>
+        </div>
+    `;
+    const tipDrawerHtml = `
+        <div class="qw-tip-drawer" data-cn-tipbox="1" style="display:none;">💡 ${q.visualTip || ''}</div>
+    `;
+
+    const bindTopTools = () => {
+        const readBtn = containerEl.querySelector('[data-cn-read]');
+        const tipBtn = containerEl.querySelector('[data-cn-tip]');
+        const tipBox = containerEl.querySelector('[data-cn-tipbox]');
+        if (readBtn) {
+            readBtn.onclick = (e) => {
+                e.stopPropagation();
+                onTap();
+                // 填空题读题时绝不读出答案，只读提示语！
+                speakZh(q.promptReadText || q.readText || '');
+            };
+        }
+        if (tipBtn && tipBox) {
+            tipBtn.onclick = (e) => {
+                e.stopPropagation();
+                onTap();
+                showTip = !showTip;
+                tipBox.style.display = showTip ? 'block' : 'none';
+            };
+        }
+    };
+
+    // ==================== 1 & 2. 无选项自主输入：词语填空 / 课文古诗佳句默写 ====================
+    if (q.mode === 'cn_word_fill' || q.mode === 'cn_sentence_fill') {
+        const isSentence = q.mode === 'cn_sentence_fill';
+        const formattedPrompt = String(q.promptText || '').replace(/（\s*）/g, '<span class="qw-cn-blank-slot" data-cn-slot="1">？</span>');
+        const canCloudVoice = typeof window !== 'undefined' &&
+            (window.location.protocol === 'https:' || window.__ENABLE_LOCAL_MAILBOX_API === true) &&
+            typeof MediaRecorder !== 'undefined' &&
+            navigator?.mediaDevices?.getUserMedia;
+
+        containerEl.innerHTML = `
+            <div class="qw-stage-wrap ${themeClass}">
+                ${topToolsHtml}
+                <div class="qw-cn-card">
+                    <div class="qw-cn-meta-row">
+                        ${q.sourceTitle ? `<span class="qw-cn-src-pill">${q.sourceTitle}</span>` : `<span class="qw-cn-src-pill">✍️ 无选项自主填空</span>`}
+                        ${q.pinyinHint ? `<span class="qw-cn-pinyin-pill">📌 拼音：[ ${q.pinyinHint} ]</span>` : ''}
+                    </div>
+                    <div class="${isSentence ? 'qw-cn-prompt-sentence' : 'qw-cn-prompt-big'}">${formattedPrompt}</div>
+                    ${q.meaningHint ? `<div class="qw-cn-meaning">📖 词义：${q.meaningHint}</div>` : ''}
+                </div>
+                <div class="qw-cn-free-row">
+                    <input
+                        type="text"
+                        class="qw-cn-free-input"
+                        data-cn-input="1"
+                        maxlength="16"
+                        placeholder="无选项！自己手写或拼音填字…"
+                        autocomplete="off"
+                        autocorrect="off"
+                        spellcheck="false"
+                    />
+                    ${canCloudVoice ? `<button type="button" class="qw-cn-mic-btn" data-cn-mic="1" title="点击说出要填的汉字">🎙️ 语音填</button>` : ''}
+                    <button type="button" class="qw-cn-submit-btn" data-cn-submit="1">确认 ✓</button>
+                </div>
+                <div class="qw-cn-reveal-bar" data-cn-reveal="1"></div>
+                ${tipDrawerHtml}
+            </div>
+        `;
+        bindTopTools();
+
+        const inputEl = containerEl.querySelector('[data-cn-input]');
+        const submitBtn = containerEl.querySelector('[data-cn-submit]');
+        const micBtn = containerEl.querySelector('[data-cn-mic]');
+        const revealBar = containerEl.querySelector('[data-cn-reveal]');
+
+        let composing = false;
+        inputEl.addEventListener('compositionstart', () => { composing = true; });
+        inputEl.addEventListener('compositionend', () => { composing = false; });
+
+        const submitFreeAnswer = () => {
+            if (locked) return;
+            const rawVal = inputEl.value.trim();
+            if (!rawVal) {
+                inputEl.focus();
+                return;
+            }
+            locked = true;
+            onTap();
+            const cleaned = normalizeChineseInput(rawVal);
+            const accepted = Array.isArray(q.acceptedAnswers) && q.acceptedAnswers.length > 0
+                ? q.acceptedAnswers
+                : [normalizeChineseInput(q.answer)];
+            const ok = Boolean(cleaned && accepted.includes(cleaned));
+
+            const slots = containerEl.querySelectorAll('[data-cn-slot]');
+            const ansChars = [...String(q.answer)];
+            slots.forEach((sl, idx) => {
+                sl.textContent = ansChars[idx] || q.answer;
+                sl.classList.add(ok ? 'filled-ok' : 'filled-err');
+            });
+
+            if (revealBar) {
+                if (ok) {
+                    revealBar.className = 'qw-cn-reveal-bar ok';
+                    revealBar.textContent = `🎉 填写全对！${q.fullText}`;
+                } else {
+                    revealBar.className = 'qw-cn-reveal-bar err';
+                    revealBar.textContent = `💡 正确写法是：【${q.answer}】 → ${q.fullText}`;
+                }
+            }
+            if (q.readText) {
+                speakZh(q.readText);
+            }
+            onEvaluate(ok, rawVal);
+        };
+
+        submitBtn.onclick = () => submitFreeAnswer();
+        inputEl.addEventListener('keydown', (e) => {
+            e.stopPropagation(); // 阻止冒泡触发宿主数字快捷键
+            if (e.key === 'Enter' && !composing && !e.isComposing && e.keyCode !== 229) {
+                e.preventDefault();
+                submitFreeAnswer();
+            }
+        });
+
+        // 可选语音转汉字辅助按钮
+        if (micBtn) {
+            let activeRec = null;
+            micBtn.onclick = async () => {
+                if (locked) return;
+                onTap();
+                if (activeRec && activeRec.state !== 'inactive') {
+                    activeRec.stop();
+                    return;
+                }
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        audio: { channelCount: 1, echoCancellation: false, noiseSuppression: false, autoGainControl: true }
+                    });
+                    const parts = [];
+                    const rec = new MediaRecorder(stream);
+                    activeRec = rec;
+                    micBtn.classList.add('recording');
+                    micBtn.textContent = '⏹️ 说完点我';
+                    rec.ondataavailable = (ev) => {
+                        if (ev.data && ev.data.size > 0) parts.push(ev.data);
+                    };
+                    rec.onstop = async () => {
+                        try { stream.getTracks().forEach(t => t.stop()); } catch (_) {}
+                        micBtn.classList.remove('recording');
+                        micBtn.textContent = '⏳ 识别中';
+                        try {
+                            const blob = new Blob(parts, { type: rec.mimeType || 'audio/webm' });
+                            const res = await fetch('/api/mailbox/transcribe', {
+                                method: 'POST',
+                                headers: { 'Content-Type': blob.type || 'audio/webm' },
+                                body: blob
+                            });
+                            if (res.ok) {
+                                const data = await res.json();
+                                if (data?.ok && data?.text) {
+                                    inputEl.value = normalizeChineseInput(data.text);
+                                }
+                            }
+                        } catch (_) {}
+                        micBtn.textContent = '🎙️ 语音填';
+                        activeRec = null;
+                    };
+                    rec.start();
+                } catch (_) {
+                    micBtn.textContent = '🎙️ 语音填';
+                }
+            };
+        }
+        return;
+    }
+
+    // ==================== 6. ⚖️ 量词与近反义词气泡配对消消乐 ====================
+    if (q.mode === 'cn_measure_antonym') {
+        let selectedSide = null; // 'left' | 'right'
+        let selectedBtn = null;
+        let matchedCount = 0;
+        let wrongCount = 0;
+        const totalPairs = q.pairs.length;
+
+        containerEl.innerHTML = `
+            <div class="qw-stage-wrap ${themeClass}">
+                ${topToolsHtml}
+                <div class="qw-cn-card" style="padding:7px 10px;">
+                    <div class="qw-cn-meaning" style="margin:0;font-weight:900;">🫧 ${q.subLabel}（点左再点右配对消除）</div>
+                </div>
+                <div class="qw-cn-pair-grid">
+                    <div class="qw-cn-pair-col">
+                        ${q.leftItems.map(it => `<button type="button" class="qw-cn-bubble" data-side="left" data-pid="${it.pairId}">${it.text}</button>`).join('')}
+                    </div>
+                    <div class="qw-cn-pair-col">
+                        ${q.rightItems.map(it => `<button type="button" class="qw-cn-bubble" data-side="right" data-pid="${it.pairId}">${it.text}</button>`).join('')}
+                    </div>
+                </div>
+                ${tipDrawerHtml}
+            </div>
+        `;
+        bindTopTools();
+
+        containerEl.querySelectorAll('.qw-cn-bubble').forEach(btn => {
+            btn.onclick = () => {
+                if (locked || btn.classList.contains('matched')) return;
+                onTap();
+                const side = btn.getAttribute('data-side');
+                const pid = btn.getAttribute('data-pid');
+
+                if (!selectedBtn || selectedSide === side) {
+                    containerEl.querySelectorAll('.qw-cn-bubble.selected').forEach(b => b.classList.remove('selected'));
+                    selectedSide = side;
+                    selectedBtn = btn;
+                    btn.classList.add('selected');
+                    return;
+                }
+
+                const firstPid = selectedBtn.getAttribute('data-pid');
+                const prevBtn = selectedBtn;
+                selectedBtn = null;
+                selectedSide = null;
+                prevBtn.classList.remove('selected');
+
+                if (firstPid === pid) {
+                    prevBtn.classList.add('matched');
+                    btn.classList.add('matched');
+                    matchedCount += 1;
+                    if (matchedCount >= totalPairs) {
+                        locked = true;
+                        onEvaluate(true, q.answer);
+                    }
+                } else {
+                    wrongCount += 1;
+                    prevBtn.classList.add('wrong');
+                    btn.classList.add('wrong');
+                    setTimeout(() => {
+                        prevBtn.classList.remove('wrong');
+                        btn.classList.remove('wrong');
+                    }, 420);
+                    if (wrongCount >= 2) {
+                        locked = true;
+                        onEvaluate(false, '配对失误');
+                    }
+                }
+            };
+        });
+        return;
+    }
+
+    // ==================== 7. 🚂 连词成句与标点小卫士 ====================
+    if (q.mode === 'cn_sentence_order') {
+        const pickedIndices = [];
+
+        const drawOrderStage = () => {
+            const pickedTextHtml = pickedIndices.length === 0
+                ? `<span style="opacity:0.65;font-size:12.5px;font-weight:700;">👇 按顺序点击下方词块排成通顺句子（含标点）</span>`
+                : pickedIndices.map((tilePos, orderIdx) => {
+                    const tileObj = q.shuffledTiles[tilePos];
+                    return `<button type="button" class="qw-cn-tile" data-remove-pos="${orderIdx}">${tileObj.text}</button>`;
+                }).join('');
+
+            const poolHtml = q.shuffledTiles.map((tile, pos) => {
+                const isUsed = pickedIndices.includes(pos);
+                return `<button type="button" class="qw-cn-tile ${isUsed ? 'used' : ''}" data-pick-pos="${pos}">${tile.text}</button>`;
+            }).join('');
+
+            containerEl.innerHTML = `
+                <div class="qw-stage-wrap ${themeClass}">
+                    ${topToolsHtml}
+                    <div class="qw-cn-train-slots">${pickedTextHtml}</div>
+                    <div class="qw-cn-tile-pool">${poolHtml}</div>
+                    ${pickedIndices.length > 0 ? `<div style="text-align:right;margin-top:6px;"><button type="button" class="qw-mini-btn" data-cn-reset="1">🔄 清空重排</button></div>` : ''}
+                    <div class="qw-cn-reveal-bar" data-cn-reveal="1"></div>
+                    ${tipDrawerHtml}
+                </div>
+            `;
+            bindTopTools();
+
+            containerEl.querySelectorAll('[data-pick-pos]').forEach(btn => {
+                btn.onclick = () => {
+                    if (locked) return;
+                    onTap();
+                    const pos = Number(btn.getAttribute('data-pick-pos'));
+                    if (pickedIndices.includes(pos)) return;
+                    pickedIndices.push(pos);
+                    drawOrderStage();
+
+                    if (pickedIndices.length === q.shuffledTiles.length) {
+                        locked = true;
+                        const built = pickedIndices.map(p => q.shuffledTiles[p].text).join('');
+                        const ok = built === q.answer;
+                        const rev = containerEl.querySelector('[data-cn-reveal]');
+                        if (rev) {
+                            rev.className = `qw-cn-reveal-bar ${ok ? 'ok' : 'err'}`;
+                            rev.textContent = ok ? `🎉 排句完美：${q.answer}` : `💡 正确语序：${q.answer}`;
+                        }
+                        speakZh(q.answer);
+                        onEvaluate(ok, built);
+                    }
+                };
+            });
+
+            containerEl.querySelectorAll('[data-remove-pos]').forEach(btn => {
+                btn.onclick = () => {
+                    if (locked) return;
+                    onTap();
+                    const rIdx = Number(btn.getAttribute('data-remove-pos'));
+                    pickedIndices.splice(rIdx, 1);
+                    drawOrderStage();
+                };
+            });
+
+            const resetBtn = containerEl.querySelector('[data-cn-reset]');
+            if (resetBtn) {
+                resetBtn.onclick = () => {
+                    if (locked) return;
+                    onTap();
+                    pickedIndices.length = 0;
+                    drawOrderStage();
+                };
+            }
+        };
+
+        drawOrderStage();
+        return;
+    }
+
+    // ==================== 3 / 4 / 5 / 8. 拼音辨析 / 多音字 / 形近字 / 古诗接龙 ====================
+    let cardBodyHtml = '';
+    if (q.mode === 'cn_pinyin_tone' || q.mode === 'cn_polyphone') {
+        const highlighted = String(q.promptText || '').replace(/【([^】]+)】/g, '<span class="qw-cn-highlight">$1</span>');
+        const subCaption = q.mode === 'cn_polyphone'
+            ? `请结合句子意思，选出加点字「${q.targetChar}」的正确读音：`
+            : `请选出加点字「${q.targetChar}」完全正确的拼音：`;
+        cardBodyHtml = `
+            <div class="qw-cn-card">
+                <div class="${q.mode === 'cn_polyphone' ? 'qw-cn-prompt-sentence' : 'qw-cn-prompt-big'}">${highlighted}</div>
+                <div class="qw-cn-meaning">${subCaption}</div>
+            </div>
+        `;
+    } else if (q.mode === 'cn_confusable') {
+        const highlighted = String(q.promptText || '').replace(/（\s*）/g, '<span class="qw-cn-blank-slot">？</span>');
+        cardBodyHtml = `
+            <div class="qw-cn-card">
+                <div class="qw-cn-prompt-sentence">${highlighted}</div>
+                <div class="qw-cn-meaning">火眼金睛辨一辨，括号里应该选哪个字？</div>
+            </div>
+        `;
+    } else {
+        // cn_poem_match
+        cardBodyHtml = `
+            <div class="qw-cn-card">
+                <div class="qw-cn-meta-row">
+                    <span class="qw-cn-src-pill">${q.poemTitle || '必背古诗名句'}</span>
+                </div>
+                <div class="qw-cn-prompt-sentence">${q.promptText}</div>
+                <div class="qw-cn-meaning">${q.promptLabel || '请选出配对的诗句：'}</div>
+            </div>
+        `;
+    }
+
+    const opts = q.options || [];
+    const gridColsClass = opts.length === 2 ? 'cols-2' : (opts.length === 3 ? (q.mode === 'cn_poem_match' ? 'cols-1' : 'cols-3') : 'cols-2');
+    const choicesHtml = opts.map(opt => `
+        <button type="button" class="qw-choice-btn" data-val="${String(opt).replace(/"/g, '&quot;')}" style="${q.mode === 'cn_poem_match' ? 'font-size:14.5px;padding:9px 12px;' : 'font-size:17px;'}">
+            ${opt}
+        </button>
+    `).join('');
+
+    containerEl.innerHTML = `
+        <div class="qw-stage-wrap ${themeClass}">
+            ${topToolsHtml}
+            ${cardBodyHtml}
+            <div class="qw-choice-row ${gridColsClass}" style="${q.mode === 'cn_poem_match' ? 'display:flex;flex-direction:column;gap:6px;' : ''}">
+                ${choicesHtml}
+            </div>
+            ${tipDrawerHtml}
+        </div>
+    `;
+    bindTopTools();
+
+    containerEl.querySelectorAll('.qw-choice-btn').forEach(btn => {
+        btn.onclick = () => {
+            if (locked) return;
+            locked = true;
+            onTap();
+            const val = btn.getAttribute('data-val');
+            const ok = val === q.answer;
+            btn.classList.add(ok ? 'correct' : 'wrong');
+            if (!ok) {
+                containerEl.querySelectorAll('.qw-choice-btn').forEach(b => {
+                    if (b.getAttribute('data-val') === q.answer) b.classList.add('correct');
+                });
+                const tipBox = containerEl.querySelector('[data-cn-tipbox]');
+                if (tipBox) tipBox.style.display = 'block';
+            }
+            if (q.readText) {
+                speakZh(q.readText);
+            }
+            onEvaluate(ok, val);
+        };
+    });
 }

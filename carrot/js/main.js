@@ -24,8 +24,15 @@ import {
     DEFAULT_DAILY_TIME_LIMIT_MIN,
     DAILY_TIME_LIMIT_OPTIONS,
     sanitizeDailyTimeLimitMin,
-    formatTimeLimitOptionLabel
+    formatTimeLimitOptionLabel,
+    sanitizeChineseEnabledTypes,
+    sanitizeChineseGrade
 } from '../../shared/unifiedProfile.js';
+import {
+    CHINESE_GRADES,
+    CHINESE_QUESTION_TYPES,
+    DEFAULT_CHINESE_TYPES
+} from '../../shared/chineseEngine.js';
 import { SmartChalkboard } from '../../shared/smartChalkboard.js';
 import { sharedSpeech } from '../../shared/audioTTS.js';
 import { ENGLISH_LEVELS, WORD_PACKS, ALL_WORDS, ENGLISH_QUESTION_TYPES, ALL_ENGLISH_TYPE_IDS } from '../../shared/englishEngine.js';
@@ -1636,6 +1643,8 @@ let modalEditDailyCap = 30;
 let modalEditDailyTimeLimit = DEFAULT_DAILY_TIME_LIMIT_MIN;
 let modalEditMathTypes = [...ALL_MATH_TYPE_IDS];
 let modalEditEnTypes = [...ALL_ENGLISH_TYPE_IDS];
+let modalEditCnGrade = 'grade2_1';
+let modalEditCnTypes = [...DEFAULT_CHINESE_TYPES];
 
 function syncUserProfileUI() {
     const user = profileManager.getActiveUser();
@@ -1731,6 +1740,9 @@ function populateUserForm(user, isNew = false) {
     modalEditEnTypes = Array.isArray(user.englishConfig?.enabledTypes) && user.englishConfig.enabledTypes.length > 0
         ? [...user.englishConfig.enabledTypes]
         : [...ALL_ENGLISH_TYPE_IDS];
+    const defaultCnG = (user.id === 'child_chuan' || /川/.test(user.name || '')) ? 'grade1_1' : 'grade2_1';
+    modalEditCnGrade = sanitizeChineseGrade(user.chineseConfig?.grade || defaultCnG);
+    modalEditCnTypes = sanitizeChineseEnabledTypes(user.chineseConfig?.enabledTypes);
 
     // 填入名字
     if (inputKidName) {
@@ -1950,6 +1962,34 @@ function populateUserForm(user, isNew = false) {
             timeGrid.appendChild(btn);
         });
     }
+
+    const cnGradeGrid = document.getElementById('carrotCnGradeGrid');
+    if (cnGradeGrid) {
+        cnGradeGrid.innerHTML = '';
+        CHINESE_GRADES.forEach(g => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = `range-chip ${g.id === modalEditCnGrade ? 'selected' : ''}`;
+            btn.textContent = g.fullName;
+            btn.addEventListener('click', () => {
+                modalEditCnGrade = g.id;
+                cnGradeGrid.querySelectorAll('.range-chip').forEach(c => c.classList.remove('selected'));
+                btn.classList.add('selected');
+            });
+            cnGradeGrid.appendChild(btn);
+        });
+    }
+
+    const carrotCnTypesBox = document.getElementById('carrotCnTypesBox');
+    if (carrotCnTypesBox) {
+        renderEnabledTypesSelector(
+            carrotCnTypesBox,
+            CHINESE_QUESTION_TYPES,
+            modalEditCnTypes,
+            (nextIds) => { modalEditCnTypes = nextIds; },
+            ['cn_word_fill', 'cn_sentence_fill', 'cn_pinyin_tone', 'cn_confusable', 'cn_poem_match']
+        );
+    }
 }
 
 function openUserProfileModal(targetUserId = null) {
@@ -2034,6 +2074,14 @@ function saveUserProfileModal() {
         packId: modalEditEnPack || 'all',
         enabledTypes: modalEditEnTypes
     };
+    const prevCc = (!isNew && editingUserId)
+        ? (profileManager.getUser(editingUserId)?.chineseConfig || {})
+        : {};
+    const chineseConfig = {
+        ...prevCc,
+        grade: sanitizeChineseGrade(modalEditCnGrade),
+        enabledTypes: sanitizeChineseEnabledTypes(modalEditCnTypes)
+    };
 
     const prevActiveId = profileManager.getActiveUser()?.id;
     if (isNew || (editingUserId && editingUserId !== prevActiveId)) {
@@ -2047,11 +2095,13 @@ function saveUserProfileModal() {
             avatar,
             dailyTimeLimitMin: modalEditDailyTimeLimit,
             difficulty: diff,
-            englishConfig
+            englishConfig,
+            chineseConfig
         });
         profileManager.updateUserSettings(created.id, {
             dailyBadgeCap: modalEditDailyCap,
-            dailyTimeLimitMin: modalEditDailyTimeLimit
+            dailyTimeLimitMin: modalEditDailyTimeLimit,
+            chineseConfig
         });
         profileManager.setActiveUser(created.id);
     } else {
@@ -2061,7 +2111,8 @@ function saveUserProfileModal() {
             dailyBadgeCap: modalEditDailyCap,
             dailyTimeLimitMin: modalEditDailyTimeLimit,
             difficulty: diff,
-            englishConfig
+            englishConfig,
+            chineseConfig
         });
         profileManager.setActiveUser(editingUserId);
     }

@@ -11,11 +11,20 @@ import {
     profileManager,
     sanitizeMathEnabledTypes,
     sanitizeEnglishEnabledTypes,
+    sanitizeChineseEnabledTypes,
+    sanitizeChineseGrade,
     DEFAULT_DAILY_TIME_LIMIT_MIN,
     DAILY_TIME_LIMIT_OPTIONS,
     sanitizeDailyTimeLimitMin,
     formatTimeLimitOptionLabel
 } from '../shared/unifiedProfile.js';
+import {
+    CHINESE_GRADES,
+    CHINESE_QUESTION_TYPES,
+    ALL_CHINESE_TYPE_IDS,
+    DEFAULT_CHINESE_TYPES,
+    ChineseEngine
+} from '../shared/chineseEngine.js';
 import {
     MathEngine,
     MATH_QUESTION_TYPES,
@@ -72,6 +81,9 @@ class PortalHubApp {
             enLevel: 'mixed',
             enPackId: 'all',
             enTypes: [...ALL_ENGLISH_TYPE_IDS],
+            cnGrade: 'grade2_1',
+            cnIncludeGrand: true,
+            cnTypes: [...DEFAULT_CHINESE_TYPES],
             parentLockEnabled: true,
             parentPin: ''
         };
@@ -366,7 +378,7 @@ class PortalHubApp {
         }
 
         // 错题红点提示
-        const totalMistakes = (active.mathMistakes?.length || 0) + (active.englishMistakes?.length || 0);
+        const totalMistakes = (active.mathMistakes?.length || 0) + (active.englishMistakes?.length || 0) + (active.chineseMistakes?.length || 0);
         const dotEl = document.getElementById('hubMistakeBadge');
         if (dotEl) {
             dotEl.style.display = totalMistakes > 0 ? 'inline-block' : 'none';
@@ -382,10 +394,13 @@ class PortalHubApp {
         }
 
         const mathSummary = MathEngine.formatSummary(active.mathConfig || active.difficulty);
+        const cnSummary = ChineseEngine.formatSummary(active.chineseConfig);
         const enSummary = EnglishEngine.formatSummary(active.englishConfig);
 
         document.getElementById('bannerKidName').textContent = `${active.avatar || '🐰'} ${active.name}`;
         document.getElementById('bannerMathSummary').textContent = `🎯 数学：${mathSummary}`;
+        const cnBannerEl = document.getElementById('bannerCnSummary');
+        if (cnBannerEl) cnBannerEl.textContent = `📖 语文：${cnSummary}`;
         document.getElementById('bannerEnSummary').textContent = `🔤 英语：${enSummary}`;
         this.renderTimeBannerPill(profileManager.getDailyTimeStatus(active));
         document.getElementById('bannerBadgesVal').textContent = active.badges || 0;
@@ -461,13 +476,23 @@ class PortalHubApp {
         if (!strip) return;
         const curMode = active.preferredSmartMode || 'grand_random';
         const mCnt = sanitizeMathEnabledTypes(active.mathConfig?.enabledTypes).length;
+        const cCnt = sanitizeChineseEnabledTypes(active.chineseConfig?.enabledTypes).length;
         const eCnt = sanitizeEnglishEnabledTypes(active.englishConfig?.enabledTypes).length;
+        const cnInGrand = active.chineseConfig?.includeInGrandRandom !== false;
 
         const entries = [
-            { id: 'grand_random', label: `🎲 数英大随机(${mCnt}+${eCnt})`, grand: true, title: '从已勾选的数学题型与英语题型中智能穿插出题' },
+            {
+                id: 'grand_random',
+                label: cnInGrand ? `🎲 语数英大随机(${mCnt}+${cCnt}+${eCnt})` : `🎲 数英大随机(${mCnt}+${eCnt})`,
+                grand: true,
+                title: '从已勾选的语文、数学、英语题型中智能穿插出题'
+            },
+            { id: 'chinese_random', label: `🎲 语文随机(${cCnt})`, title: '仅从已勾选的统编版语文题型中随机出题' },
             { id: 'math_random', label: `🎲 数学随机(${mCnt})`, title: '仅从已勾选的数学题型中随机出题' },
             { id: 'english_random', label: `🎲 英语随机(${eCnt})`, title: '仅从已勾选的英语题型中随机出题' },
             { id: 'vocab_camp', label: '📖 5词背诵', title: '进入游戏直接开启 5 词闪卡认读 + 闯关检验' },
+            { divider: true },
+            ...CHINESE_QUESTION_TYPES.map(t => ({ id: t.id, label: t.shortName, title: `语文单项直达：${t.name}（${t.desc}）` })),
             { divider: true },
             ...COURSE_SUB_MODES.map(cm => ({
                 id: cm.id,
@@ -538,6 +563,8 @@ class PortalHubApp {
     loadKidIntoForm(user, isNew = false) {
         const mc = user?.mathConfig || user?.difficulty || {};
         const ec = user?.englishConfig || {};
+        const cc = user?.chineseConfig || {};
+        const defaultCnGrade = (user?.id === 'child_chuan' || /川/.test(user?.name || '')) ? 'grade1_1' : 'grade2_1';
         this.formState = {
             avatar: user?.avatar || '🐰',
             dailyBadgeCap: user?.dailyBadgeCap || 30,
@@ -555,6 +582,9 @@ class PortalHubApp {
             enCourseAllowHard: Boolean(ec.courseAllowHardDictation),
             enPackId: ec.packId || 'all',
             enTypes: sanitizeEnglishEnabledTypes(ec.enabledTypes),
+            cnGrade: sanitizeChineseGrade(cc.grade || defaultCnGrade),
+            cnIncludeGrand: cc.includeInGrandRandom !== false,
+            cnTypes: sanitizeChineseEnabledTypes(cc.enabledTypes),
             parentLockEnabled: profileManager.data.parentLockEnabled !== false,
             parentPin: profileManager.data.parentPin || ''
         };
@@ -845,6 +875,44 @@ class PortalHubApp {
             enPackRow.appendChild(b);
         });
 
+        // 5. 统编版小学语文年级切换与 8 大题型多选（含无选项自主填空）
+        const cnGradeRow = document.getElementById('hubCnGradeRow');
+        if (cnGradeRow) {
+            cnGradeRow.innerHTML = '<span style="font-size:12.5px;font-weight:800;">教材年级：</span>';
+            CHINESE_GRADES.forEach(g => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = `hub-opt-pill ${this.formState.cnGrade === g.id ? 'selected' : ''}`;
+                b.textContent = g.fullName;
+                b.title = g.desc;
+                b.addEventListener('click', () => {
+                    this.formState.cnGrade = g.id;
+                    this.renderSettingsModal();
+                });
+                cnGradeRow.appendChild(b);
+            });
+            const btnGrand = document.createElement('button');
+            btnGrand.type = 'button';
+            btnGrand.className = `hub-opt-pill ${this.formState.cnIncludeGrand ? 'selected' : ''}`;
+            btnGrand.textContent = `${this.formState.cnIncludeGrand ? '✅' : '⬜'} 混入语数英大随机`;
+            btnGrand.addEventListener('click', () => {
+                this.formState.cnIncludeGrand = !this.formState.cnIncludeGrand;
+                this.renderSettingsModal();
+            });
+            cnGradeRow.appendChild(btnGrand);
+        }
+
+        const cnTypesBox = document.getElementById('hubCnTypesBox');
+        if (cnTypesBox) {
+            renderEnabledTypesSelector(
+                cnTypesBox,
+                CHINESE_QUESTION_TYPES,
+                this.formState.cnTypes,
+                (next) => { this.formState.cnTypes = next; },
+                ['cn_word_fill', 'cn_sentence_fill', 'cn_pinyin_tone', 'cn_confusable', 'cn_poem_match']
+            );
+        }
+
         this.renderParentLockBtn();
     }
 
@@ -891,6 +959,11 @@ class PortalHubApp {
             packId: this.formState.enPackId,
             enabledTypes: cleanEnTypes
         };
+        const chineseConfig = {
+            grade: sanitizeChineseGrade(this.formState.cnGrade),
+            includeInGrandRandom: Boolean(this.formState.cnIncludeGrand),
+            enabledTypes: sanitizeChineseEnabledTypes(this.formState.cnTypes)
+        };
 
         if (this.editingKidId === '__NEW__') {
             const created = profileManager.addUser({
@@ -898,11 +971,13 @@ class PortalHubApp {
                 avatar: this.formState.avatar,
                 dailyTimeLimitMin: this.formState.dailyTimeLimitMin,
                 mathConfig,
-                englishConfig
+                englishConfig,
+                chineseConfig
             });
             profileManager.updateUserSettings(created.id, {
                 dailyBadgeCap: this.formState.dailyBadgeCap,
-                dailyTimeLimitMin: this.formState.dailyTimeLimitMin
+                dailyTimeLimitMin: this.formState.dailyTimeLimitMin,
+                chineseConfig
             });
         } else {
             profileManager.updateUserSettings(this.editingKidId, {
@@ -911,7 +986,8 @@ class PortalHubApp {
                 dailyBadgeCap: this.formState.dailyBadgeCap,
                 dailyTimeLimitMin: this.formState.dailyTimeLimitMin,
                 mathConfig,
-                englishConfig
+                englishConfig,
+                chineseConfig
             });
             profileManager.setActiveUser(this.editingKidId);
         }

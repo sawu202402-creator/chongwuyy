@@ -792,4 +792,52 @@ assert.ok(fs.existsSync(path.join(ROOT, 'shared', 'magicMailbox.js')));
 assert.ok(fs.existsSync(path.join(ROOT, 'shared', 'magicMailbox.css')));
 console.log('   ✅ Magic Mailbox 15 neural MP3s, speaker/topic router, & Cloudflare SQLite DO config verified!');
 
-console.log('\n🎉 ALL ENGINE, NON-REPETITION, QUESTION COUNTER, VOCABULARY (360 WORDS), PET EVOLUTION & MAGIC MAILBOX CHECKS PASSED!');
+console.log('7. Stress-testing Elementary ChineseEngine (Grade 1 & Grade 2 · All 8 Modes · No-Option Free Fill · Zero Hint Leaks)...');
+const {
+    ChineseEngine,
+    ALL_CHINESE_TYPE_IDS,
+    CHINESE_GRADES
+} = await import('../shared/chineseEngine.js');
+assert.equal(ALL_CHINESE_TYPE_IDS.length, 8, 'ChineseEngine must expose all 8 question modes');
+assert.equal(CHINESE_GRADES.length, 3, 'ChineseEngine must expose Grade 1, Grade 2, and Mixed 1-2');
+
+// Verify per-kid default Chinese grades: Xiaowandou -> grade2_1, Chuan -> grade1_1
+assert.equal(pmBbx.getUser('child_xiaowandou').chineseConfig.grade, 'grade2_1');
+assert.equal(pmBbx.getUser('child_chuan').chineseConfig.grade, 'grade1_1');
+
+const cnEng = new ChineseEngine({ grade: 'grade2_1', enabledTypes: ALL_CHINESE_TYPE_IDS });
+for (const g of ['grade1_1', 'grade2_1', 'mixed_1_2']) {
+    cnEng.setConfig({ grade: g });
+    // Verify bag-shuffle non-repetition on word fill (18 consecutive unique questions)
+    const seenFillIds = new Set();
+    for (let i = 0; i < 18; i++) {
+        const q = cnEng.nextQuestion('cn_word_fill');
+        assert.equal(q.isFreeTextInput, true, 'cn_word_fill must be strict no-option free text input');
+        assert.equal(q.options, undefined, 'cn_word_fill must NOT provide choice options');
+        assert.equal(cnEng.checkFreeTextAnswer(q, q.answer), true, 'Must accept missing character(s)');
+        assert.equal(cnEng.checkFreeTextAnswer(q, q.fullText), true, 'Must also accept full idiom/word typed via Pinyin');
+        assert.equal(cnEng.checkFreeTextAnswer(q, '错字测试'), false, 'Must reject wrong characters');
+        seenFillIds.add(q.id);
+    }
+    assert.equal(seenFillIds.size, 18, `18 consecutive cn_word_fill in ${g} must have 0 duplicates`);
+
+    for (const mode of ALL_CHINESE_TYPE_IDS) {
+        for (let i = 0; i < 10; i++) {
+            const q = cnEng.nextQuestion(mode);
+            assert.equal(q.mode, mode);
+            if (mode === 'cn_sentence_fill') {
+                assert.equal(q.isFreeTextInput, true, 'cn_sentence_fill must be strict no-option free text input');
+                assert.equal(q.options, undefined, 'cn_sentence_fill must NOT provide choice options');
+                assert.equal(cnEng.checkFreeTextAnswer(q, q.answer), true);
+                assert.equal(cnEng.checkFreeTextAnswer(q, q.fullText), true);
+            }
+            if (['cn_word_fill', 'cn_sentence_fill', 'cn_confusable', 'cn_pinyin_tone', 'cn_polyphone'].includes(mode)) {
+                const tip = String(q.visualTip || '');
+                assert.ok(!tip.includes(String(q.answer)), `Chinese visualTip leaked answer in ${mode} (${q.id}): ${tip}`);
+            }
+        }
+    }
+}
+console.log('   ✅ Elementary ChineseEngine (Grade 1 & Grade 2, 8 Modes, No-Option Free Fill, Bag-Shuffle & Leak-Free Hints) verified!');
+
+console.log('\n🎉 ALL ENGINE, NON-REPETITION, CHINESE (G1+G2 · 8 MODES), VOCABULARY (360 WORDS), PET EVOLUTION & MAGIC MAILBOX CHECKS PASSED!');

@@ -278,7 +278,7 @@ async function main() {
     assert.ok(hubCheck.chips[0].includes('小豌豆'));
     assert.ok(hubCheck.chips[1].includes('川川'));
     assert.equal(hubCheck.noScroll, true, 'Hub must fit 1180x820 iPad viewport with zero vertical overflow');
-    assert.equal(hubCheck.modePillsCount, 27, 'Hub mode strip must expose 4 random/vocab + 5 course + 9 math + 9 general English = 27 entry pills');
+    assert.equal(hubCheck.modePillsCount, 36, 'Hub mode strip must expose 5 random/vocab + 8 Chinese + 5 course + 9 math + 9 general English = 36 entry pills');
     assert.equal(hubCheck.emptyHubPills, 0, 'All Hub mode pills must have visible labels');
     assert.ok(hubCheck.courseBtnTxt.includes('S1·分级'), 'Hub course button should show latest lesson code S1·分级');
     assert.equal(hubCheck.afterSingle, 'clock_money');
@@ -900,7 +900,7 @@ async function main() {
         return { topTabs, mathPillsCount: mathPills.length, engPillsCount: engPills.length, coursePills, emptyCoursePills, firstPackText, sightStageText, noScrollPet };
     })()`);
     console.log('Pet Town Course & Modes check:', petModesCheck);
-    assert.deepEqual(petModesCheck.topTabs, ['grand_random', 'math', 'english', 'course', 'review']);
+    assert.deepEqual(petModesCheck.topTabs, ['grand_random', 'math', 'chinese', 'english', 'course', 'review']);
     assert.equal(petModesCheck.mathPillsCount, 10, 'Pet math sub-pills must have 1 random + 9 single modes = 10');
     assert.equal(petModesCheck.engPillsCount, 16, 'Pet English sub-pills must have vocab_camp + random + 5 course + 9 general = 16');
     assert.deepEqual(petModesCheck.coursePills, ['course_all', 'course_phonics', 'course_sight', 'course_qa', 'course_readcard']);
@@ -1417,6 +1417,68 @@ async function main() {
     assert.equal(screenTimeSwitchAndUnlock.pgShown, true, 'Parent +15m button on rest screen must force fresh Parent Gate verification');
     assert.equal(screenTimeSwitchAndUnlock.unlockedAfterBonus, true, 'Passing Parent Gate +15m must unlock rest overlay');
     assert.equal(screenTimeSwitchAndUnlock.remMinAfterBonus, 15, 'Bonus +15m must grant 15 remaining minutes');
+
+    // 9) Test Elementary Chinese (Grade 2 No-Option Word Fill & Sentence Fill + Grade 1 Switch + PvZ Chinese Sun Reward)
+    await cdp.send('Page.navigate', { url: `${origin}/pet/index.html` }, sessionId);
+    await sleep(1200);
+    const petChineseCheck = await evalJs(`(async () => {
+        const { profileManager } = await import('../shared/unifiedProfile.js');
+        const { chineseEngine } = await import('../shared/chineseEngine.js');
+        profileManager.setActiveUser('child_xiaowandou');
+        window.__petTownApp.syncEnginesWithActiveUser();
+
+        // Switch to 📖 语文 tab -> ✍️ 词语填空 (No Options!)
+        document.querySelector('.subj-tab[data-subj="chinese"]').click();
+        document.querySelector('#petCnSubPills [data-cnmode="cn_word_fill"]').click();
+        const cnPillsCount = document.querySelectorAll('#petCnSubPills .sub-pill').length;
+        const choiceBtnsInWordFill = document.querySelectorAll('#petCnQuizStage .qw-choice-btn').length;
+        const freeInput = document.querySelector('#petCnQuizStage [data-cn-input]');
+        const hasFreeInput = Boolean(freeInput);
+        const noScrollWordFill = document.documentElement.scrollHeight <= window.innerHeight + 2;
+
+        // Solve the no-option word fill by typing the exact answer!
+        const qBefore = profileManager.getQuestionStats().todayAttempted;
+        const expectedAns = chineseEngine.currentQuestion.answer;
+        freeInput.value = expectedAns;
+        document.querySelector('#petCnQuizStage [data-cn-submit]').click();
+        const qAfterWord = profileManager.getQuestionStats().todayAttempted;
+
+        await new Promise(r => setTimeout(r, 950));
+
+        // Switch to 📜 佳句默写 (Grade 2 Sentence Fill, No Options!)
+        document.querySelector('#petCnSubPills [data-cnmode="cn_sentence_fill"]').click();
+        const choiceBtnsInSenFill = document.querySelectorAll('#petCnQuizStage .qw-choice-btn').length;
+        const senSource = chineseEngine.currentQuestion.sourceTitle || '';
+
+        // Switch grade chip to 🌱 一年级上册 and verify Grade 1 bank loads!
+        const g1Chip = Array.from(document.querySelectorAll('#cnGradeStrip .pack-chip')).find(b => b.textContent.includes('一年级上册'));
+        g1Chip?.click();
+        const gradeAfterG1 = chineseEngine.currentQuestion.grade;
+        // Restore Xiaowandou to 二年级上册
+        const g2Chip = Array.from(document.querySelectorAll('#cnGradeStrip .pack-chip')).find(b => b.textContent.includes('二年级上册'));
+        g2Chip?.click();
+
+        return {
+            cnPillsCount,
+            choiceBtnsInWordFill,
+            hasFreeInput,
+            noScrollWordFill,
+            qDelta: qAfterWord - qBefore,
+            choiceBtnsInSenFill,
+            senSource,
+            gradeAfterG1
+        };
+    })()`);
+    console.log('Pet Town Chinese (G1+G2, 8 Modes, No-Option Fill) Check:', petChineseCheck);
+    assert.equal(petChineseCheck.cnPillsCount, 9, 'Pet Chinese sub-pills must have 1 random + 8 modes = 9');
+    assert.equal(petChineseCheck.choiceBtnsInWordFill, 0, 'cn_word_fill MUST render 0 choice buttons (strictly self-filled)');
+    assert.equal(petChineseCheck.hasFreeInput, true, 'cn_word_fill must render free text input box');
+    assert.equal(petChineseCheck.noScrollWordFill, true, 'Pet Chinese panel must fit 1180x820 with 0 overflow');
+    assert.equal(petChineseCheck.qDelta, 1, 'Solving Chinese word fill must increment live question count');
+    assert.equal(petChineseCheck.choiceBtnsInSenFill, 0, 'cn_sentence_fill MUST render 0 choice buttons (strictly self-filled)');
+    assert.equal(petChineseCheck.gradeAfterG1, 'grade1_1', 'Clicking 一年级上册 chip must switch Chinese bank to grade1_1');
+    await sleep(220);
+    await saveShot('pet_chinese_no_option_fill.png');
 
     console.log('Console errors:', consoleErrors.length);
     console.log('Failed local network requests:', failedLocalUrls.length);

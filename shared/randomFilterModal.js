@@ -22,6 +22,14 @@ import {
     MATH_QUESTION_TYPES,
     ALL_MATH_TYPE_IDS
 } from './mathEngine.js';
+import {
+    CHINESE_GRADES,
+    CHINESE_QUESTION_TYPES,
+    ALL_CHINESE_TYPE_IDS,
+    DEFAULT_CHINESE_TYPES,
+    sanitizeChineseEnabledTypes,
+    sanitizeChineseGrade
+} from './chineseEngine.js';
 import { renderEnabledTypesSelector } from './questionWidgets.js';
 
 const STYLE_TAG_ID = 'sharedRandomFilterStyles';
@@ -129,6 +137,10 @@ function ensureModalStyles() {
         .rfm-sec.math-sec {
             background: #f6fbff;
             border-color: #d6ecff;
+        }
+        .rfm-sec.cn-sec {
+            background: #fff9f2;
+            border-color: #fed7aa;
         }
         .rfm-sec-head {
             display: flex;
@@ -417,12 +429,16 @@ export function openRandomFilterModal({ profileManager, onSaved } = {}) {
     let draftCourseAllowHard = false;
     let draftEnTypes = [...DEFAULT_EASY_ENGLISH_TYPES];
     let draftMathTypes = [...ALL_MATH_TYPE_IDS];
+    let draftCnGrade = 'grade2_1';
+    let draftCnIncludeGrand = true;
+    let draftCnTypes = [...DEFAULT_CHINESE_TYPES];
 
     const loadDraftFromUser = (uid) => {
         const u = profileManager.getUser(uid) || profileManager.getActiveUser();
         selectedUserId = u.id;
         const ec = u.englishConfig || {};
         const mc = u.mathConfig || u.difficulty || {};
+        const cc = u.chineseConfig || {};
         draftWordDifficulty = ['easy', 'medium', 'all'].includes(ec.wordDifficulty) ? ec.wordDifficulty : 'easy';
         draftCourseAllowHard = typeof ec.courseAllowHardDictation === 'boolean'
             ? ec.courseAllowHardDictation
@@ -433,6 +449,9 @@ export function openRandomFilterModal({ profileManager, onSaved } = {}) {
         draftMathTypes = Array.isArray(mc.enabledTypes) && mc.enabledTypes.length > 0
             ? [...mc.enabledTypes]
             : [...ALL_MATH_TYPE_IDS];
+        draftCnGrade = sanitizeChineseGrade(cc.grade || ((u.id === 'child_chuan' || /川/.test(u.name || '')) ? 'grade1_1' : 'grade2_1'));
+        draftCnIncludeGrand = cc.includeInGrandRandom !== false;
+        draftCnTypes = sanitizeChineseEnabledTypes(cc.enabledTypes);
     };
 
     loadDraftFromUser(selectedUserId);
@@ -445,9 +464,8 @@ export function openRandomFilterModal({ profileManager, onSaved } = {}) {
         const sumEl = modalEl.querySelector('#rfmFooterSummary');
         if (!sumEl) return;
         const diffMeta = ENGLISH_DIFFICULTY_MODES.find(d => d.id === draftWordDifficulty) || ENGLISH_DIFFICULTY_MODES[0];
-        const enBlocked = ALL_ENGLISH_TYPE_IDS.length - draftEnTypes.length;
-        const mathBlocked = ALL_MATH_TYPE_IDS.length - draftMathTypes.length;
-        sumEl.innerHTML = `当前设置：<strong>${diffMeta.name}</strong> · 英语开启 <strong>${draftEnTypes.length}</strong> 项${enBlocked > 0 ? `（屏蔽${enBlocked}项）` : ''} · 数学开启 <strong>${draftMathTypes.length}</strong> 项${mathBlocked > 0 ? `（屏蔽${mathBlocked}项）` : ''}`;
+        const cnGradeMeta = CHINESE_GRADES.find(g => g.id === draftCnGrade) || CHINESE_GRADES[1];
+        sumEl.innerHTML = `当前设置：<strong>${diffMeta.name}</strong> · 英语 <strong>${draftEnTypes.length}</strong> 项 · 数学 <strong>${draftMathTypes.length}</strong> 项 · 语文 <strong>${cnGradeMeta.name}(${draftCnTypes.length}项)</strong>`;
     };
 
     const renderModalContent = () => {
@@ -521,6 +539,23 @@ export function openRandomFilterModal({ profileManager, onSaved } = {}) {
                         </div>
                         <div id="rfmMathTypesMount"></div>
                     </div>
+
+                    <div class="rfm-sec cn-sec">
+                        <div class="rfm-sec-head">
+                            <span class="rfm-sec-title">📖 第四步：统编版【语文】年级选择 & 8大题型开关（含无选项自主填空）</span>
+                            <div class="rfm-course-subbtns">
+                                ${CHINESE_GRADES.map(g => `
+                                    <button type="button" class="rfm-csub-btn ${draftCnGrade === g.id ? 'active' : ''}" data-rfm-cngrade="${g.id}">
+                                        ${g.name}
+                                    </button>
+                                `).join('')}
+                                <button type="button" class="rfm-csub-btn ${draftCnIncludeGrand ? 'active' : ''}" id="btnRfmCnGrandToggle">
+                                    ${draftCnIncludeGrand ? '✅ 混入大随机' : '⬜ 仅单科语文时出'}
+                                </button>
+                            </div>
+                        </div>
+                        <div id="rfmCnTypesMount"></div>
+                    </div>
                 </div>
 
                 <div class="rfm-foot">
@@ -562,6 +597,29 @@ export function openRandomFilterModal({ profileManager, onSaved } = {}) {
             },
             ['calc', 'compare', 'bond_pop', 'sequence_train', 'clock_money']
         );
+
+        // 挂载语文题型多选器（8大题型）
+        renderEnabledTypesSelector(
+            modalEl.querySelector('#rfmCnTypesMount'),
+            CHINESE_QUESTION_TYPES,
+            draftCnTypes,
+            (nextIds) => {
+                draftCnTypes = nextIds;
+                updateFooterSummary();
+            },
+            ['cn_word_fill', 'cn_sentence_fill', 'cn_pinyin_tone', 'cn_confusable', 'cn_poem_match']
+        );
+
+        modalEl.querySelectorAll('[data-rfm-cngrade]').forEach(btn => {
+            btn.onclick = () => {
+                draftCnGrade = sanitizeChineseGrade(btn.getAttribute('data-rfm-cngrade'));
+                renderModalContent();
+            };
+        });
+        modalEl.querySelector('#btnRfmCnGrandToggle')?.addEventListener('click', () => {
+            draftCnIncludeGrand = !draftCnIncludeGrand;
+            renderModalContent();
+        });
 
         updateFooterSummary();
 
@@ -623,6 +681,12 @@ export function openRandomFilterModal({ profileManager, onSaved } = {}) {
                     includeWordProblems: draftMathTypes.includes('word'),
                     includeDataCharts: draftMathTypes.includes('data'),
                     enabledTypes: [...draftMathTypes]
+                },
+                chineseConfig: {
+                    ...(targetUser.chineseConfig || {}),
+                    grade: draftCnGrade,
+                    includeInGrandRandom: draftCnIncludeGrand,
+                    enabledTypes: [...draftCnTypes]
                 }
             });
             closeModal();

@@ -14,9 +14,9 @@
     <meta name="apple-mobile-web-app-title" content="萌宠店长">
     <link rel="manifest" href="site.webmanifest">
     <meta name="theme-color" content="#7c5cfc">
-    <link rel="stylesheet" href="css/style.css?v=20261117_tts_v8">
-    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261117_tts_v8">
-    <link rel="stylesheet" href="../shared/magicMailbox.css?v=20261117_tts_v8">
+    <link rel="stylesheet" href="css/style.css?v=20261122_chinese_v9">
+    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261122_chinese_v9">
+    <link rel="stylesheet" href="../shared/magicMailbox.css?v=20261122_chinese_v9">
 </head>
 <body>
     <!-- 全屏飞行徽章与彩虹礼花粒子画布 -->
@@ -332,10 +332,11 @@
                     </div>
                 </div>
 
-                <!-- 五大出题入口切换顶栏：统一大随机 / 数学9项 / 英语8项+背词 / 校外英语课专项 / 错题双倍复习 -->
+                <!-- 六大出题入口切换顶栏：统一大随机 / 数学9项 / 语文8项 / 英语8项+背词 / 校外英语课专项 / 错题双倍复习 -->
                 <div class="subject-main-tabs">
                     <button class="subj-tab active" data-subj="grand_random" type="button">🎲 随机</button>
                     <button class="subj-tab" data-subj="math" type="button">🔢 数学</button>
+                    <button class="subj-tab" data-subj="chinese" type="button">📖 语文</button>
                     <button class="subj-tab" data-subj="english" type="button">🔤 英语</button>
                     <button class="subj-tab" data-subj="course" type="button">🎓 英语课</button>
                     <button class="subj-tab" data-subj="review" type="button">
@@ -447,6 +448,16 @@
                     <div class="eng-stage-wrap" id="engQuizWrap" style="display:none;">
                         <div class="eng-quiz-card" id="petEngQuizStage"></div>
                         <div class="learn-feedback-bar" id="engFeedbackBar">🔊 点击喇叭可反复听纯正美式发音哦！</div>
+                    </div>
+                </div>
+
+                <!-- ========== 面板 2B：统编版小学语文【一上 & 二上 · 8大题型 · 含无选项自主填空】 ========== -->
+                <div class="learn-body" id="panelChinese" style="display:none;">
+                    <div class="sub-mode-pills scrollable-pills" id="petCnSubPills"></div>
+                    <div class="word-pack-strip" id="cnGradeStrip"></div>
+                    <div class="eng-stage-wrap" id="cnQuizWrap" style="display:flex;">
+                        <div class="eng-quiz-card" id="petCnQuizStage"></div>
+                        <div class="learn-feedback-bar" id="cnFeedbackBar">📖 词语填空与佳句默写支持手写/拼音直接输入，答对赢徽章喂萌宠！</div>
                     </div>
                 </div>
 
@@ -562,6 +573,15 @@
                         <div class="pill-radio-row" id="engDefaultPackPills"></div>
                     </div>
                 </div>
+
+                <!-- 统编版小学语文（一年级上册 & 二年级上册 · 8大题型）设置卡片 -->
+                <div class="setting-card" style="margin-top:12px;">
+                    <h4>📖 统编版小学语文定制 (一年级上册 & 二年级上册 · 8大题型 · 含无选项自主填空)</h4>
+                    <div class="s-label">选择宝贝对应的语文教材年级：</div>
+                    <div class="pill-radio-row" id="petCnGradePills" style="margin-bottom:8px;"></div>
+                    <div class="s-label">🎯 勾选启用上场的语文题型（共8种，小豌豆心愿：词语填空 & 佳句默写全程无选项自主填写）：</div>
+                    <div id="petCnTypesBox"></div>
+                </div>
             </div>
             <div class="modal-foot">
                 <button class="btn-modal-save" id="btnSaveProfile" type="button">💾 保存设置并生效</button>
@@ -600,6 +620,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=20261117_tts_v8"></script>
+    <script type="module" src="js/main.js?v=20261122_chinese_v9"></script>
 </body>
 </html>

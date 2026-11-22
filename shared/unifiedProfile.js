@@ -27,6 +27,13 @@ export { DEFAULT_DAILY_TIME_LIMIT_MIN, DAILY_TIME_LIMIT_OPTIONS };
 import { ALL_MATH_TYPE_IDS } from './mathEngine.js';
 import { ALL_ENGLISH_TYPE_IDS, ALL_COURSE_SUB_IDS, DEFAULT_EASY_ENGLISH_TYPES, COURSE_LESSONS } from './englishEngine.js';
 import {
+    ALL_CHINESE_TYPE_IDS,
+    DEFAULT_CHINESE_TYPES,
+    sanitizeChineseEnabledTypes,
+    sanitizeChineseGrade
+} from './chineseEngine.js';
+export { sanitizeChineseEnabledTypes, sanitizeChineseGrade };
+import {
     DAILY_MATH_QUEST_TARGET,
     DAILY_COURSE_QUEST_TARGET,
     BLINDBOX_SERIES,
@@ -55,8 +62,11 @@ export function sanitizeEnglishEnabledTypes(list) {
 
 export function isValidSmartMode(mode) {
     if (!mode || typeof mode !== 'string') return false;
-    if (['grand_random', 'math_random', 'english_random', 'english', 'vocab_camp'].includes(mode)) return true;
-    return ALL_MATH_TYPE_IDS.includes(mode) || ALL_ENGLISH_TYPE_IDS.includes(mode) || ALL_COURSE_SUB_IDS.includes(mode);
+    if (['grand_random', 'math_random', 'english_random', 'english', 'chinese_random', 'chinese', 'vocab_camp'].includes(mode)) return true;
+    return ALL_MATH_TYPE_IDS.includes(mode) ||
+        ALL_ENGLISH_TYPE_IDS.includes(mode) ||
+        ALL_COURSE_SUB_IDS.includes(mode) ||
+        ALL_CHINESE_TYPE_IDS.includes(mode);
 }
 
 /**
@@ -152,9 +162,10 @@ function createInitialShopsState(defaultPetId = 'rabbit') {
     return shops;
 }
 
-function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
+function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops, chineseGrade }) {
     const time = nowTimeStr();
     const petObj = getPetById(activePetId);
+    const defaultCnGrade = chineseGrade || ((id === 'child_chuan' || /川/.test(name || '')) ? 'grade1_1' : 'grade2_1');
     const mathConfig = {
         mode: 'custom',
         presetGrade: mathRange >= 50 ? 'grade3_4' : 'grade1_2',
@@ -209,6 +220,11 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
             enEasyDefaultMigrated_v1: true,
             enabledTypes: [...DEFAULT_EASY_ENGLISH_TYPES]
         },
+        chineseConfig: {
+            grade: defaultCnGrade,
+            includeInGrandRandom: true,
+            enabledTypes: [...DEFAULT_CHINESE_TYPES]
+        },
         courseReadChecks: {},
         wordMastery: {},
         scoreRecords: [
@@ -232,6 +248,7 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
         graduations: [],
         mathMistakes: [],
         englishMistakes: [],
+        chineseMistakes: [],
         history: [],
         mistakes: [],
         bestEndlessFlags: 0,
@@ -245,8 +262,10 @@ function createKidTemplate({ id, name, avatar, activePetId, mathRange, ops }) {
         stats: {
             totalMathAttempted: 0,
             totalEnglishAttempted: 0,
+            totalChineseAttempted: 0,
             totalMathCorrect: 0,
             totalEnglishCorrect: 0,
+            totalChineseCorrect: 0,
             totalWordsMastered: 0,
             bestCombo: 0
         }
@@ -264,7 +283,8 @@ const DEFAULT_DATA = {
             avatar: '🐰',
             activePetId: 'rabbit',
             mathRange: 20,
-            ops: ['add', 'sub', 'mul']
+            ops: ['add', 'sub', 'mul'],
+            chineseGrade: 'grade2_1'
         }),
         createKidTemplate({
             id: 'child_chuan',
@@ -272,7 +292,8 @@ const DEFAULT_DATA = {
             avatar: '🐸',
             activePetId: 'frog',
             mathRange: 100,
-            ops: ['add', 'sub', 'mul', 'div']
+            ops: ['add', 'sub', 'mul', 'div'],
+            chineseGrade: 'grade1_1'
         })
     ]
 };
@@ -461,6 +482,20 @@ export class UserProfileManager {
             }
             if (!u.englishConfig.courseLessonId) u.englishConfig.courseLessonId = 'latest';
             if (!u.englishConfig.courseSubMode) u.englishConfig.courseSubMode = 'course_all';
+            if (!u.chineseConfig || typeof u.chineseConfig !== 'object') {
+                const defaultG = (u.id === 'child_chuan' || /川/.test(u.name || '')) ? 'grade1_1' : 'grade2_1';
+                u.chineseConfig = {
+                    grade: defaultG,
+                    includeInGrandRandom: true,
+                    enabledTypes: [...DEFAULT_CHINESE_TYPES]
+                };
+            } else {
+                u.chineseConfig.grade = sanitizeChineseGrade(u.chineseConfig.grade);
+                u.chineseConfig.enabledTypes = sanitizeChineseEnabledTypes(u.chineseConfig.enabledTypes);
+                if (typeof u.chineseConfig.includeInGrandRandom !== 'boolean') {
+                    u.chineseConfig.includeInGrandRandom = true;
+                }
+            }
             if (!u.courseReadChecks || typeof u.courseReadChecks !== 'object') u.courseReadChecks = {};
             if (!u.wordMastery) u.wordMastery = {};
             if (!Array.isArray(u.scoreRecords)) u.scoreRecords = [];
@@ -468,6 +503,7 @@ export class UserProfileManager {
             if (!Array.isArray(u.graduations)) u.graduations = [];
             if (!Array.isArray(u.mathMistakes)) u.mathMistakes = [];
             if (!Array.isArray(u.englishMistakes)) u.englishMistakes = [];
+            if (!Array.isArray(u.chineseMistakes)) u.chineseMistakes = [];
             if (!Array.isArray(u.history)) u.history = [];
             if (!Array.isArray(u.mistakes)) u.mistakes = [];
             if (typeof u.bestEndlessFlags !== 'number') u.bestEndlessFlags = 0;
@@ -510,11 +546,15 @@ export class UserProfileManager {
             }
             if (typeof u.stats.totalMathCorrect !== 'number') u.stats.totalMathCorrect = 0;
             if (typeof u.stats.totalEnglishCorrect !== 'number') u.stats.totalEnglishCorrect = 0;
+            if (typeof u.stats.totalChineseCorrect !== 'number') u.stats.totalChineseCorrect = 0;
             if (typeof u.stats.totalMathAttempted !== 'number' || u.stats.totalMathAttempted < u.stats.totalMathCorrect) {
                 u.stats.totalMathAttempted = u.stats.totalMathCorrect;
             }
             if (typeof u.stats.totalEnglishAttempted !== 'number' || u.stats.totalEnglishAttempted < u.stats.totalEnglishCorrect) {
                 u.stats.totalEnglishAttempted = u.stats.totalEnglishCorrect;
+            }
+            if (typeof u.stats.totalChineseAttempted !== 'number' || u.stats.totalChineseAttempted < u.stats.totalChineseCorrect) {
+                u.stats.totalChineseAttempted = u.stats.totalChineseCorrect;
             }
             if (!u.statsAttemptBackfilled_v1) {
                 let histAttempted = 0;
@@ -595,7 +635,7 @@ export class UserProfileManager {
         return this.getActiveUser();
     }
 
-    addUser({ name, avatar, dailyTimeLimitMin, mathConfig, difficulty, englishConfig }) {
+    addUser({ name, avatar, dailyTimeLimitMin, mathConfig, difficulty, englishConfig, chineseConfig }) {
         const id = 'child_' + Date.now();
         const mergedMath = mathConfig || difficulty || null;
         const startPet = avatar === '🐸' ? 'frog' : 'rabbit';
@@ -605,7 +645,8 @@ export class UserProfileManager {
             avatar: avatar || AVATAR_LIST[0],
             activePetId: startPet,
             mathRange: mergedMath?.range || 20,
-            ops: mergedMath?.operations || ['add', 'sub']
+            ops: mergedMath?.operations || ['add', 'sub'],
+            chineseGrade: chineseConfig?.grade
         });
         if (dailyTimeLimitMin !== undefined) {
             newUser.dailyTimeLimitMin = sanitizeDailyTimeLimitMin(dailyTimeLimitMin);
@@ -625,6 +666,14 @@ export class UserProfileManager {
                 enabledTypes: sanitizeEnglishEnabledTypes(englishConfig.enabledTypes || newUser.englishConfig.enabledTypes)
             };
         }
+        if (chineseConfig) {
+            newUser.chineseConfig = {
+                ...newUser.chineseConfig,
+                ...chineseConfig,
+                grade: sanitizeChineseGrade(chineseConfig.grade || newUser.chineseConfig.grade),
+                enabledTypes: sanitizeChineseEnabledTypes(chineseConfig.enabledTypes || newUser.chineseConfig.enabledTypes)
+            };
+        }
         this.data.users.push(newUser);
         this.data.activeUserId = id;
         this.save();
@@ -632,7 +681,7 @@ export class UserProfileManager {
         return newUser;
     }
 
-    updateUserSettings(id, { name, avatar, dailyBadgeCap, dailyTimeLimitMin, mathConfig, difficulty, englishConfig }) {
+    updateUserSettings(id, { name, avatar, dailyBadgeCap, dailyTimeLimitMin, mathConfig, difficulty, englishConfig, chineseConfig }) {
         const u = this.getUser(id);
         if (!u) return null;
         if (name !== undefined && name.trim()) u.name = name.trim();
@@ -676,6 +725,15 @@ export class UserProfileManager {
             }
             mergedEn.enabledTypes = sanitizeEnglishEnabledTypes(mergedEn.enabledTypes);
             u.englishConfig = mergedEn;
+        }
+        if (chineseConfig) {
+            const mergedCn = { ...(u.chineseConfig || {}), ...chineseConfig };
+            mergedCn.grade = sanitizeChineseGrade(mergedCn.grade);
+            mergedCn.enabledTypes = sanitizeChineseEnabledTypes(mergedCn.enabledTypes);
+            if (typeof mergedCn.includeInGrandRandom !== 'boolean') {
+                mergedCn.includeInGrandRandom = true;
+            }
+            u.chineseConfig = mergedCn;
         }
         this.save();
         this._emitProfileUpdated('updateUserSettings');
@@ -865,17 +923,21 @@ export class UserProfileManager {
         const st = u.stats || {};
         const totalMathCorrect = st.totalMathCorrect || 0;
         const totalEnglishCorrect = st.totalEnglishCorrect || 0;
+        const totalChineseCorrect = st.totalChineseCorrect || 0;
         const totalMathAttempted = Math.max(st.totalMathAttempted || 0, totalMathCorrect);
         const totalEnglishAttempted = Math.max(st.totalEnglishAttempted || 0, totalEnglishCorrect);
+        const totalChineseAttempted = Math.max(st.totalChineseAttempted || 0, totalChineseCorrect);
         return {
             todayAttempted: ds.questionsAttempted || 0,
             todayCorrect: ds.questionsCorrect || 0,
-            totalAttempted: totalMathAttempted + totalEnglishAttempted,
-            totalCorrect: totalMathCorrect + totalEnglishCorrect,
+            totalAttempted: totalMathAttempted + totalEnglishAttempted + totalChineseAttempted,
+            totalCorrect: totalMathCorrect + totalEnglishCorrect + totalChineseCorrect,
             totalMathAttempted,
             totalEnglishAttempted,
+            totalChineseAttempted,
             totalMathCorrect,
-            totalEnglishCorrect
+            totalEnglishCorrect,
+            totalChineseCorrect
         };
     }
 
@@ -1081,14 +1143,17 @@ export class UserProfileManager {
     /**
      * 记录任意单次做题（无论答对还是答错、数学还是英语、是否已达每日徽章上限，做题数量均实时 +1 并落盘）
      */
-    recordQuestionAttempt({ isMath = true, isCorrect = false, combo = 0 } = {}) {
+    recordQuestionAttempt({ isMath = true, isChinese = false, isCorrect = false, combo = 0 } = {}) {
         const u = this.getActiveUser();
         const ds = this._ensureDailyState(u);
         ds.questionsAttempted = (ds.questionsAttempted || 0) + 1;
         if (isCorrect) {
             ds.questionsCorrect = (ds.questionsCorrect || 0) + 1;
         }
-        if (isMath) {
+        if (isChinese) {
+            u.stats.totalChineseAttempted = Math.max(u.stats.totalChineseAttempted || 0, u.stats.totalChineseCorrect || 0) + 1;
+            if (isCorrect) u.stats.totalChineseCorrect = (u.stats.totalChineseCorrect || 0) + 1;
+        } else if (isMath) {
             u.stats.totalMathAttempted = Math.max(u.stats.totalMathAttempted || 0, u.stats.totalMathCorrect || 0) + 1;
             if (isCorrect) u.stats.totalMathCorrect = (u.stats.totalMathCorrect || 0) + 1;
         } else {
@@ -1100,7 +1165,7 @@ export class UserProfileManager {
         return this.getQuestionStats(u);
     }
 
-    awardLearningProgress({ title, subjectTag, badges = 0, stars = 0, gotTicket = false, isVocabCampFinish = false, combo = 0, isMath = true, isCourseSpecial = false, countAsQuestion = true }) {
+    awardLearningProgress({ title, subjectTag, badges = 0, stars = 0, gotTicket = false, isVocabCampFinish = false, combo = 0, isMath = true, isChinese = false, isCourseSpecial = false, countAsQuestion = true }) {
         const u = this.getActiveUser();
         const ds = this._ensureDailyState(u);
         const cap = u.dailyBadgeCap || DEFAULT_DAILY_BADGE_CAP;
@@ -1115,7 +1180,10 @@ export class UserProfileManager {
         if (countAsQuestion !== false) {
             ds.questionsAttempted = (ds.questionsAttempted || 0) + 1;
             ds.questionsCorrect = (ds.questionsCorrect || 0) + 1;
-            if (isMath) {
+            if (isChinese) {
+                u.stats.totalChineseAttempted = Math.max(u.stats.totalChineseAttempted || 0, u.stats.totalChineseCorrect || 0) + 1;
+                u.stats.totalChineseCorrect = (u.stats.totalChineseCorrect || 0) + 1;
+            } else if (isMath) {
                 ds.mathCorrectToday = (ds.mathCorrectToday || 0) + 1;
                 u.stats.totalMathAttempted = Math.max(u.stats.totalMathAttempted || 0, u.stats.totalMathCorrect || 0) + 1;
                 u.stats.totalMathCorrect = (u.stats.totalMathCorrect || 0) + 1;
@@ -1834,6 +1902,34 @@ export class UserProfileManager {
         const key = question.formula || question.expr || question.readText;
         u.mathMistakes = u.mathMistakes.filter(m => (m.formula || m.expr || m.readText) !== key);
         u.mistakes = u.mistakes.filter(m => (m.formula || m.expr) !== key);
+        this.save();
+    }
+
+    recordChineseMistake(question, userAns = '') {
+        if (!question || !question.id || question.mode === 'cn_measure_antonym') return;
+        const u = this.getActiveUser();
+        if (!Array.isArray(u.chineseMistakes)) u.chineseMistakes = [];
+        if (!u.chineseMistakes.some(m => m.id === question.id)) {
+            u.chineseMistakes.unshift({
+                id: question.id,
+                mode: question.mode,
+                promptText: question.promptText || question.displayKey,
+                answer: question.answer,
+                displayKey: question.displayKey,
+                userAns,
+                rawQuestion: { ...question, isReview: true },
+                dateStr: nowTimeStr()
+            });
+            if (u.chineseMistakes.length > 40) u.chineseMistakes.length = 40;
+            this.save();
+        }
+    }
+
+    resolveChineseMistake(question) {
+        if (!question || !question.id) return;
+        const u = this.getActiveUser();
+        if (!Array.isArray(u.chineseMistakes)) return;
+        u.chineseMistakes = u.chineseMistakes.filter(m => m.id !== question.id);
         this.save();
     }
 
