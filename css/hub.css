@@ -1126,6 +1126,10 @@ html, body {
     flex-shrink: 0;
 }
 
+#hubBlindboxTabs {
+    grid-template-columns: repeat(3, 1fr);
+}
+
 .hub-course-tab {
     border: 2px solid transparent;
     background: transparent;

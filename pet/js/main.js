@@ -421,6 +421,62 @@ function renderAccessoryVisualHtml(accId, compact = false) {
                 <circle cx="54" cy="18" r="7.5" fill="#F472B6" stroke="#FFFFFF" stroke-width="1.4"/>
             </svg>`;
     }
+    if (accId === 'lion_headdress') {
+        const w = compact ? 42 : 76;
+        const h = compact ? 32 : 54;
+        return `
+            <svg class="lotus-svg-art lotus-hat-breathe" width="${w}" height="${h}" viewBox="0 0 88 58" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="20" cy="22" r="9" fill="#FEF08A" stroke="#F59E0B" stroke-width="1.8"/>
+                <circle cx="68" cy="22" r="9" fill="#FEF08A" stroke="#F59E0B" stroke-width="1.8"/>
+                <circle cx="44" cy="11" r="7.5" fill="#F43F5E" stroke="#FDE047" stroke-width="1.8"/>
+                <path d="M16 44 C18 22, 30 16, 44 16 C58 16, 70 22, 72 44 C60 49, 28 49, 16 44 Z" fill="#EF4444" stroke="#FDE047" stroke-width="2"/>
+                <circle cx="33" cy="32" r="6.5" fill="#FFFFFF" stroke="#FBBF24" stroke-width="1.6"/>
+                <circle cx="55" cy="32" r="6.5" fill="#FFFFFF" stroke="#FBBF24" stroke-width="1.6"/>
+                <circle cx="33" cy="32" r="3" fill="#1E293B"/>
+                <circle cx="55" cy="32" r="3" fill="#1E293B"/>
+                <path d="M24 43 Q44 50 64 43" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round"/>
+            </svg>`;
+    }
+    if (accId === 'angel_halo') {
+        const w = compact ? 44 : 80;
+        const h = compact ? 28 : 48;
+        return `
+            <svg class="lotus-svg-art lotus-hat-breathe" width="${w}" height="${h}" viewBox="0 0 92 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="46" cy="16" rx="22" ry="6.5" stroke="#FBBF24" stroke-width="3.8" fill="none"/>
+                <ellipse cx="46" cy="16" rx="22" ry="6.5" stroke="#FEF9C3" stroke-width="1.3" fill="none"/>
+                <path d="M22 30 C10 22, 8 34, 20 38 C13 40, 16 46, 28 40 Z" fill="#FFFFFF" stroke="#BAE6FD" stroke-width="1.5"/>
+                <path d="M70 30 C82 22, 84 34, 72 38 C79 40, 76 46, 64 40 Z" fill="#FFFFFF" stroke="#BAE6FD" stroke-width="1.5"/>
+            </svg>`;
+    }
+    if (accId === 'dino_hood') {
+        const w = compact ? 40 : 74;
+        const h = compact ? 30 : 52;
+        return `
+            <svg class="lotus-svg-art" width="${w}" height="${h}" viewBox="0 0 84 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <polygon points="28,18 34,7 40,16" fill="#FACC15" stroke="#EA580C" stroke-width="1.2"/>
+                <polygon points="40,15 46,5 52,16" fill="#FACC15" stroke="#EA580C" stroke-width="1.2"/>
+                <polygon points="52,18 58,9 62,20" fill="#FACC15" stroke="#EA580C" stroke-width="1.2"/>
+                <path d="M16 42 C18 20, 30 15, 44 15 C58 15, 68 22, 70 42 Z" fill="#22C55E" stroke="#BBF7D0" stroke-width="1.8"/>
+                <polygon points="24,42 28,48 32,42" fill="#FFFFFF"/>
+                <polygon points="36,42 40,48 44,42" fill="#FFFFFF"/>
+                <polygon points="48,42 52,48 56,42" fill="#FFFFFF"/>
+                <circle cx="30" cy="29" r="3" fill="#1E293B"/>
+                <circle cx="56" cy="29" r="3" fill="#1E293B"/>
+            </svg>`;
+    }
+    if (accId === 'cherry_clip') {
+        const w = compact ? 38 : 66;
+        const h = compact ? 30 : 48;
+        return `
+            <svg class="lotus-svg-art lotus-hat-breathe" width="${w}" height="${h}" viewBox="0 0 74 54" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M26 34 Q34 16 40 12 M48 36 Q44 18 40 12" stroke="#16A34A" stroke-width="2.8" stroke-linecap="round"/>
+                <ellipse cx="47" cy="13" rx="8" ry="4.2" transform="rotate(18 47 13)" fill="#22C55E"/>
+                <circle cx="25" cy="36" r="8.5" fill="#E11D48" stroke="#FFE4E6" stroke-width="1.3"/>
+                <circle cx="48" cy="38" r="8.5" fill="#F43F5E" stroke="#FFE4E6" stroke-width="1.3"/>
+                <circle cx="22.5" cy="33.5" r="2.2" fill="#FFFFFF" opacity="0.85"/>
+                <circle cx="45.5" cy="35.5" r="2.2" fill="#FFFFFF" opacity="0.85"/>
+            </svg>`;
+    }
     const accObj = getAccessoryById(accId);
     return accObj ? `<span>${accObj.icon}</span>` : '';
 }
@@ -1242,7 +1298,7 @@ class PetWonderTownApp {
         const navQuestBadge = document.getElementById('navGachaQuestBadge');
         if (navQuestBadge && profileManager.getDailyQuestStatus) {
             const qs = profileManager.getDailyQuestStatus(u);
-            navQuestBadge.textContent = qs.allClearCompleted ? '✅全勤' : `${qs.completedCount}/2`;
+            navQuestBadge.textContent = qs.allClearCompleted ? '✅全勤' : `${qs.completedCount}/${qs.totalQuests || 3}`;
             navQuestBadge.classList.toggle('done', qs.allClearCompleted);
         }
 
@@ -1972,10 +2028,14 @@ class PetWonderTownApp {
 
     celebrateDailyQuestEvents(questEvents = []) {
         if (!Array.isArray(questEvents) || questEvents.length === 0) return;
+        const gotTicketNow = questEvents.some(ev => (ev.ticketAdded || 0) > 0);
         soundEngine.playGachaOpen();
-        this.fx.spawnBurst(window.innerWidth * 0.55, window.innerHeight * 0.35, 42);
+        this.fx.spawnBurst(window.innerWidth * 0.55, window.innerHeight * 0.35, gotTicketNow ? 46 : 26);
         const msg = questEvents.map(ev => ev.label).join(' · ');
-        this.showQuickToast('🎁 每日固定打卡达成！免费盲盒券到账！', msg);
+        this.showQuickToast(
+            gotTicketNow ? '🏆 语数英三科全通！黄金盲盒券到账！' : '📅 单科打卡达成 (+2🏅)！',
+            msg
+        );
     }
 
     renderBlindboxPrizeVisualHtml(pr, size = 128) {
@@ -2028,43 +2088,57 @@ class PetWonderTownApp {
         const curSeriesBundle = museum.bySeries[activeSeriesId] || museum.bySeries.all;
         const curSeries = curSeriesBundle.series;
 
-        // 1) 顶部：每日固定数学练习(10题) + 每日校外英语练习(8次) 必得盲盒券进度栏
+        // 1) 顶部：每日语数英三科打卡(数学10题 + 语文8题 + 英语8题)全部完成领 1 张黄金盲盒券进度栏
         const questsBar = document.getElementById('petDailyQuestsBar');
         if (questsBar) {
             const mathPct = Math.round((quest.mathDone / quest.mathTarget) * 100);
-            const coursePct = Math.round((quest.courseDone / quest.courseTarget) * 100);
+            const cnPct = Math.round((quest.chineseDone / quest.chineseTarget) * 100);
+            const enPct = Math.round((quest.englishDone / quest.englishTarget) * 100);
             questsBar.innerHTML = `
                 <div class="gdq-card ${quest.mathCompleted ? 'done' : ''}">
                     <div class="gdq-top">
-                        <span class="gdq-name">🔢 每日数学固定练习</span>
+                        <span class="gdq-name">🔢 数学打卡</span>
                         <span class="gdq-count">${quest.mathDone}/${quest.mathTarget}题</span>
                     </div>
                     <div class="gdq-bar"><div class="gdq-fill math" style="width:${mathPct}%;"></div></div>
                     <div class="gdq-foot">
-                        <span class="gdq-reward">奖励：🎟️盲盒券×1 + 2🏅</span>
+                        <span class="gdq-reward">单科 +2🏅</span>
                         ${quest.mathCompleted
-                            ? '<span class="gdq-done-tag">✅ 今日已领券</span>'
+                            ? '<span class="gdq-done-tag">✅ 已完成</span>'
                             : '<button type="button" class="gdq-go-btn" data-quest-go="math">去练数学 ▶</button>'}
                     </div>
                 </div>
-                <div class="gdq-card ${quest.courseCompleted ? 'done' : ''}">
+                <div class="gdq-card ${quest.chineseCompleted ? 'done' : ''}">
                     <div class="gdq-top">
-                        <span class="gdq-name">🎓 每日校外英语(${quest.latestLessonTitle.split('《')[0]})</span>
-                        <span class="gdq-count">${quest.courseDone}/${quest.courseTarget}次</span>
+                        <span class="gdq-name">📖 语文打卡</span>
+                        <span class="gdq-count">${quest.chineseDone}/${quest.chineseTarget}题</span>
                     </div>
-                    <div class="gdq-bar"><div class="gdq-fill course" style="width:${coursePct}%;"></div></div>
+                    <div class="gdq-bar"><div class="gdq-fill chinese" style="width:${cnPct}%;"></div></div>
                     <div class="gdq-foot">
-                        <span class="gdq-reward">奖励：🎟️盲盒券×1 + 2🏅</span>
-                        ${quest.courseCompleted
-                            ? '<span class="gdq-done-tag">✅ 今日已领券</span>'
-                            : '<button type="button" class="gdq-go-btn course" data-quest-go="course">去练英语课 ▶</button>'}
+                        <span class="gdq-reward">单科 +2🏅</span>
+                        ${quest.chineseCompleted
+                            ? '<span class="gdq-done-tag">✅ 已完成</span>'
+                            : '<button type="button" class="gdq-go-btn chinese" data-quest-go="chinese">去练语文 ▶</button>'}
+                    </div>
+                </div>
+                <div class="gdq-card ${quest.englishCompleted ? 'done' : ''}">
+                    <div class="gdq-top">
+                        <span class="gdq-name">🔤 英语打卡</span>
+                        <span class="gdq-count">${quest.englishDone}/${quest.englishTarget}题</span>
+                    </div>
+                    <div class="gdq-bar"><div class="gdq-fill course" style="width:${enPct}%;"></div></div>
+                    <div class="gdq-foot">
+                        <span class="gdq-reward">单科 +2🏅</span>
+                        ${quest.englishCompleted
+                            ? '<span class="gdq-done-tag">✅ 已完成</span>'
+                            : '<button type="button" class="gdq-go-btn course" data-quest-go="english">去练英语 ▶</button>'}
                     </div>
                 </div>
                 <div class="gdq-bonus-pill ${quest.allClearCompleted ? 'done' : ''}">
-                    <div class="gdq-bonus-icon">${quest.allClearCompleted ? '🏆' : '🌟'}</div>
+                    <div class="gdq-bonus-icon">${quest.allClearCompleted ? '🏆' : '🎟️'}</div>
                     <div>
-                        <div class="gdq-bonus-title">${quest.allClearCompleted ? '今日双科全勤已达成！' : '双科全勤加赠大奖'}</div>
-                        <div class="gdq-bonus-sub">${quest.allClearCompleted ? '已获赠 SSR/UR 保底黄金券 🎉' : '两项都完成再送 +1🎟️保底黄金券'}</div>
+                        <div class="gdq-bonus-title">${quest.allClearCompleted ? '三科全通已领券！' : `三科全完领券 (${quest.completedCount}/3)`}</div>
+                        <div class="gdq-bonus-sub">${quest.allClearCompleted ? '已赠 1张黄金盲盒券 🎉' : '语数英做完得 🎟️×1'}</div>
                     </div>
                 </div>
             `;
@@ -2072,14 +2146,19 @@ class PetWonderTownApp {
                 soundEngine.playTap();
                 profileManager.setPreferredSmartMode('math_random');
                 this.switchSubjectTab('math', true, false);
-                this.showQuickToast('🔢 每日数学打卡已就绪', `在右侧再答对 ${quest.mathTarget - quest.mathDone} 道数学题即可免费领 1 张 🎟️ 盲盒券！`);
+                this.showQuickToast('🔢 每日数学打卡已就绪', `再答对 ${quest.mathTarget - quest.mathDone} 道数学题完成数学打卡（语数英三科全完领 1 张 🎟️ 盲盒券）！`);
             });
-            questsBar.querySelector('[data-quest-go="course"]')?.addEventListener('click', () => {
+            questsBar.querySelector('[data-quest-go="chinese"]')?.addEventListener('click', () => {
                 soundEngine.playTap();
-                this.courseSubMode = 'course_all';
-                profileManager.setPreferredSmartMode('course_all');
-                this.switchSubjectTab('course', true, true);
-                this.showQuickToast('🎓 每日校外英语打卡已就绪', `在右侧再完成 ${quest.courseTarget - quest.courseDone} 次校外英语练习或跟读打卡即可领 🎟️ 盲盒券！`);
+                profileManager.setPreferredSmartMode('chinese_random');
+                this.switchSubjectTab('chinese', true, false);
+                this.showQuickToast('📖 每日语文打卡已就绪', `再答对 ${quest.chineseTarget - quest.chineseDone} 道语文题完成语文打卡（语数英三科全完领 1 张 🎟️ 盲盒券）！`);
+            });
+            questsBar.querySelector('[data-quest-go="english"]')?.addEventListener('click', () => {
+                soundEngine.playTap();
+                profileManager.setPreferredSmartMode('english_random');
+                this.switchSubjectTab('english', true, true);
+                this.showQuickToast('🔤 每日英语打卡已就绪', `再答对 ${quest.englishTarget - quest.englishDone} 道英语或英语课题完成英语打卡（语数英三科全完领 1 张 🎟️ 盲盒券）！`);
             });
         }
 
@@ -2203,8 +2282,7 @@ class PetWonderTownApp {
                             this.showQuickToast('✨ 守护小精灵已跟随！', `【${it.name}】现在悬浮在你的萌宠身旁啦！切回「🏠 我的萌宠」快去看看吧！`);
                         }
                     } else if (it.prizeType === 'accessory') {
-                        const activePet = profileManager.getActiveUser().activePetId;
-                        profileManager.equipOrBuyAccessory(activePet, it.rawId);
+                        profileManager.unlockOrEquipAccessory(it.rawId);
                         soundEngine.playFeed();
                         this.renderAll();
                         this.showQuickToast('🎀 潮玩头饰已穿戴！', `已为当前萌宠换上【${it.name}】！`);
@@ -2395,7 +2473,7 @@ class PetWonderTownApp {
             if (award.alreadyAtCap) {
                 fb.textContent = `🌟 答对啦！今日徽章已集满 (${award.dailyEarned}/${award.dailyCap})，继续练习巩固熟练度！`;
             } else if (award.actualTicket) {
-                fb.textContent = `🎉 15连对大满贯！+${award.actualBadges}🏅 并获赠 1 张 🎟️ 神秘盲盒券！`;
+                fb.textContent = `🏆 语数英三科满贯达成！+${award.actualBadges}🏅 并获赠 1 张 🎟️ 黄金盲盒券！`;
             } else if (award.actualBadges > 0) {
                 fb.textContent = `🌟 棒极啦！荣获 +${award.actualBadges} 🏅 徽章（今日 ${award.dailyEarned}/${award.dailyCap}）！`;
                 this.fx.flyBadges(flySourceEl, document.getElementById('heroMainSprite'), award.actualBadges);
@@ -2918,6 +2996,7 @@ class PetWonderTownApp {
 
             this.triggerPetAnswerReaction(true, res.combo);
             this.renderAll();
+            this.celebrateDailyQuestEvents(award.questEvents);
             if (award.reachedCapNow) this.celebrateDailyCapReached(award.dailyCap);
 
             setTimeout(() => {

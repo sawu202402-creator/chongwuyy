@@ -14,9 +14,9 @@
     <meta name="apple-mobile-web-app-title" content="萌宠店长">
     <link rel="manifest" href="site.webmanifest">
     <meta name="theme-color" content="#7c5cfc">
-    <link rel="stylesheet" href="css/style.css?v=20261122_chinese_v9">
-    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261122_chinese_v9">
-    <link rel="stylesheet" href="../shared/magicMailbox.css?v=20261122_chinese_v9">
+    <link rel="stylesheet" href="css/style.css?v=20261122_bbx_v10">
+    <link rel="stylesheet" href="../shared/smartChalkboard.css?v=20261122_bbx_v10">
+    <link rel="stylesheet" href="../shared/magicMailbox.css?v=20261122_bbx_v10">
 </head>
 <body>
     <!-- 全屏飞行徽章与彩虹礼花粒子画布 -->
@@ -270,12 +270,12 @@
                     </div>
                 </div>
 
-                <!-- 【视图 4：每日固定打卡 & 六大系列盲盒博物馆】 -->
+                <!-- 【视图 4：每日语数英三科打卡 & 九大系列盲盒博物馆】 -->
                 <div class="world-view" id="view-gacha">
                     <div class="gacha-stage-card gacha-museum-layout">
-                        <!-- 顶部：每日固定数学(10题) + 每日校外英语(8次) 必得盲盒券打卡横幅 -->
+                        <!-- 顶部：每日数学(10题) + 语文(8题) + 英语(8题) 三科全部完成领盲盒券打卡横幅 -->
                         <div class="gacha-daily-quests-bar" id="petDailyQuestsBar">
-                            <!-- 由 pet/js/main.js 动态渲染每日双科打卡进度与一键开练按钮 -->
+                            <!-- 由 pet/js/main.js 动态渲染每日语数英三科打卡进度与一键开练按钮 -->
                         </div>
 
                         <div class="gacha-main-split">
@@ -283,11 +283,11 @@
                                 <div class="gacha-series-active-pill" id="gachaActiveSeriesLabel">🌈 当前盲盒机：全馆惊喜混抽</div>
                                 <div class="gacha-machine-dome" id="gachaDome">
                                     <div class="capsule-ball b1" id="gachaCap1">🦖</div>
-                                    <div class="capsule-ball b2" id="gachaCap2">🍰</div>
+                                    <div class="capsule-ball b2" id="gachaCap2">🌊</div>
                                     <div class="capsule-ball b3" id="gachaCap3">👑</div>
                                     <div class="capsule-ball b4" id="gachaCap4">🪐</div>
-                                    <div class="capsule-ball b5" id="gachaCap5">🏮</div>
-                                    <div class="gacha-center-star" id="gachaCenterLabel">✨ 74款盲盒 ✨</div>
+                                    <div class="capsule-ball b5" id="gachaCap5">🚄</div>
+                                    <div class="gacha-center-star" id="gachaCenterLabel">✨ 128款盲盒 ✨</div>
                                 </div>
                                 <div class="gacha-pity-tip" id="gachaPityHint">💎 优先抽未拥有新品 · 每 5 抽必出 SSR/UR！</div>
                                 <div class="gacha-machine-base" style="width:100%;">
@@ -300,11 +300,11 @@
 
                             <div class="gacha-right-showcase">
                                 <div class="gacha-showcase-head">
-                                    <h2 class="gacha-title" id="gachaMuseumTitle">🎁 六大系列盲盒珍藏馆</h2>
-                                    <span class="gacha-total-prog" id="gachaTotalProgBadge">已收集 0 / 74</span>
+                                    <h2 class="gacha-title" id="gachaMuseumTitle">🎁 九大系列盲盒珍藏馆</h2>
+                                    <span class="gacha-total-prog" id="gachaTotalProgBadge">已收集 0 / 128</span>
                                 </div>
                                 <div class="gacha-series-tabs" id="gachaSeriesTabs">
-                                    <!-- JS 渲染 7 个系列切换胶囊（点击既可查看该馆图鉴，也可定向抽该系列盲盒！） -->
+                                    <!-- JS 渲染 10 个系列切换胶囊（点击既可查看该馆图鉴，也可定向抽该系列盲盒！） -->
                                 </div>
                                 <div class="gacha-series-banner" id="gachaSeriesBanner"></div>
                                 <div class="hidden-pets-preview gacha-museum-grid" id="gachaHiddenPreview">
@@ -387,7 +387,7 @@
                         <button class="btn-confirm-math" id="btnSubmitMath" type="button">确认 ↵</button>
                     </div>
 
-                    <div class="learn-feedback-bar" id="mathFeedbackBar">✨ 答对奖励 +2~6 🏅，连对 5 题送 🎟️ 盲盒券！</div>
+                    <div class="learn-feedback-bar" id="mathFeedbackBar">✨ 答对奖励 +2~6 🏅，语数英三科打卡全完送 🎟️ 黄金盲盒券！</div>
 
                     <!-- 沿用 shuxue/shuxuejs 标志性彩色果冻大数字键盘 (防iPad误触) -->
                     <div class="jelly-keypad" id="mathKeypad">
@@ -620,6 +620,6 @@
         </div>
     </div>
 
-    <script type="module" src="js/main.js?v=20261122_chinese_v9"></script>
+    <script type="module" src="js/main.js?v=20261122_bbx_v10"></script>
 </body>
 </html>

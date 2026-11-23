@@ -847,9 +847,10 @@ export class SmartChalkboard {
                 isMath: true
             });
             this.updateTopBadgePill();
-            const questTip = (prog.questEvents && prog.questEvents.length > 0)
-                ? ` · 🎁每日打卡+${prog.questEvents.length}🎟️盲盒券!`
-                : '';
+            const questTickets = (prog.questEvents || []).reduce((s, ev) => s + (ev.ticketAdded || 0), 0);
+            const questTip = questTickets > 0
+                ? ` · 🏆三科全完+${questTickets}🎟️盲盒券!`
+                : ((prog.questEvents && prog.questEvents.length > 0) ? ' · 📅单科打卡完成(+2🏅)!' : '');
             if (prog.actualBadges > 0) {
                 return ` · 🏅+${prog.actualBadges}徽章${questTip}`;
             }
@@ -1084,8 +1085,11 @@ export class SmartChalkboard {
             } else if (!prog.alreadyAtCap) {
                 badgeSuffix = ` · ⭐攒星${prog.starProgress}/3`;
             }
-            if (prog.questEvents && prog.questEvents.length > 0) {
-                badgeSuffix += ` · 🎁每日打卡+${prog.questEvents.length}🎟️盲盒券!`;
+            const questTickets = (prog.questEvents || []).reduce((s, ev) => s + (ev.ticketAdded || 0), 0);
+            if (questTickets > 0) {
+                badgeSuffix += ` · 🏆三科全完+${questTickets}🎟️盲盒券!`;
+            } else if (prog.questEvents && prog.questEvents.length > 0) {
+                badgeSuffix += ' · 📅单科打卡完成(+2🏅)!';
             } else if (prog.actualTicket) {
                 badgeSuffix += ' · 🎟️+1盲盒券!';
             }
@@ -1195,7 +1199,12 @@ export class SmartChalkboard {
             } else if (!prog.alreadyAtCap) {
                 badgeSuffix = ` · ⭐攒星${prog.starProgress}/3`;
             }
-            if (prog.actualTicket) {
+            const cnQuestTickets = (prog.questEvents || []).reduce((s, ev) => s + (ev.ticketAdded || 0), 0);
+            if (cnQuestTickets > 0) {
+                badgeSuffix += ` · 🏆三科全完+${cnQuestTickets}🎟️盲盒券!`;
+            } else if (prog.questEvents && prog.questEvents.length > 0) {
+                badgeSuffix += ' · 📅单科打卡完成(+2🏅)!';
+            } else if (prog.actualTicket) {
                 badgeSuffix += ' · 🎟️+1盲盒券!';
             }
         } else {

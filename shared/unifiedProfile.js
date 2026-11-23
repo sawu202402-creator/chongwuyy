@@ -35,6 +35,8 @@ import {
 export { sanitizeChineseEnabledTypes, sanitizeChineseGrade };
 import {
     DAILY_MATH_QUEST_TARGET,
+    DAILY_CHINESE_QUEST_TARGET,
+    DAILY_ENGLISH_QUEST_TARGET,
     DAILY_COURSE_QUEST_TARGET,
     BLINDBOX_SERIES,
     BLINDBOX_RARITY_META,
@@ -110,8 +112,12 @@ function createFreshDailyState() {
         questionsAttempted: 0,
         questionsCorrect: 0,
         mathCorrectToday: 0,
+        chineseCorrectToday: 0,
+        englishCorrectToday: 0,
         courseCorrectToday: 0,
         dailyMathQuestClaimed: false,
+        dailyChineseQuestClaimed: false,
+        dailyEnglishQuestClaimed: false,
         dailyCourseQuestClaimed: false,
         dailyAllClearClaimed: false,
         siblingGiftClaimed: false,
@@ -762,9 +768,17 @@ export class UserProfileManager {
         if (typeof user.dailyState.questionsAttempted !== 'number') user.dailyState.questionsAttempted = 0;
         if (typeof user.dailyState.questionsCorrect !== 'number') user.dailyState.questionsCorrect = 0;
         if (typeof user.dailyState.mathCorrectToday !== 'number') user.dailyState.mathCorrectToday = 0;
+        if (typeof user.dailyState.chineseCorrectToday !== 'number') user.dailyState.chineseCorrectToday = 0;
         if (typeof user.dailyState.courseCorrectToday !== 'number') user.dailyState.courseCorrectToday = 0;
+        if (typeof user.dailyState.englishCorrectToday !== 'number') {
+            user.dailyState.englishCorrectToday = user.dailyState.courseCorrectToday || 0;
+        }
         if (typeof user.dailyState.dailyMathQuestClaimed !== 'boolean') user.dailyState.dailyMathQuestClaimed = false;
+        if (typeof user.dailyState.dailyChineseQuestClaimed !== 'boolean') user.dailyState.dailyChineseQuestClaimed = false;
         if (typeof user.dailyState.dailyCourseQuestClaimed !== 'boolean') user.dailyState.dailyCourseQuestClaimed = false;
+        if (typeof user.dailyState.dailyEnglishQuestClaimed !== 'boolean') {
+            user.dailyState.dailyEnglishQuestClaimed = Boolean(user.dailyState.dailyCourseQuestClaimed);
+        }
         if (typeof user.dailyState.dailyAllClearClaimed !== 'boolean') user.dailyState.dailyAllClearClaimed = false;
         if (typeof user.dailyState.usedSeconds !== 'number' || user.dailyState.usedSeconds < 0) user.dailyState.usedSeconds = 0;
         if (typeof user.dailyState.bonusMinutesToday !== 'number' || user.dailyState.bonusMinutesToday < 0) user.dailyState.bonusMinutesToday = 0;
@@ -881,20 +895,33 @@ export class UserProfileManager {
         const u = user || this.getActiveUser();
         const ds = this._ensureDailyState(u);
         const latestLesson = COURSE_LESSONS?.[0];
+        const englishRaw = Math.max(ds.englishCorrectToday || 0, ds.courseCorrectToday || 0);
+        const englishCompleted = Boolean(ds.dailyEnglishQuestClaimed || ds.dailyCourseQuestClaimed);
+        const mathCompleted = Boolean(ds.dailyMathQuestClaimed);
+        const chineseCompleted = Boolean(ds.dailyChineseQuestClaimed);
         return {
             dateKey: ds.dateKey,
             mathDone: Math.min(DAILY_MATH_QUEST_TARGET, ds.mathCorrectToday || 0),
             mathRaw: ds.mathCorrectToday || 0,
             mathTarget: DAILY_MATH_QUEST_TARGET,
-            mathCompleted: Boolean(ds.dailyMathQuestClaimed),
-            courseDone: Math.min(DAILY_COURSE_QUEST_TARGET, ds.courseCorrectToday || 0),
-            courseRaw: ds.courseCorrectToday || 0,
-            courseTarget: DAILY_COURSE_QUEST_TARGET,
-            courseCompleted: Boolean(ds.dailyCourseQuestClaimed),
+            mathCompleted,
+            chineseDone: Math.min(DAILY_CHINESE_QUEST_TARGET, ds.chineseCorrectToday || 0),
+            chineseRaw: ds.chineseCorrectToday || 0,
+            chineseTarget: DAILY_CHINESE_QUEST_TARGET,
+            chineseCompleted,
+            englishDone: Math.min(DAILY_ENGLISH_QUEST_TARGET, englishRaw),
+            englishRaw,
+            englishTarget: DAILY_ENGLISH_QUEST_TARGET,
+            englishCompleted,
+            // 向后兼容旧字段名
+            courseDone: Math.min(DAILY_ENGLISH_QUEST_TARGET, englishRaw),
+            courseRaw: englishRaw,
+            courseTarget: DAILY_ENGLISH_QUEST_TARGET,
+            courseCompleted: englishCompleted,
             allClearCompleted: Boolean(ds.dailyAllClearClaimed),
-            completedCount: (ds.dailyMathQuestClaimed ? 1 : 0) + (ds.dailyCourseQuestClaimed ? 1 : 0),
-            totalQuests: 2,
-            latestLessonTitle: latestLesson ? `${latestLesson.code}《${latestLesson.storyTitle}》` : '校外英语课'
+            completedCount: (mathCompleted ? 1 : 0) + (chineseCompleted ? 1 : 0) + (englishCompleted ? 1 : 0),
+            totalQuests: 3,
+            latestLessonTitle: latestLesson ? `${latestLesson.code}《${latestLesson.storyTitle}》` : '少儿英语'
         };
     }
 
@@ -1181,6 +1208,7 @@ export class UserProfileManager {
             ds.questionsAttempted = (ds.questionsAttempted || 0) + 1;
             ds.questionsCorrect = (ds.questionsCorrect || 0) + 1;
             if (isChinese) {
+                ds.chineseCorrectToday = (ds.chineseCorrectToday || 0) + 1;
                 u.stats.totalChineseAttempted = Math.max(u.stats.totalChineseAttempted || 0, u.stats.totalChineseCorrect || 0) + 1;
                 u.stats.totalChineseCorrect = (u.stats.totalChineseCorrect || 0) + 1;
             } else if (isMath) {
@@ -1188,6 +1216,7 @@ export class UserProfileManager {
                 u.stats.totalMathAttempted = Math.max(u.stats.totalMathAttempted || 0, u.stats.totalMathCorrect || 0) + 1;
                 u.stats.totalMathCorrect = (u.stats.totalMathCorrect || 0) + 1;
             } else {
+                ds.englishCorrectToday = (ds.englishCorrectToday || 0) + 1;
                 if (isCoursePractice) {
                     ds.courseCorrectToday = (ds.courseCorrectToday || 0) + 1;
                 }
@@ -1196,6 +1225,7 @@ export class UserProfileManager {
             }
         } else if (subjectTag === '朗读打卡') {
             ds.courseCorrectToday = (ds.courseCorrectToday || 0) + 1;
+            ds.englishCorrectToday = (ds.englishCorrectToday || 0) + 1;
         }
         if (combo > (u.stats.bestCombo || 0)) u.stats.bestCombo = combo;
         if (isVocabCampFinish) ds.vocabCampCount += 1;
@@ -1233,46 +1263,55 @@ export class UserProfileManager {
             actualTicket = true;
         }
 
-        // ==================== 📅 每日数英固定打卡任务检测（必送免费盲盒券！） ====================
+        // ==================== 📅 每日语数英三科打卡任务检测（三科全部完成才得 1 张免费盲盒券！） ====================
         const questEvents = [];
         if (!ds.dailyMathQuestClaimed && ds.mathCorrectToday >= DAILY_MATH_QUEST_TARGET) {
             ds.dailyMathQuestClaimed = true;
-            u.gachaTickets = (u.gachaTickets || 0) + 1;
-            actualTicket = true;
-            this._pushLedger(u, `📅 每日数学固定打卡(${DAILY_MATH_QUEST_TARGET}题)达成奖励`, 2);
-            this._pushScoreRecord(u, `📅 每日数学固定打卡达成 (+1🎟️盲盒券 +2🏅)`, '每日打卡', 2);
+            this._pushLedger(u, `📅 每日数学打卡(${DAILY_MATH_QUEST_TARGET}题)达成奖励`, 2);
+            this._pushScoreRecord(u, `📅 每日数学打卡达成 (+2🏅 · 三科全完领🎟️盲盒券)`, '每日打卡', 2);
             questEvents.push({
                 type: 'math',
-                ticketAdded: 1,
+                ticketAdded: 0,
                 badgeAdded: 2,
-                label: `📅 今日数学固定打卡(${DAILY_MATH_QUEST_TARGET}题)完成！免费获赠 +1🎟️盲盒券 +2🏅！`
+                label: `📅 今日数学打卡(${DAILY_MATH_QUEST_TARGET}题)完成！奖 +2🏅（数学+语文+英语三科全完可领 1 张🎟️盲盒券）！`
             });
         }
-        if (!ds.dailyCourseQuestClaimed && ds.courseCorrectToday >= DAILY_COURSE_QUEST_TARGET) {
-            ds.dailyCourseQuestClaimed = true;
-            u.gachaTickets = (u.gachaTickets || 0) + 1;
-            actualTicket = true;
-            this._pushLedger(u, `📅 每日校外英语打卡(${DAILY_COURSE_QUEST_TARGET}次)达成奖励`, 2);
-            this._pushScoreRecord(u, `📅 每日校外英语打卡达成 (+1🎟️盲盒券 +2🏅)`, '每日打卡', 2);
+        if (!ds.dailyChineseQuestClaimed && (ds.chineseCorrectToday || 0) >= DAILY_CHINESE_QUEST_TARGET) {
+            ds.dailyChineseQuestClaimed = true;
+            this._pushLedger(u, `📅 每日语文打卡(${DAILY_CHINESE_QUEST_TARGET}题)达成奖励`, 2);
+            this._pushScoreRecord(u, `📅 每日语文打卡达成 (+2🏅 · 三科全完领🎟️盲盒券)`, '每日打卡', 2);
             questEvents.push({
-                type: 'course',
-                ticketAdded: 1,
+                type: 'chinese',
+                ticketAdded: 0,
                 badgeAdded: 2,
-                label: `📅 今日校外英语打卡(${DAILY_COURSE_QUEST_TARGET}次)完成！免费获赠 +1🎟️盲盒券 +2🏅！`
+                label: `📅 今日语文打卡(${DAILY_CHINESE_QUEST_TARGET}题)完成！奖 +2🏅（数学+语文+英语三科全完可领 1 张🎟️盲盒券）！`
             });
         }
-        if (ds.dailyMathQuestClaimed && ds.dailyCourseQuestClaimed && !ds.dailyAllClearClaimed) {
+        const englishTodayCount = Math.max(ds.englishCorrectToday || 0, ds.courseCorrectToday || 0);
+        if (!ds.dailyEnglishQuestClaimed && englishTodayCount >= DAILY_ENGLISH_QUEST_TARGET) {
+            ds.dailyEnglishQuestClaimed = true;
+            ds.dailyCourseQuestClaimed = true;
+            this._pushLedger(u, `📅 每日英语打卡(${DAILY_ENGLISH_QUEST_TARGET}题)达成奖励`, 2);
+            this._pushScoreRecord(u, `📅 每日英语打卡达成 (+2🏅 · 三科全完领🎟️盲盒券)`, '每日打卡', 2);
+            questEvents.push({
+                type: 'english',
+                ticketAdded: 0,
+                badgeAdded: 2,
+                label: `📅 今日英语打卡(${DAILY_ENGLISH_QUEST_TARGET}题)完成！奖 +2🏅（数学+语文+英语三科全完可领 1 张🎟️盲盒券）！`
+            });
+        }
+        if (ds.dailyMathQuestClaimed && ds.dailyChineseQuestClaimed && ds.dailyEnglishQuestClaimed && !ds.dailyAllClearClaimed) {
             ds.dailyAllClearClaimed = true;
             u.gachaTickets = (u.gachaTickets || 0) + 1;
             u.guaranteedHighRarityDraws = (u.guaranteedHighRarityDraws || 0) + 1;
             actualTicket = true;
-            this._pushLedger(u, '🏆 今日数英双科全勤满贯大奖', 3);
-            this._pushScoreRecord(u, '🏆 今日数英双科全勤达成 (+1🎟️闪耀保底盲盒券 +3🏅)', '全勤满贯', 3);
+            this._pushLedger(u, '🏆 今日语数英三科全勤满贯大奖', 3);
+            this._pushScoreRecord(u, '🏆 今日语数英三科打卡全完 (+1🎟️黄金盲盒券 +3🏅)', '三科满贯', 3);
             questEvents.push({
                 type: 'all_clear',
                 ticketAdded: 1,
                 badgeAdded: 3,
-                label: '🏆 今日数英双科全勤达成！加赠 +1🎟️ SSR/UR 保底黄金盲盒券 +3🏅！'
+                label: '🏆 今日【数学 + 语文 + 英语】三科打卡全部完成！荣获 1 张 🎟️ SSR/UR 保底黄金盲盒券 + 3🏅！'
             });
         }
 
@@ -1767,7 +1806,7 @@ export class UserProfileManager {
         } else {
             return {
                 ok: false,
-                msg: `需要 1 张 🎟️ 盲盒券或 ${GACHA_BADGE_COST} 枚 🏅 徽章才能开箱哦！（完成今日 10 道数学或 8 次校外英语固定打卡，免费必得盲盒券！）`
+                msg: `需要 1 张 🎟️ 盲盒券或 ${GACHA_BADGE_COST} 枚 🏅 徽章才能开箱哦！（每天做完数学+语文+英语三科打卡，免费得 1 张黄金盲盒券！）`
             };
         }
 

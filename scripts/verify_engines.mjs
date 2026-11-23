@@ -653,42 +653,68 @@ qStats = pmQ.getQuestionStats();
 assert.equal(qStats.todayAttempted, 5, 'Questions answered after daily badge cap must still increment todayAttempted');
 assert.equal(qStats.totalAttempted, 5, 'Questions answered after daily badge cap must still increment totalAttempted');
 
-// 9. Verify Daily Fixed Quests (Math 10Q + Off-Campus Course 8Q + All-Clear Golden Ticket) & 6-Series 74-Item Blindbox Museum!
+// 9. Verify Daily 3-Subject Quests (Math 10Q + Chinese 8Q + English 8Q -> ALL 3 required for 1 Golden Ticket!) & 9-Series 128-Item Blindbox Museum!
 const pmBbx = new UserProfileManager();
 const museum0 = pmBbx.getBlindboxMuseumSummary();
-assert.equal(museum0.totalItems, 74, 'Blindbox museum must contain 74 collectibles across 6 themed series');
-assert.equal(museum0.bySeries.guardians.totalCount, 10);
-assert.equal(museum0.bySeries.fashion.totalCount, 16);
-assert.equal(museum0.bySeries.dino.totalCount, 12);
-assert.equal(museum0.bySeries.space.totalCount, 12);
+assert.equal(museum0.totalItems, 128, 'Blindbox museum must contain 128 collectibles across 9 themed series');
+assert.equal(museum0.bySeries.guardians.totalCount, 14);
+assert.equal(museum0.bySeries.fashion.totalCount, 20);
+assert.equal(museum0.bySeries.dino.totalCount, 14);
+assert.equal(museum0.bySeries.space.totalCount, 14);
+assert.equal(museum0.bySeries.ocean.totalCount, 14);
+assert.equal(museum0.bySeries.nature.totalCount, 14);
 assert.equal(museum0.bySeries.sweets.totalCount, 12);
-assert.equal(museum0.bySeries.treasures.totalCount, 12);
+assert.equal(museum0.bySeries.treasures.totalCount, 14);
+assert.equal(museum0.bySeries.tech.totalCount, 12);
 
-// Complete 10 Math questions -> must award +1 gachaTicket
+// Verify combo/camp random ticket drop is disabled (gotTicket: true -> 0 tickets)
+const comboTry = pmBbx.awardLearningProgress({ title: '数学连击测试', subjectTag: '数学', stars: 1, gotTicket: true, isMath: true });
+assert.equal(comboTry.actualTicket, false, 'Combo random ticket drops must be disabled');
+assert.equal(pmBbx.getActiveUser().gachaTickets, 0);
+
+// Complete remaining 9 Math questions (total 10) -> mathCompleted = true, but gachaTickets must still be 0!
 let mathQuestEvt = null;
-for (let i = 0; i < 10; i++) {
-    const r = pmBbx.awardLearningProgress({ title: `数学打卡#${i + 1}`, subjectTag: '数学', stars: 1, isMath: true });
+for (let i = 0; i < 9; i++) {
+    const r = pmBbx.awardLearningProgress({ title: `数学打卡#${i + 2}`, subjectTag: '数学', stars: 1, isMath: true });
     if (r.questEvents?.length) mathQuestEvt = r.questEvents;
 }
-assert.ok(mathQuestEvt && mathQuestEvt.some(e => e.type === 'math'), '10th math right answer must trigger daily math quest reward');
+assert.ok(mathQuestEvt && mathQuestEvt.some(e => e.type === 'math'), '10th math right answer must trigger daily math quest completion');
 assert.equal(pmBbx.getDailyQuestStatus().mathCompleted, true);
-assert.equal(pmBbx.getActiveUser().gachaTickets, 1);
+assert.equal(pmBbx.getDailyQuestStatus().completedCount, 1);
+assert.equal(pmBbx.getActiveUser().gachaTickets, 0, 'Completing Math alone must NOT grant a blindbox ticket yet');
 
-// Complete 8 Off-Campus Course items -> must award +1 course ticket AND +1 all-clear golden ticket = 3 total tickets!
-let courseQuestEvts = [];
+// Complete 8 English questions -> englishCompleted = true, completedCount = 2, gachaTickets STILL 0!
 for (let i = 0; i < 8; i++) {
-    const r = pmBbx.awardLearningProgress({
-        title: `校外英语打卡#${i + 1}`,
-        subjectTag: '英语课专项',
+    pmBbx.awardLearningProgress({
+        title: `英语打卡#${i + 1}`,
+        subjectTag: '少儿英语',
         stars: 1,
         isMath: false,
-        isCourseSpecial: true
+        isChinese: false
     });
-    if (r.questEvents?.length) courseQuestEvts.push(...r.questEvents);
 }
-assert.equal(pmBbx.getDailyQuestStatus().courseCompleted, true);
+assert.equal(pmBbx.getDailyQuestStatus().englishCompleted, true);
+assert.equal(pmBbx.getDailyQuestStatus().completedCount, 2);
+assert.equal(pmBbx.getDailyQuestStatus().allClearCompleted, false);
+assert.equal(pmBbx.getActiveUser().gachaTickets, 0, 'Completing Math + English without Chinese must STILL grant 0 blindbox tickets');
+
+// Complete 8 Chinese questions -> ALL THREE subjects complete -> awards EXACTLY 1 Golden Blindbox Ticket!
+let cnQuestEvts = [];
+for (let i = 0; i < 8; i++) {
+    const r = pmBbx.awardLearningProgress({
+        title: `语文打卡#${i + 1}`,
+        subjectTag: '趣味语文',
+        stars: 1,
+        isMath: false,
+        isChinese: true
+    });
+    if (r.questEvents?.length) cnQuestEvts.push(...r.questEvents);
+}
+assert.equal(pmBbx.getDailyQuestStatus().chineseCompleted, true);
+assert.equal(pmBbx.getDailyQuestStatus().completedCount, 3);
 assert.equal(pmBbx.getDailyQuestStatus().allClearCompleted, true);
-assert.equal(pmBbx.getActiveUser().gachaTickets, 3, 'Completing both daily fixed quests must grant 3 free blindbox tickets');
+assert.ok(cnQuestEvts.some(e => e.type === 'all_clear' && e.ticketAdded === 1));
+assert.equal(pmBbx.getActiveUser().gachaTickets, 1, 'Completing all 3 subjects (Math + Chinese + English) must grant exactly 1 blindbox ticket');
 assert.equal(pmBbx.getActiveUser().guaranteedHighRarityDraws, 1, 'All-clear bonus must grant 1 SSR/UR guaranteed high-rarity draw');
 
 // Pull 1st blindbox from 'dino' series -> must be SSR or UR (due to guaranteedHighRarityDraws!)
@@ -697,21 +723,29 @@ assert.equal(firstDinoPull.ok, true);
 assert.equal(firstDinoPull.usedTicket, true);
 assert.equal(firstDinoPull.prize.seriesId, 'dino');
 assert.ok(['UR', 'SSR'].includes(firstDinoPull.prize.rarity), `Guaranteed draw must yield UR or SSR, got ${firstDinoPull.prize.rarity}`);
+assert.equal(pmBbx.getActiveUser().gachaTickets, 0);
 
-// Grant 12 more tickets, pull remaining 11 dinosaurs -> verify 12/12 zero-duplicate mastery, then 13th pull upgrades star rank to 2!
-pmBbx.getActiveUser().gachaTickets += 12;
+// Grant 17 more tickets: pull remaining 13 dinosaurs -> verify 14/14 zero-duplicate mastery, 15th pull upgrades star rank to 2, plus pull new ocean/nature/tech halls!
+pmBbx.getActiveUser().gachaTickets += 17;
 const seenDinos = new Set([firstDinoPull.prize.uid]);
-for (let i = 0; i < 11; i++) {
+for (let i = 0; i < 13; i++) {
     const p = pmBbx.drawBlindBox('dino');
     assert.equal(p.prize.isNew, true, `Pull #${i + 2} in dino series must be a brand-new dinosaur`);
     seenDinos.add(p.prize.uid);
 }
-assert.equal(seenDinos.size, 12, '12 pulls in dino series must unlock all 12 unique dinosaurs with 0 duplicates');
+assert.equal(seenDinos.size, 14, '14 pulls in dino series must unlock all 14 unique dinosaurs with 0 duplicates');
 assert.equal(pmBbx.getBlindboxMuseumSummary().bySeries.dino.isMastered, true);
 
 const starUpPull = pmBbx.drawBlindBox('dino');
-assert.equal(starUpPull.prize.isStarUpgrade, true, '13th pull in a mastered series must upgrade an item to 2-star shiny card');
+assert.equal(starUpPull.prize.isStarUpgrade, true, '15th pull in a mastered series must upgrade an item to 2-star shiny card');
 assert.equal(starUpPull.prize.starLevel, 2);
+
+for (const newSid of ['ocean', 'nature', 'tech']) {
+    const np = pmBbx.drawBlindBox(newSid);
+    assert.equal(np.ok, true);
+    assert.equal(np.prize.seriesId, newSid);
+    assert.equal(np.prize.isNew, true);
+}
 
 // Verify Daily Screen Time Control (default 30 min = half an hour, per-child tracking, +15m bonus, unlimited=0, reset)
 const { DEFAULT_DAILY_TIME_LIMIT_MIN, sanitizeDailyTimeLimitMin } = await import('../shared/unifiedProfile.js');
@@ -742,7 +776,7 @@ pmBbx.resetTodayScreenTime();
 assert.equal(pmBbx.getDailyTimeStatus().usedSeconds, 0);
 assert.equal(pmBbx.getDailyTimeStatus().remainingSeconds, 1800);
 
-console.log('   ✅ Unified UserProfileManager, Daily Fixed Quests, 74-Item Blindbox Museum, Live Question Counter & 12 Pet Voices verified!');
+console.log('   ✅ Unified UserProfileManager, 3-Subject Daily Quests (1 Ticket), 9-Series 128-Item Blindbox Museum, Live Question Counter & 12 Pet Voices verified!');
 
 console.log('6. Verifying Magic Mailbox Voice Dialog, Neural MP3 Clips & Cloudflare Worker Config...');
 const { WELCOME_LETTER, INSTANT_REPLY_CLIPS, MAGICIAN_LETTERS, matchInstantReply } = await import('../shared/aiReplies/letters.js');

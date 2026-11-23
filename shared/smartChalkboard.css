@@ -2008,11 +2008,11 @@
     color: #fff;
 }
 
-/* ==================== 每日数英打卡条 (.gdq-*) & 74款盲盒亚克力立牌/博物馆卡片 (.bbx-*) ==================== */
+/* ==================== 每日语数英三科打卡条 (.gdq-*) & 128款盲盒亚克力立牌/博物馆卡片 (.bbx-*) ==================== */
 .gacha-daily-quests-bar {
     display: grid;
-    grid-template-columns: 1fr 1fr 220px;
-    gap: 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) 176px;
+    gap: 7px;
     width: 100%;
     flex-shrink: 0;
 }
@@ -2020,11 +2020,12 @@
 .gdq-card {
     background: #ffffff;
     border: 2px solid #e9d8fd;
-    border-radius: 14px;
-    padding: 7px 11px;
+    border-radius: 13px;
+    padding: 6px 9px;
     display: flex;
     flex-direction: column;
     gap: 4px;
+    min-width: 0;
     box-shadow: 0 3px 10px rgba(124, 58, 237, 0.06);
 }
 .gdq-card.done {
@@ -2035,19 +2036,26 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 12.5px;
+    gap: 4px;
+    font-size: 11.5px;
     font-weight: 900;
     color: #3b2369;
+    white-space: nowrap;
+}
+.gdq-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .gdq-count {
     color: #7c3aed;
     font-weight: 900;
+    flex-shrink: 0;
 }
 .gdq-card.done .gdq-count {
     color: #16a34a;
 }
 .gdq-bar {
-    height: 7px;
+    height: 6px;
     border-radius: 999px;
     background: #ede9fe;
     overflow: hidden;
@@ -2060,6 +2068,9 @@
 .gdq-fill.math {
     background: linear-gradient(90deg, #3b82f6, #06b6d4);
 }
+.gdq-fill.chinese {
+    background: linear-gradient(90deg, #ea580c, #f59e0b);
+}
 .gdq-fill.course {
     background: linear-gradient(90deg, #ec4899, #8b5cf6);
 }
@@ -2067,32 +2078,37 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 6px;
+    gap: 4px;
 }
 .gdq-reward {
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 800;
     color: #6b5b95;
+    white-space: nowrap;
 }
 .gdq-done-tag {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 900;
     color: #15803d;
     background: #dcfce7;
-    padding: 2px 8px;
+    padding: 2px 7px;
     border-radius: 999px;
+    white-space: nowrap;
 }
 .gdq-go-btn {
     border: none;
     background: linear-gradient(135deg, #3b82f6, #2563eb);
     color: #fff;
-    font-size: 11px;
+    font-size: 10.5px;
     font-weight: 900;
-    padding: 3px 10px;
+    padding: 2.5px 8px;
     border-radius: 999px;
     cursor: pointer;
     white-space: nowrap;
     flex-shrink: 0;
+}
+.gdq-go-btn.chinese {
+    background: linear-gradient(135deg, #ea580c, #d97706);
 }
 .gdq-go-btn.course {
     background: linear-gradient(135deg, #ec4899, #7c3aed);
@@ -2101,11 +2117,12 @@
 .gdq-bonus-pill {
     background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
     border: 2px dashed #f59e0b;
-    border-radius: 14px;
-    padding: 7px 10px;
+    border-radius: 13px;
+    padding: 6px 8px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    min-width: 0;
 }
 .gdq-bonus-pill.done {
     border-style: solid;
@@ -2113,18 +2130,21 @@
     background: linear-gradient(135deg, #ecfdf5 0%, #fef9c3 100%);
 }
 .gdq-bonus-icon {
-    font-size: 24px;
+    font-size: 21px;
     line-height: 1;
+    flex-shrink: 0;
 }
 .gdq-bonus-title {
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 900;
     color: #92400e;
+    line-height: 1.2;
 }
 .gdq-bonus-sub {
-    font-size: 10.5px;
+    font-size: 10px;
     font-weight: 800;
     color: #b45309;
+    line-height: 1.2;
 }
 
 .bbx-standee-wrap {
@@ -2179,20 +2199,20 @@
 .gacha-series-tabs {
     display: flex;
     flex-wrap: wrap;
-    gap: 5px;
+    gap: 4px;
 }
 .gacha-series-tab {
     border: 1.5px solid #ddd6fe;
     background: #ffffff;
     color: #4c1d95;
     border-radius: 999px;
-    padding: 3px 9px;
-    font-size: 11.5px;
+    padding: 2.5px 8px;
+    font-size: 11px;
     font-weight: 900;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
 }
 .gacha-series-tab small {
     font-size: 10px;

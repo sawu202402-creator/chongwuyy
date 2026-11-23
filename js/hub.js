@@ -48,6 +48,7 @@ import {
     renderEnabledTypesSelector,
     renderMathInteractiveWidget,
     renderEnglishQuizWidget,
+    renderChineseQuizWidget,
     renderCourseReadAloudBoard
 } from '../shared/questionWidgets.js';
 import { openRandomFilterModal } from '../shared/randomFilterModal.js';
@@ -111,14 +112,16 @@ class PortalHubApp {
             locked: false
         };
 
-        // 🎁 每日固定练习打卡 & 六大系列盲盒珍藏馆状态
+        // 🎁 每日语数英三科打卡 & 九大系列盲盒珍藏馆状态
         this.bbxMathEngine = new MathEngine();
+        this.bbxChineseEngine = new ChineseEngine();
         this.bbxCourseEngine = new EnglishEngine();
         this.bbxState = {
-            tab: 'quests',       // 'quests' | 'machine' | 'museum'
-            activePractice: 'math', // 'math' | 'course'
+            tab: 'quests',         // 'quests' | 'machine' | 'museum'
+            activePractice: 'math', // 'math' | 'chinese' | 'english'
             mathInput: '',
             currentMathQ: null,
+            currentChineseQ: null,
             lastPrize: null,
             detailItem: null
         };
@@ -518,7 +521,7 @@ class PortalHubApp {
             const tickets = active?.gachaTickets || 0;
             dailyGachaLbl.textContent = qs.allClearCompleted
                 ? `盲盒馆(🎟️${tickets})`
-                : `打卡·盲盒(${qs.completedCount}/2)`;
+                : `打卡·盲盒(${qs.completedCount}/${qs.totalQuests || 3})`;
         }
 
         strip.innerHTML = '';
@@ -1613,14 +1616,17 @@ class PortalHubApp {
         }
     }
 
-    // ==================== 🎁 每日固定练习打卡 & 六大系列盲盒珍藏馆 ====================
+    // ==================== 🎁 每日语数英三科打卡 & 九大系列盲盒珍藏馆 ====================
     openBlindboxModal(initialTab = 'quests') {
         const u = profileManager.getActiveUser();
         const qs = profileManager.getDailyQuestStatus(u);
         this.bbxState.tab = initialTab || 'quests';
         if (this.bbxState.tab === 'quests') {
-            this.bbxState.activePractice = (!qs.mathCompleted) ? 'math' : (!qs.courseCompleted ? 'course' : 'math');
+            this.bbxState.activePractice = !qs.mathCompleted
+                ? 'math'
+                : (!qs.chineseCompleted ? 'chinese' : (!qs.englishCompleted ? 'english' : 'math'));
             this.bbxState.currentMathQ = null;
+            this.bbxState.currentChineseQ = null;
             this.bbxState.mathInput = '';
         }
         this.renderBlindboxModal(false);
@@ -1655,45 +1661,65 @@ class PortalHubApp {
             btn.classList.toggle('active', btn.getAttribute('data-bbxtab') === this.bbxState.tab);
         });
 
-        // ---------------- 页签 1：每日数英固定打卡任务 + 页内直练闯关台 ----------------
+        // ---------------- 页签 1：每日语数英三科打卡任务 + 页内直练闯关台 ----------------
         if (this.bbxState.tab === 'quests') {
             const mathPct = Math.round((quest.mathDone / quest.mathTarget) * 100);
-            const coursePct = Math.round((quest.courseDone / quest.courseTarget) * 100);
-            const isMathPrac = this.bbxState.activePractice === 'math';
+            const cnPct = Math.round((quest.chineseDone / quest.chineseTarget) * 100);
+            const enPct = Math.round((quest.englishDone / quest.englishTarget) * 100);
+            const prac = this.bbxState.activePractice || 'math';
+
+            const pracTitleMap = {
+                math: `⚡ 正在进行：每日数学打卡（已完成 ${quest.mathDone}/${quest.mathTarget} 题）`,
+                chinese: `📖 正在进行：每日语文打卡（已完成 ${quest.chineseDone}/${quest.chineseTarget} 题）`,
+                english: `🔤 正在进行：每日英语打卡（已完成 ${quest.englishDone}/${quest.englishTarget} 题）`
+            };
 
             stage.innerHTML = `
                 <div class="gacha-daily-quests-bar">
                     <div class="gdq-card ${quest.mathCompleted ? 'done' : ''}">
                         <div class="gdq-top">
-                            <span class="gdq-name">🔢 每日数学固定练习</span>
-                            <span class="gdq-count">${quest.mathDone} / ${quest.mathTarget} 题</span>
+                            <span class="gdq-name">🔢 数学打卡</span>
+                            <span class="gdq-count">${quest.mathDone}/${quest.mathTarget}题</span>
                         </div>
                         <div class="gdq-bar"><div class="gdq-fill math" style="width:${mathPct}%;"></div></div>
                         <div class="gdq-foot">
-                            <span class="gdq-reward">必得：🎟️盲盒券×1 + 2🏅</span>
+                            <span class="gdq-reward">单科奖 +2🏅</span>
                             <button type="button" class="gdq-go-btn" data-bbx-prac="math">
-                                ${quest.mathCompleted ? '✅ 已领券·继续练' : (isMathPrac ? '🔥 正在闯关中' : '去练数学 ▶')}
+                                ${quest.mathCompleted ? '✅ 已完·再练' : (prac === 'math' ? '🔥 闯关中' : '去练数学 ▶')}
                             </button>
                         </div>
                     </div>
-                    <div class="gdq-card ${quest.courseCompleted ? 'done' : ''}">
+                    <div class="gdq-card ${quest.chineseCompleted ? 'done' : ''}">
                         <div class="gdq-top">
-                            <span class="gdq-name">🎓 每日校外英语 (${quest.latestLessonTitle})</span>
-                            <span class="gdq-count">${quest.courseDone} / ${quest.courseTarget} 次</span>
+                            <span class="gdq-name">📖 语文打卡</span>
+                            <span class="gdq-count">${quest.chineseDone}/${quest.chineseTarget}题</span>
                         </div>
-                        <div class="gdq-bar"><div class="gdq-fill course" style="width:${coursePct}%;"></div></div>
+                        <div class="gdq-bar"><div class="gdq-fill chinese" style="width:${cnPct}%;"></div></div>
                         <div class="gdq-foot">
-                            <span class="gdq-reward">必得：🎟️盲盒券×1 + 2🏅</span>
-                            <button type="button" class="gdq-go-btn course" data-bbx-prac="course">
-                                ${quest.courseCompleted ? '✅ 已领券·继续练' : (!isMathPrac ? '🔥 正在闯关中' : '去练英语课 ▶')}
+                            <span class="gdq-reward">单科奖 +2🏅</span>
+                            <button type="button" class="gdq-go-btn chinese" data-bbx-prac="chinese">
+                                ${quest.chineseCompleted ? '✅ 已完·再练' : (prac === 'chinese' ? '🔥 闯关中' : '去练语文 ▶')}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="gdq-card ${quest.englishCompleted ? 'done' : ''}">
+                        <div class="gdq-top">
+                            <span class="gdq-name">🔤 英语打卡</span>
+                            <span class="gdq-count">${quest.englishDone}/${quest.englishTarget}题</span>
+                        </div>
+                        <div class="gdq-bar"><div class="gdq-fill course" style="width:${enPct}%;"></div></div>
+                        <div class="gdq-foot">
+                            <span class="gdq-reward">单科奖 +2🏅</span>
+                            <button type="button" class="gdq-go-btn course" data-bbx-prac="english">
+                                ${quest.englishCompleted ? '✅ 已完·再练' : (prac === 'english' ? '🔥 闯关中' : '去练英语 ▶')}
                             </button>
                         </div>
                     </div>
                     <div class="gdq-bonus-pill ${quest.allClearCompleted ? 'done' : ''}">
-                        <div class="gdq-bonus-icon">${quest.allClearCompleted ? '🏆' : '🌟'}</div>
+                        <div class="gdq-bonus-icon">${quest.allClearCompleted ? '🏆' : '🎟️'}</div>
                         <div>
-                            <div class="gdq-bonus-title">${quest.allClearCompleted ? '双科全勤已满贯！' : '双科全勤加赠大奖'}</div>
-                            <div class="gdq-bonus-sub">${quest.allClearCompleted ? '已赠 SSR/UR 保底黄金券 🎉' : '两项全完再送 +1🎟️保底券'}</div>
+                            <div class="gdq-bonus-title">${quest.allClearCompleted ? '三科全通已领券！' : `三科全完领盲盒券 (${quest.completedCount}/3)`}</div>
+                            <div class="gdq-bonus-sub">${quest.allClearCompleted ? '已赠 1张SSR/UR黄金券 🎉' : '语数英全完得 🎟️×1 + 3🏅'}</div>
                         </div>
                     </div>
                 </div>
@@ -1701,9 +1727,7 @@ class PortalHubApp {
                 <div class="hub-bbx-practice-box">
                     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
                         <span style="font-size:13.5px;font-weight:900;color:#4c1d95;">
-                            ${isMathPrac
-                                ? `⚡ 正在进行：每日数学打卡（已完成 ${quest.mathDone}/${quest.mathTarget} 题）`
-                                : `🎓 正在进行：每日校外英语打卡 · ${quest.latestLessonTitle}（已完成 ${quest.courseDone}/${quest.courseTarget} 次）`}
+                            ${pracTitleMap[prac] || pracTitleMap.math}
                         </span>
                         ${(u.gachaTickets || 0) > 0
                             ? `<button type="button" class="gdq-go-btn course" id="btnBbxJumpPullNow">🎉 已有 ${u.gachaTickets} 张盲盒券，立即去扭盲盒 ▸</button>`
@@ -1717,8 +1741,9 @@ class PortalHubApp {
                 btn.onclick = () => {
                     this.bbxState.activePractice = btn.getAttribute('data-bbx-prac');
                     this.bbxState.currentMathQ = null;
+                    this.bbxState.currentChineseQ = null;
                     this.bbxState.mathInput = '';
-                    this.renderBlindboxModal(this.bbxState.activePractice === 'course');
+                    this.renderBlindboxModal(this.bbxState.activePractice === 'english');
                 };
             });
             stage.querySelector('#btnBbxJumpPullNow')?.addEventListener('click', () => {
@@ -1727,7 +1752,7 @@ class PortalHubApp {
             });
 
             const mount = document.getElementById('hubBbxInlineMount');
-            if (isMathPrac) {
+            if (prac === 'math') {
                 this.bbxMathEngine.setConfig(u.mathConfig || {});
                 this.bbxMathEngine.setSubMode('random');
                 if (!this.bbxState.currentMathQ) {
@@ -1826,16 +1851,55 @@ class PortalHubApp {
                     };
                     renderOral();
                 }
+            } else if (prac === 'chinese') {
+                this.bbxChineseEngine.setConfig(u.chineseConfig || {});
+                if (!this.bbxState.currentChineseQ) {
+                    this.bbxState.currentChineseQ = this.bbxChineseEngine.nextQuestion();
+                }
+                const cnQ = this.bbxState.currentChineseQ;
+                const tMeta = CHINESE_QUESTION_TYPES.find(t => t.id === cnQ.mode);
+                renderChineseQuizWidget(mount, cnQ, {
+                    theme: 'light',
+                    badgeTitle: `📖 每日语文打卡 · ${tMeta ? tMeta.shortName : '统编语文'}`,
+                    speakChineseFn: (txt) => sharedSpeech.speakChinese(txt),
+                    onEvaluate: (ok, userAns) => {
+                        const evalRes = this.bbxChineseEngine.evaluateResult(ok, cnQ, userAns);
+                        this.bbxState.currentChineseQ = null;
+                        if (ok) {
+                            const award = profileManager.awardLearningProgress({
+                                title: `📅 [每日语文打卡] 答对 ${cnQ.displayKey || cnQ.answer}`,
+                                subjectTag: '每日语文打卡',
+                                badges: evalRes.badgeEarned,
+                                stars: evalRes.starEarned,
+                                combo: evalRes.combo,
+                                isMath: false,
+                                isChinese: true
+                            });
+                            this.renderAll();
+                            if (fb) {
+                                fb.textContent = (award.questEvents && award.questEvents.length > 0)
+                                    ? `🎊 ${award.questEvents.map(e => e.label).join(' ')}`
+                                    : `🎉 太棒啦！今日语文打卡进度 +1！`;
+                            }
+                            setTimeout(() => this.renderBlindboxModal(false), 650);
+                        } else {
+                            profileManager.recordQuestionAttempt({ isMath: false, isChinese: true, isCorrect: false, combo: 0 });
+                            profileManager.recordChineseMistake(cnQ, userAns);
+                            if (fb) fb.textContent = `💡 正确答案：【${cnQ.answer}】（${cnQ.fullText || cnQ.displayKey}），继续下一题！`;
+                            setTimeout(() => this.renderBlindboxModal(false), 1450);
+                        }
+                    }
+                });
             } else {
                 this.bbxCourseEngine.setConfig({
                     ...(u.englishConfig || {}),
                     courseLessonId: u.englishConfig?.courseLessonId || 'latest',
                     courseSubMode: 'course_all'
                 });
-                const cq = this.bbxCourseEngine.nextQuickQuestion(null, 'course_all');
+                const cq = this.bbxCourseEngine.nextQuickQuestion(null, 'random');
                 renderEnglishQuizWidget(mount, cq, {
                     theme: 'light',
-                    badgeTitle: `🎓 每日校外英语打卡 · ${cq.lessonCode || ''}`,
+                    badgeTitle: `🔤 每日英语打卡 · ${cq.lessonCode || '少儿英语'}`,
                     autoSpeak,
                     speakFn: (txt, slow, ph) => sharedSpeech.speakEnglish(txt, slow, ph),
                     onEvaluate: (ok, userAns) => {
@@ -1843,20 +1907,19 @@ class PortalHubApp {
                         if (ok) {
                             profileManager.updateWordProgress(cq.wordObj, true, 1);
                             const award = profileManager.awardLearningProgress({
-                                title: `📅 [每日校外英语打卡] 答对 ${cq.wordObj.word}`,
-                                subjectTag: '英语课专项',
+                                title: `📅 [每日英语打卡] 答对 ${cq.wordObj.word}`,
+                                subjectTag: '每日英语打卡',
                                 badges: evalRes.badgeEarned,
                                 stars: evalRes.starEarned,
-                                gotTicket: evalRes.gotGachaTicket,
                                 combo: evalRes.combo,
                                 isMath: false,
-                                isCourseSpecial: true
+                                isCourseSpecial: Boolean(cq.isCourseQuestion)
                             });
                             this.renderAll();
                             if (fb) {
                                 fb.textContent = (award.questEvents && award.questEvents.length > 0)
                                     ? `🎊 ${award.questEvents.map(e => e.label).join(' ')}`
-                                    : `🎉 Great! 今日校外英语打卡进度 +1！`;
+                                    : `🎉 Great! 今日英语打卡进度 +1！`;
                             }
                             setTimeout(() => this.renderBlindboxModal(true), 680);
                         } else {
@@ -1871,7 +1934,7 @@ class PortalHubApp {
             return;
         }
 
-        // ---------------- 页签 2：六大系列盲盒机开箱 ----------------
+        // ---------------- 页签 2：九大系列盲盒机开箱 ----------------
         const activeSeriesId = museum.selectedSeries || 'all';
         const curBundle = museum.bySeries[activeSeriesId] || museum.bySeries.all;
         const curSeries = curBundle.series;
@@ -1960,7 +2023,7 @@ class PortalHubApp {
             return;
         }
 
-        // ---------------- 页签 3：74款盲盒珍藏图鉴展柜 ----------------
+        // ---------------- 页签 3：128款盲盒珍藏图鉴展柜 ----------------
         const det = this.bbxState.detailItem;
         const detailBarHtml = det
             ? `<div class="gacha-series-banner" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:#fff7ed;border-color:#f59e0b;">
