@@ -66,8 +66,9 @@ const CS64_ADJUSTMENT0 = 0xF2F90B1An;
 const CS64_ADJUSTMENT1 = 0x0B1A0000n;
 
 export const ROLE_NEURAL_VOICES = {
-    magician:     { voice: "zh-CN-XiaoxiaoNeural", rate: "+4%", pitch: "+2Hz" },
-    rabbit:       { voice: "zh-CN-XiaoyiNeural",   rate: "+5%", pitch: "+6Hz" },
+    magician:        { voice: "zh-CN-XiaoxiaoNeural", rate: "+4%", pitch: "+2Hz" },
+    chinese_teacher: { voice: "zh-CN-XiaoxiaoNeural", rate: "-2%", pitch: "+1Hz" },
+    rabbit:          { voice: "zh-CN-XiaoyiNeural",   rate: "+5%", pitch: "+6Hz" },
     frog:         { voice: "zh-CN-YunxiaNeural",   rate: "+4%", pitch: "+3Hz" },
     shiba:        { voice: "zh-CN-YunxiaNeural",   rate: "+6%", pitch: "+5Hz" },
     panda:        { voice: "zh-TW-HsiaoChenNeural",rate: "-4%", pitch: "-2Hz" },

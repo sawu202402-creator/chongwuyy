@@ -2168,6 +2168,11 @@ export function renderChineseQuizWidget(containerEl, q, hooks = {}) {
     let locked = false;
     let showTip = false;
 
+    // 题目展示时静默预热云端真人神经网络读题音频，点击【🔊 读题】零延迟秒播！
+    if (typeof sharedSpeech?.prefetchChinese === 'function') {
+        sharedSpeech.prefetchChinese(q.promptReadText || q.readText || '');
+    }
+
     const topToolsHtml = `
         <div class="qw-top-tools">
             <span class="qw-mode-tag">${badgeTitle}</span>
@@ -2189,8 +2194,9 @@ export function renderChineseQuizWidget(containerEl, q, hooks = {}) {
             readBtn.onclick = (e) => {
                 e.stopPropagation();
                 onTap();
-                // 填空题读题时绝不读出答案，只读提示语！
-                speakZh(q.promptReadText || q.readText || '');
+                // 作答前绝不读出填空答案，只读提示/带空缺题干；作答后可完整朗读整句/古诗！
+                const txt = locked ? (q.readText || q.promptReadText || '') : (q.promptReadText || q.readText || '');
+                speakZh(txt);
             };
         }
         if (tipBtn && tipBox) {

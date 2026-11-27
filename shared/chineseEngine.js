@@ -202,7 +202,7 @@ export class ChineseEngine {
             fullText: item.fullWord,
             acceptedAnswers: [...new Set(accepted)],
             readText: `${item.fullWord}。词义提示：${item.meaning}`,
-            promptReadText: `请根据拼音 ${item.pinyin} 和词义“${item.meaning}”，填写空缺的生字`,
+            promptReadText: `词语填空：${item.prompt.replace(/（\s*）+/g, '什么')}。意思是：${item.meaning}。`,
             visualTip: item.tip,
             displayKey: `${item.fullWord}（填：${item.answer}）`
         };
@@ -230,7 +230,7 @@ export class ChineseEngine {
             fullText: fullSentencePlain,
             acceptedAnswers: [...new Set(accepted)],
             readText: `${item.source}。${fullSentencePlain}`,
-            promptReadText: `出自${item.source}，请把空缺处的汉字自己填出来`,
+            promptReadText: `${item.source}：${item.sentence.replace(/（\s*）+/g, '，空缺，')}`,
             visualTip: item.tip,
             displayKey: `${fullSentencePlain}（填：${item.answer}）`
         };
@@ -308,6 +308,8 @@ export class ChineseEngine {
             leftItems: shuffleArray(pickedPairs.map((p, idx) => ({ pairId: idx, text: p.left }))),
             rightItems: shuffleArray(pickedPairs.map((p, idx) => ({ pairId: idx, text: p.right }))),
             answer: pickedPairs.map(p => `${p.left.replace(/（.*）/, '')}—${p.right}`).join('，'),
+            promptReadText: `${group.subLabel}：左边有 ${pickedPairs.map(p => p.left.replace(/（.*）/, '')).join('、')}，请连线找到右边对应的好朋友吧！`,
+            readText: pickedPairs.map(p => `${p.left.replace(/（.*）/, '')}配${p.right}`).join('，'),
             visualTip: '先点左边一个气泡，再点右边和它最搭配的好朋友气泡就能消除啦！',
             displayKey: group.subLabel
         };
@@ -331,6 +333,7 @@ export class ChineseEngine {
             shuffledTiles: shuffled,
             answer: expected,
             readText: expected,
+            promptReadText: `连词成句：${item.hint}。请把下面打乱的词块排成通顺的一句话：${shuffled.map(s => s.text).filter(t => !/^[。！？，]$/.test(t)).join('、')}。`,
             visualTip: `${item.hint}（开头词提示：「${item.segments[0]}」）`,
             displayKey: expected
         };

@@ -1479,10 +1479,23 @@ async function main() {
 
         await new Promise(r => setTimeout(r, 950));
 
-        // Switch to 📜 佳句默写 (Grade 2 Sentence Fill, No Options!)
+        // Switch to 📜 佳句默写 (Grade 2 Sentence Fill, No Options!) and test Neural TTS 🔊 读题 (0 robotic TTS!)
+        const { sharedSpeech } = await import('../shared/audioTTS.js');
+        let cnRoboticCalls = 0;
+        if (window.speechSynthesis) {
+            const origSpk = window.speechSynthesis.speak.bind(window.speechSynthesis);
+            window.speechSynthesis.speak = (u) => {
+                if (u && u.text && u.text.trim()) cnRoboticCalls++;
+                return origSpk(u);
+            };
+        }
         document.querySelector('#petCnSubPills [data-cnmode="cn_sentence_fill"]').click();
         const choiceBtnsInSenFill = document.querySelectorAll('#petCnQuizStage .qw-choice-btn').length;
         const senSource = chineseEngine.currentQuestion.sourceTitle || '';
+        document.querySelector('#petCnQuizStage [data-cn-read="1"]')?.click();
+        await new Promise(r => setTimeout(r, 260));
+        const cnPlaybackMode = sharedSpeech._lastPlaybackMode;
+        const cnRoboticDelta = cnRoboticCalls;
 
         // Switch grade chip to 🌱 一年级上册 and verify Grade 1 bank loads!
         const g1Chip = Array.from(document.querySelectorAll('#cnGradeStrip .pack-chip')).find(b => b.textContent.includes('一年级上册'));
@@ -1500,16 +1513,20 @@ async function main() {
             qDelta: qAfterWord - qBefore,
             choiceBtnsInSenFill,
             senSource,
+            cnPlaybackMode,
+            cnRoboticDelta,
             gradeAfterG1
         };
     })()`);
-    console.log('Pet Town Chinese (G1+G2, 8 Modes, No-Option Fill) Check:', petChineseCheck);
+    console.log('Pet Town Chinese (G1+G2, 8 Modes, No-Option Fill & Neural TTS) Check:', petChineseCheck);
     assert.equal(petChineseCheck.cnPillsCount, 9, 'Pet Chinese sub-pills must have 1 random + 8 modes = 9');
     assert.equal(petChineseCheck.choiceBtnsInWordFill, 0, 'cn_word_fill MUST render 0 choice buttons (strictly self-filled)');
     assert.equal(petChineseCheck.hasFreeInput, true, 'cn_word_fill must render free text input box');
     assert.equal(petChineseCheck.noScrollWordFill, true, 'Pet Chinese panel must fit 1180x820 with 0 overflow');
     assert.equal(petChineseCheck.qDelta, 1, 'Solving Chinese word fill must increment live question count');
     assert.equal(petChineseCheck.choiceBtnsInSenFill, 0, 'cn_sentence_fill MUST render 0 choice buttons (strictly self-filled)');
+    assert.equal(petChineseCheck.cnPlaybackMode, 'neural-mp3', 'Chinese 🔊 读题 must play cloud neural MP3 instead of robotic OS speechSynthesis');
+    assert.equal(petChineseCheck.cnRoboticDelta, 0, 'Chinese 🔊 读题 must trigger 0 robotic speechSynthesis calls');
     assert.equal(petChineseCheck.gradeAfterG1, 'grade1_1', 'Clicking 一年级上册 chip must switch Chinese bank to grade1_1');
     await sleep(220);
     await saveShot('pet_chinese_no_option_fill.png');
