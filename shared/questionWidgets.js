@@ -1690,17 +1690,17 @@ export function renderCourseReadAloudBoard(containerEl, lesson, hooks = {}) {
                     </div>
                 </div>
                 ${wbHtml}
-                <div class="qw-rc-flow-grid">${boxesHtml}</div>
+                <div class="qw-rc-flow-grid ${rf.boxes.length === 3 ? 'cols-3' : ''}">${boxesHtml}</div>
             `;
         }
 
-        // 0B. 若本课附带分级绘本完整原文（P2–P11 双章点读 + 派对分工记录表），提供一键展开逐页点读！
+        // 0B. 若本课附带分级绘本/课文原文或学案点读，提供一键展开逐页点读！
         let storyReaderHtml = '';
         if (lesson.storyChapters && Array.isArray(lesson.storyChapters.chapters)) {
             const sc = lesson.storyChapters;
             const chartHtml = Array.isArray(sc.partyChart) && sc.partyChart.length > 0
                 ? `<div class="qw-rc-chart-strip">
-                    <span class="qw-rc-chart-lbl">📋 Class Party 分工表：</span>
+                    <span class="qw-rc-chart-lbl">${sc.chartTitle || '📋 Class Party 分工表：'}</span>
                     ${sc.partyChart.map(c => `<span class="qw-rc-chart-pill"><strong>${c.name}</strong> → ${c.item}</span>`).join('')}
                    </div>`
                 : '';
@@ -1727,7 +1727,7 @@ export function renderCourseReadAloudBoard(containerEl, lesson, hooks = {}) {
 
             storyReaderHtml = `
                 <details class="qw-rc-story-details" ${storyOpen ? 'open' : ''}>
-                    <summary class="qw-rc-story-summary">📚 展开《${lesson.storyTitle}》分级绘本全文点读 (P2–P11 + 黑板分工表)</summary>
+                    <summary class="qw-rc-story-summary">${sc.summaryTitle || `📚 展开《${lesson.storyTitle}》分级绘本全文点读 (P2–P11 + 黑板分工表)`}</summary>
                     <div class="qw-rc-story-body">
                         ${sc.meta ? `<div class="qw-rc-story-meta">💡 ${sc.meta}</div>` : ''}
                         ${chartHtml}

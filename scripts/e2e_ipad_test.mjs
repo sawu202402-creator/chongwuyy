@@ -280,7 +280,7 @@ async function main() {
     assert.equal(hubCheck.noScroll, true, 'Hub must fit 1180x820 iPad viewport with zero vertical overflow');
     assert.equal(hubCheck.modePillsCount, 36, 'Hub mode strip must expose 5 random/vocab + 8 Chinese + 5 course + 9 math + 9 general English = 36 entry pills');
     assert.equal(hubCheck.emptyHubPills, 0, 'All Hub mode pills must have visible labels');
-    assert.ok(hubCheck.courseBtnTxt.includes('S1·分级'), 'Hub course button should show latest lesson code S1·分级');
+    assert.ok(hubCheck.courseBtnTxt.includes('S1U1W3'), 'Hub course button should show latest lesson code S1U1W3');
     assert.equal(hubCheck.afterSingle, 'clock_money');
     assert.equal(hubCheck.afterGrand, 'grand_random');
     await saveShot('course_hub_portal_strip.png');
@@ -317,23 +317,41 @@ async function main() {
     assert.ok(hubFilterToggleRes.afterSaveTxt.includes('(5)'), `Expected (5) after excluding phonics_chunks, got ${hubFilterToggleRes.afterSaveTxt}`);
     assert.ok(hubFilterToggleRes.afterRestoreTxt.includes('(6)'), `Expected (6) after restoring easy preset, got ${hubFilterToggleRes.afterRestoreTxt}`);
 
-    // Test Hub Off-Campus Course Special Modal (Class Party 4-Box Flowchart + Story Reader + Phonics Blind Dictation + Lesson Switcher)
+    // Test Hub Off-Campus Course Special Modal (Latest S1U1W3 A Pig for Cliff + Switch to S1_1121 Harvest Time & S1U1W2 Six Kids!)
     const hubCourseReadRes = await evalJs(`(() => {
         document.getElementById('btnHubCourseCenter').click();
         const isOpen = document.getElementById('hubCourseModal').classList.contains('show');
         const stageTxt = document.getElementById('hubCourseStage').textContent;
         const flowBoxCount = document.querySelectorAll('#hubCourseStage .qw-rc-flow-box').length;
+        const hasCols3 = Boolean(document.querySelector('#hubCourseStage .qw-rc-flow-grid.cols-3'));
         const hasStoryReader = Boolean(document.querySelector('#hubCourseStage .qw-rc-story-details'));
         const phCount = document.querySelectorAll('#hubCourseStage .qw-rc-ph-chip').length;
         const chkBtn = document.querySelector('#hubCourseStage .qw-rc-chk');
         const chkKey = chkBtn?.getAttribute('data-chk');
         if (chkBtn) chkBtn.click();
         const isCheckedAfter = document.querySelector('#hubCourseStage [data-chk="' + chkKey + '"]')?.classList.contains('checked');
-        const lessonOptionValues = Array.from(document.getElementById('hubCourseLessonSelect')?.options || []).map(o => o.value);
+        const sel = document.getElementById('hubCourseLessonSelect');
+        const lessonOptionValues = Array.from(sel?.options || []).map(o => o.value);
+
+        // Switch to S1_1121 (Harvest Time) & S1U1W2 (Six Kids) to verify all 3 new lessons render cleanly, then restore latest!
+        sel.value = 'S1_1121';
+        sel.dispatchEvent(new Event('change'));
+        const harvestTxt = document.getElementById('hubCourseStage').textContent;
+
+        sel.value = 'S1U1W2';
+        sel.dispatchEvent(new Event('change'));
+        const sixKidsTxt = document.getElementById('hubCourseStage').textContent;
+
+        sel.value = 'latest';
+        sel.dispatchEvent(new Event('change'));
+
         return {
             isOpen,
-            hasClassPartyFlow: stageTxt.includes('won the spelling bee') && stageTxt.includes('party hats'),
+            hasPigCliffFlow: stageTxt.includes('Slim') && stageTxt.includes('pulls Cliff'),
+            hasHarvestFlow: harvestTxt.includes('Beaver') && harvestTxt.includes('ripe'),
+            hasSixKidsFlow: sixKidsTxt.includes('blueberries') && sixKidsTxt.includes('We go down the steps.'),
             flowBoxCount,
+            hasCols3,
             hasStoryReader,
             phCount,
             isCheckedAfter,
@@ -342,12 +360,15 @@ async function main() {
     })()`);
     console.log('Hub Course Read-Aloud check:', hubCourseReadRes);
     assert.equal(hubCourseReadRes.isOpen, true);
-    assert.equal(hubCourseReadRes.hasClassPartyFlow, true, 'Latest Hub course readcard must display Class Party 4-box flowchart');
-    assert.equal(hubCourseReadRes.flowBoxCount, 4, 'Class Party flowchart must have 4 boxes');
-    assert.equal(hubCourseReadRes.hasStoryReader, true, 'Class Party readcard must include expandable P2-P11 story reader');
+    assert.equal(hubCourseReadRes.hasPigCliffFlow, true, 'Latest Hub course readcard must display A Pig for Cliff 3-box flowchart');
+    assert.equal(hubCourseReadRes.hasHarvestFlow, true, 'Switching to S1_1121 must display Harvest Time');
+    assert.equal(hubCourseReadRes.hasSixKidsFlow, true, 'Switching to S1U1W2 must display Six Kids homework & sight sentences');
+    assert.equal(hubCourseReadRes.flowBoxCount, 3, 'A Pig for Cliff flowchart must have 3 boxes');
+    assert.equal(hubCourseReadRes.hasCols3, true, '3-box flowchart must apply cols-3 layout');
+    assert.equal(hubCourseReadRes.hasStoryReader, true, 'A Pig for Cliff readcard must include expandable P56-P63 story reader');
     assert.equal(hubCourseReadRes.phCount, 12);
     assert.equal(hubCourseReadRes.isCheckedAfter, true);
-    assert.deepEqual(hubCourseReadRes.lessonOptionValues, ['latest', 'all_courses', 'S1_1114', 'S1U1W1']);
+    assert.deepEqual(hubCourseReadRes.lessonOptionValues, ['latest', 'all_courses', 'S1U1W3', 'S1_1121', 'S1U1W2', 'S1_1114', 'S1U1W1']);
     await sleep(200);
     await saveShot('course_hub_readaloud_modal.png');
 
@@ -528,7 +549,7 @@ async function main() {
         };
     })()`);
     console.log('Carrot Course Phonics setup:', carrotCourseBefore);
-    assert.equal(carrotCourseBefore.lessonCode, 'S1·分级');
+    assert.equal(carrotCourseBefore.lessonCode, 'S1U1W3');
     await sleep(250);
     await saveShot('course_carrot_phonics_dictation.png');
 
@@ -689,8 +710,8 @@ async function main() {
     assert.equal(pvzCheck.noScrollAfterCourse, true, 'PvZ with course Q&A must maintain zero vertical overflow');
     assert.ok(pvzCheck.sunAfterMath > pvzCheck.sunBefore, 'Solving pyramid_grid in PvZ must award Sun!');
     assert.ok(
-        pvzCheck.qaStageText.includes('party') || pvzCheck.qaStageText.includes('Eve') || pvzCheck.qaStageText.includes('Lopez') || pvzCheck.qaStageText.includes('Class Party'),
-        'PvZ course_qa must render Class Party story Q&A'
+        pvzCheck.qaStageText.includes('Cliff') || pvzCheck.qaStageText.includes('Slim') || pvzCheck.qaStageText.includes('pig') || pvzCheck.qaStageText.includes('fantasy'),
+        'PvZ course_qa must render latest S1U1W3 A Pig for Cliff story Q&A'
     );
     // Also verify PvZ course_all in Easy mode renders gentle recognition/choice homework (0 blind full-word spelling)
     const pvzGentleCourse = await evalJs(`(async () => {

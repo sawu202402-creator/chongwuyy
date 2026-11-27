@@ -26,6 +26,799 @@ export const ALL_COURSE_SUB_IDS = COURSE_SUB_MODES.map(m => m.id);
  */
 export const COURSE_LESSONS = [
     {
+        id: 'S1U1W3',
+        code: 'S1U1W3',
+        stage: 'S1',
+        dateLabel: '11/26',
+        storyTitle: 'A Pig for Cliff',
+        title: 'S1U1W3 · A Pig for Cliff',
+        badgeLabel: 'S1 · 11/26 主课本 (S1U1W3 · A Pig for Cliff)',
+        subtitle: 'P65 关键细节3格复述 · 课文问答 5 组 · 高频词句 4 组 · L-blends 拼读 12 词',
+        qaSectionTitle: '📖 2. 课文精读问答 & P64-65 Key Details（A Pig for Cliff）',
+        sightSectionTitle: '✍️ 3. 主教材黄底高亮高频词与必背句 (Words to Know: come / pull / be / good)',
+        phonicsRuleTitle: 'L-blends (cl/gl/sl/bl/fl/pl) 辅音连缀拼读 · 听音写词 12 词',
+
+        // P65 Comprehension · Key Details 3格顺序流程图
+        retellFlow: {
+            title: '🎬 1. 课本 P65 阅读技巧复述：Key Details 故事细节 3 步顺序图',
+            centerBadge: 'A Pig for Cliff',
+            wordBank: ['Slim', 'big black pig', 'breaks the swing', 'mud', 'pulls Cliff', 'good pet'],
+            fullSpeakText: 'A Pig for Cliff. First, Cliff has a big, black pet pig named Slim. Next, Slim breaks the swing, so Cliff and Slim fall in the mud. Last, Slim pulls Cliff up out of the mud. Slim is a good pet.',
+            boxes: [
+                {
+                    id: 'flow_1',
+                    step: 1,
+                    en: 'Cliff has a big, black pet pig named Slim.',
+                    htmlEn: 'Cliff has a <u>big, black</u> pet pig named <u>Slim</u>. <small>(P57)</small>',
+                    zh: '克里夫有一只名叫斯利姆（Slim）的又大又黑的宠物猪。',
+                    blanks: ['Slim']
+                },
+                {
+                    id: 'flow_2',
+                    step: 2,
+                    en: 'Slim breaks the swing, so Cliff and Slim fall in the mud.',
+                    htmlEn: 'Slim <u>breaks the swing</u>, so Cliff and Slim fall in the <u>mud</u>. <small>(P60–61)</small>',
+                    zh: '斯利姆坐断了秋千，结果克里夫和斯利姆一起摔进了泥坑里。',
+                    blanks: ['swing', 'mud']
+                },
+                {
+                    id: 'flow_3',
+                    step: 3,
+                    en: 'Slim pulls Cliff up out of the mud. Slim is a good pet.',
+                    htmlEn: 'Slim <u>pulls</u> Cliff up out of the mud. Slim is a <u>good pet</u>. <small>(P63)</small>',
+                    zh: '斯利姆把克里夫从泥坑里拉了上来。斯利姆真是只棒极了的好宠物！',
+                    blanks: ['pulls', 'good pet']
+                }
+            ]
+        },
+
+        // 主课本 P54–P63 全文逐页点读
+        storyChapters: {
+            summaryTitle: '📚 展开《A Pig for Cliff》主课本全文逐页点读 (P56–P63)',
+            meta: "Genre: Fantasy (奇幻故事) · Essential Question: What makes a pet special? Read about Cliff's new pet.",
+            chartTitle: '🐷 A Pig for Cliff 角色与高频词速览：',
+            partyChart: [
+                { name: 'Cliff 🐯', item: 'glad · has a new pet' },
+                { name: 'Slim 🐷', item: 'a big black pig' },
+                { name: 'Words to Know ✨', item: 'come · pull · be · good' }
+            ],
+            chapters: [
+                {
+                    title: 'A Pig for Cliff · Textbook Story (P56–P63)',
+                    pages: [
+                        { page: 'P56', en: 'Cliff is glad. Cliff has a new pet.', zh: '克里夫很高兴。克里夫有了一只新宠物。' },
+                        { page: 'P57', en: 'It is Slim. It is a big black pig.', zh: '它是斯利姆（Slim）。它是一只又大又黑的猪。' },
+                        { page: 'P58', en: 'Slim can not fit in!', zh: '斯利姆太大了，挤不进屋门！' },
+                        { page: 'P59', en: 'Come out, Slim!', zh: '快出来，斯利姆！（黄底高频词：Come）' },
+                        { page: 'P60', en: 'Slam! Cliff can not sit with Slim.', zh: '砰！克里夫没法和斯利姆一起坐秋千（秋千断啦）。' },
+                        { page: 'P61', en: 'Cliff and Slim slip.', zh: '克里夫和斯利姆脚下一滑（摔进了泥巴里）。' },
+                        { page: 'P62', en: 'Slim can go up. Cliff can not.', zh: '斯利姆爬得上去，克里夫却爬不上去。' },
+                        { page: 'P63', en: 'Slim can pull Cliff. Slim will be a good pet!', zh: '斯利姆能拉住克里夫往上爬。斯利姆会是一只很棒的好宠物！（黄底高频词：pull, be, good）' }
+                    ]
+                }
+            ]
+        },
+
+        qaList: [
+            {
+                id: 's1u1w3_qa1',
+                index: 1,
+                icon: '🐷',
+                q: "What is Cliff's new pet, and what does it look like?",
+                qSpeak: "What is Cliff's new pet, and what does it look like?",
+                qZh: '【课本P56-57 & P64圈画细节】克里夫的新宠物是谁？它长什么样？',
+                a: 'Cliff has a big, black pet pig named Slim.',
+                aZh: '克里夫有一只名叫斯利姆（Slim）的又大又黑的宠物猪。',
+                sentences: [
+                    { en: 'Cliff has a big, black pet pig named Slim.', zh: '克里夫有一只名叫斯利姆的又大又黑的宠物猪。' }
+                ],
+                clozeSentence: 'It is Slim. It is a big ____ ____.',
+                clozeAnswer: 'black pig',
+                clozeOptions: ['black pig', 'white dog', 'small cat', 'pink duck'],
+                qaDistractors: [
+                    'Cliff has a tiny white rabbit.',
+                    'Cliff has six little yellow chicks.',
+                    'Cliff does not have any pet.'
+                ],
+                keyVocab: { word: 'black', zh: '黑色的 (big black pig)', icon: '🐷', phonics: 'bl-a-ck' }
+            },
+            {
+                id: 's1u1w3_qa2',
+                index: 2,
+                icon: '🚪',
+                q: 'Why does Cliff say "Come out, Slim!" at the door?',
+                qSpeak: 'Why does Cliff say Come out, Slim at the door?',
+                qZh: '【课本P58-59】在门口为什么克里夫喊“快出来，斯利姆”？',
+                a: 'Because Slim is too big and can not fit in!',
+                aZh: '因为斯利姆体型太大了，卡在门口挤不进去！',
+                sentences: [
+                    { en: 'Slim can not fit in! Come out, Slim!', zh: '斯利姆挤不进去！快出来，斯利姆！' }
+                ],
+                clozeSentence: 'Slim can not ____ in! ____ out, Slim!',
+                clozeAnswer: 'fit → Come',
+                clozeOptions: ['fit → Come', 'sit → Go', 'slip → Run', 'pull → Jump'],
+                qaDistractors: [
+                    'Because Slim wants to sleep on the roof.',
+                    'Because Slim is eating apples in the tree.',
+                    'Because Slim is very small.'
+                ],
+                keyVocab: { word: 'come', zh: '来；出来 (Come out)', icon: '🚪', phonics: 'c-o-me' }
+            },
+            {
+                id: 's1u1w3_qa3',
+                index: 3,
+                icon: '💥',
+                q: 'What happens when Cliff and Slim sit on the swing?',
+                qSpeak: 'What happens when Cliff and Slim sit on the swing?',
+                qZh: '【课本P60-61 & P65第2格】当克里夫和斯利姆坐秋千时发生了什么？',
+                a: 'Slim breaks the swing, so Cliff and Slim slip and fall in the mud.',
+                aZh: '斯利姆把秋千坐断了，克里夫和斯利姆滑倒摔进了泥坑里。',
+                sentences: [
+                    { en: 'Slim breaks the swing, so Cliff and Slim fall in the mud.', zh: '斯利姆坐断秋千，他们一起摔进泥坑里。' }
+                ],
+                clozeSentence: 'Slim breaks the ____, so Cliff and Slim fall in the ____.',
+                clozeAnswer: 'swing → mud',
+                clozeOptions: ['swing → mud', 'cart → river', 'door → pond', 'stool → grass'],
+                qaDistractors: [
+                    'They fly high into the sky on the swing.',
+                    'They pick blueberries on the hill.',
+                    'Slim falls asleep under the tree.'
+                ],
+                keyVocab: { word: 'slip', zh: '滑倒 (Cliff and Slim slip)', icon: '💥', phonics: 'sl-i-p' }
+            },
+            {
+                id: 's1u1w3_qa4',
+                index: 4,
+                icon: '🌟',
+                q: 'How does Slim help Cliff? (Retell all 3 Key Details in order)',
+                qSpeak: 'How does Slim help Cliff?',
+                qZh: '【课本P63 & P65全篇3步排序】斯利姆是怎么帮克里夫的？按顺序复述故事细节！',
+                a: 'Slim pulls Cliff up out of the mud. Slim will be a good pet!',
+                aZh: '斯利姆爬出泥坑并把克里夫拉了上来，斯利姆会是一只非常棒的好宠物！',
+                sentences: [
+                    { en: 'Cliff has a big, black pet pig named Slim.', zh: '1️⃣ 克里夫有一只叫斯利姆的大黑猪宠物。(P57)' },
+                    { en: 'Slim breaks the swing, so Cliff and Slim fall in the mud.', zh: '2️⃣ 斯利姆坐断秋千，俩人摔进泥坑。(P60-61)' },
+                    { en: 'Slim pulls Cliff up out of the mud. Slim is a good pet.', zh: '3️⃣ 斯利姆把克里夫拉出泥坑，真是好宠物！(P63)' }
+                ],
+                clozeSentence: 'Slim can ____ Cliff. Slim will ____ a ____ pet!',
+                clozeAnswer: 'pull → be → good',
+                clozeOptions: ['pull → be → good', 'push → not → bad', 'see → go → sad', 'dig → have → new'],
+                qaDistractors: [
+                    'Cliff pulls Slim up out of the mud.',
+                    'Slim runs away and leaves Cliff in the mud.',
+                    'Beaver builds a bridge for Cliff.'
+                ],
+                keyVocab: { word: 'pull', zh: '拉；拽 (pull Cliff)', icon: '💪', phonics: 'p-u-ll' }
+            },
+            {
+                id: 's1u1w3_qa5',
+                index: 5,
+                icon: '🏍️',
+                q: 'What genre is "A Pig for Cliff"? Why?',
+                qSpeak: 'What genre is A Pig for Cliff? Why?',
+                qZh: '【课本P54体裁理解】《A Pig for Cliff》是什么体裁？为什么？',
+                a: 'It is fantasy because a cat wears clothes, rides a bike, and keeps a big pig as a pet.',
+                aZh: '它是奇幻故事（Fantasy），因为故事里小老虎猫会穿衣服、骑摩托边车还养大黑猪当宠物。',
+                sentences: [
+                    { en: 'It is fantasy because the animal characters act like people in a made-up story.', zh: '它是奇幻故事，动物角色像人一样生活，并非真实发生的事。' }
+                ],
+                clozeSentence: '"A Pig for Cliff" is a ____ story about what makes a pet special.',
+                clozeAnswer: 'fantasy',
+                clozeOptions: ['fantasy', 'nonfiction', 'science', 'history'],
+                qaDistractors: [
+                    'It is nonfiction with real photos of farm pigs.',
+                    'It is a math book about counting pigs.',
+                    'It is a true news report.'
+                ],
+                keyVocab: { word: 'glad', zh: '高兴的 (Cliff is glad)', icon: '😊', phonics: 'gl-a-d' }
+            }
+        ],
+
+        sightWords: [
+            {
+                id: 'cw_s1u1w3_come',
+                word: 'come',
+                zh: '来；出来（高频词①）',
+                icon: '👋',
+                phonics: 'c-o-me',
+                ipa: '/kʌm/',
+                sentence: 'Come out, Slim!',
+                sentenceZh: '快出来，斯利姆！（P59原句）',
+                maskedSentence: '____ out, Slim!',
+                distractorChars: ['a', 'u', 'n']
+            },
+            {
+                id: 'cw_s1u1w3_pull',
+                word: 'pull',
+                zh: '拉；拽（高频词②）',
+                icon: '💪',
+                phonics: 'p-u-ll',
+                ipa: '/pʊl/',
+                sentence: 'Slim can pull Cliff.',
+                sentenceZh: '斯利姆能把克里夫拉上来。（P63原句）',
+                maskedSentence: 'Slim can ____ Cliff.',
+                distractorChars: ['b', 'a', 't']
+            },
+            {
+                id: 'cw_s1u1w3_be',
+                word: 'be',
+                zh: '成为；是（高频词③）',
+                icon: '🌟',
+                phonics: 'b-e',
+                ipa: '/biː/',
+                sentence: 'Slim will be a good pet!',
+                sentenceZh: '斯利姆会成为一只很棒的好宠物！（P63原句）',
+                maskedSentence: 'Slim will ____ a good pet!',
+                distractorChars: ['d', 'a', 'i']
+            },
+            {
+                id: 'cw_s1u1w3_good',
+                word: 'good',
+                zh: '好的；乖巧的（高频词④）',
+                icon: '👍',
+                phonics: 'g-oo-d',
+                ipa: '/ɡʊd/',
+                sentence: 'Slim is a good pet.',
+                sentenceZh: '斯利姆是一只很棒的好宠物。（P65原句）',
+                maskedSentence: 'Slim is a ____ pet.',
+                distractorChars: ['b', 'u', 'p']
+            }
+        ],
+
+        phonicsWords: [
+            { id: 'cw_s1u1w3_glad',  word: 'glad',  zh: '高兴的(gl-)', icon: '😊', phonics: 'gl-a-d',  ipa: '/ɡlæd/',  sentence: 'Cliff is glad.',                   distractorChars: ['c', 'e', 'b'] },
+            { id: 'cw_s1u1w3_slim',  word: 'slim',  zh: '苗条/斯利姆(sl-)', icon: '🐷', phonics: 'sl-i-m', ipa: '/slɪm/', sentence: 'It is Slim.',                     distractorChars: ['c', 'a', 'n'] },
+            { id: 'cw_s1u1w3_black', word: 'black', zh: '黑色的(bl-)', icon: '⬛', phonics: 'bl-a-ck', ipa: '/blæk/',  sentence: 'It is a big black pig.',            distractorChars: ['p', 'e', 'g'] },
+            { id: 'cw_s1u1w3_slam',  word: 'slam',  zh: '砰地一声(sl-)', icon: '💥', phonics: 'sl-a-m', ipa: '/slæm/',  sentence: 'Slam! The swing breaks.',           distractorChars: ['e', 'n', 'f'] },
+            { id: 'cw_s1u1w3_slip',  word: 'slip',  zh: '滑倒(sl-)',   icon: '🛝', phonics: 'sl-i-p',  ipa: '/slɪp/',  sentence: 'Cliff and Slim slip.',              distractorChars: ['a', 'b', 't'] },
+            { id: 'cw_s1u1w3_cliff', word: 'cliff', zh: '悬崖/克里夫(cl-)', icon: '🐯', phonics: 'cl-i-ff', ipa: '/klɪf/', sentence: 'Slim can pull Cliff.',           distractorChars: ['g', 'a', 't'] },
+            { id: 'cw_s1u1w3_flag',  word: 'flag',  zh: '旗帜(fl-)',   icon: '🚩', phonics: 'fl-a-g',  ipa: '/flæɡ/',  sentence: 'Wave the red flag.',                distractorChars: ['b', 'e', 'k'] },
+            { id: 'cw_s1u1w3_plan',  word: 'plan',  zh: '计划(pl-)',   icon: '📝', phonics: 'pl-a-n',  ipa: '/plæn/',  sentence: 'Cliff has a good plan.',            distractorChars: ['b', 'e', 'm'] },
+            { id: 'cw_s1u1w3_clap',  word: 'clap',  zh: '拍手(cl-)',   icon: '👏', phonics: 'cl-a-p',  ipa: '/klæp/',  sentence: 'Clap your hands for Slim!',         distractorChars: ['g', 'e', 'b'] },
+            { id: 'cw_s1u1w3_flip',  word: 'flip',  zh: '翻转(fl-)',   icon: '🤸', phonics: 'fl-i-p',  ipa: '/flɪp/',  sentence: 'Can you do a flip?',                distractorChars: ['a', 'b', 'c'] },
+            { id: 'cw_s1u1w3_mud',   word: 'mud',   zh: '泥巴(故事词)', icon: '🟤', phonics: 'm-u-d',   ipa: '/mʌd/',   sentence: 'Cliff and Slim fall in the mud.',   distractorChars: ['a', 'b', 'n'] },
+            { id: 'cw_s1u1w3_swing', word: 'swing', zh: '秋千(故事词)', icon: '🪢', phonics: 'sw-i-ng', ipa: '/swɪŋ/',  sentence: 'Slim breaks the swing.',            distractorChars: ['a', 'e', 'k'] }
+        ]
+    },
+    {
+        id: 'S1_1121',
+        code: 'S1·分级2',
+        stage: 'S1',
+        dateLabel: '11/21',
+        storyTitle: 'Harvest Time',
+        title: 'S1·分级2 · Harvest Time',
+        badgeLabel: 'S1 · 11/21 分级阅读 (Harvest Time)',
+        subtitle: 'P12 故事3格复述 · 四章绘本全文 P2-11 · 课后问答 5 组 · 农场丰收词库 12 词',
+        qaSectionTitle: '📖 2. 分级绘本精读问答 & P12 Respond to Reading（Harvest Time）',
+        sightSectionTitle: '✍️ 3. 课堂圈画核心词与原句听读（harvest / ripe / cart / market / bridge）',
+        phonicsRuleTitle: '农场丰收绘本核心词 + 方位短语听音拼写 12 词',
+
+        // P12 Respond to Reading · Retell 3格故事复述图
+        retellFlow: {
+            title: '🎬 1. 绘本 P12 Retell：Harvest Time 农场丰收故事 3 格复述图',
+            centerBadge: 'Harvest Time',
+            wordBank: ['ripe', 'corn', 'pumpkins', 'apples', 'fill the cart', 'bridge is down', 'Beaver', 'market'],
+            fullSpeakText: 'Harvest Time. First, Pig picks corn, Goose picks pumpkins, and Dog picks apples. They fill the cart to go to market. Next, they drive down to the river, but the bridge is down, so they cannot cross the river. Last, clever Beaver makes a new bridge, so they get to market and sell their harvest!',
+            boxes: [
+                {
+                    id: 'flow_1',
+                    step: 1,
+                    en: 'Pig, Goose, and Dog pick corn, pumpkins, and apples and fill the cart.',
+                    htmlEn: 'Pig, Goose, and Dog pick <u>corn, pumpkins, and apples</u> and <u>fill the cart</u>.',
+                    zh: '小猪摘玉米、白鹅摘南瓜、小狗摘苹果，大家把推车装得满满当当准备去集市。',
+                    blanks: ['fill the cart']
+                },
+                {
+                    id: 'flow_2',
+                    step: 2,
+                    en: "They drive down to the river, but the bridge is down. They can't get to market.",
+                    htmlEn: "They drive down to the river, but <u>the bridge is down</u>. They can't get to <u>market</u>.",
+                    zh: '他们赶车来到河边，可是木桥塌了，没法把丰收的农作物运到集市去。',
+                    blanks: ['bridge is down', 'market']
+                },
+                {
+                    id: 'flow_3',
+                    step: 3,
+                    en: 'Beaver makes a new bridge, so they can cross the river and sell their harvest at the market!',
+                    htmlEn: '<u>Beaver</u> makes a <u>new bridge</u>, so they can get to market and sell their harvest!',
+                    zh: '聪明的河狸修好了一座新桥，大家顺利过河去集市售卖苹果、南瓜和玉米啦！',
+                    blanks: ['Beaver', 'new bridge']
+                }
+            ]
+        },
+
+        // 分级绘本 4 大章节 P2–P11 原文点读 + 农场分工表
+        storyChapters: {
+            summaryTitle: '📚 展开《Harvest Time》四章绘本全文点读 (P2–P11 + 农场分工与课堂笔记)',
+            meta: 'Genre: Fantasy (not real · 奇幻故事) · Essential Question: What is it like where you live? · Note: ripe = ready to eat (成熟可吃了)',
+            chartTitle: '🌾 Harvest Time 农场丰收分工表：',
+            partyChart: [
+                { name: 'Pig 🐷', item: 'corn 🌽 (looks out)' },
+                { name: 'Goose 🪿', item: 'pumpkins 🎃 (looks down)' },
+                { name: 'Dog 🐶', item: 'apples 🍎 (looks up)' },
+                { name: 'Beaver 🦫', item: 'makes a new bridge 🌉' }
+            ],
+            chapters: [
+                {
+                    title: 'Chapter 1 · Ready to Pick (P2–P3)',
+                    pages: [
+                        { page: 'P2', en: 'It\'s harvest time on the farm! Everyone is helping. "I like harvest time," says Pig. "Everything is ripe and ready to pick."', zh: '农场到了丰收时节！大家都在帮忙。小猪说：“我喜欢丰收季，所有作物都成熟（ripe = ready to eat）可以采摘啦。”' },
+                        { page: 'P3', en: '"I\'ll pick the corn," says Pig. "I\'ll pick the pumpkins," says Goose. "I\'ll pick the apples," says Dog.', zh: '小猪说：“我来摘玉米。”白鹅说：“我来摘南瓜。”小狗说：“我来摘苹果。”' }
+                    ]
+                },
+                {
+                    title: 'Chapter 2 · Everyone Helps (P4–P6)',
+                    pages: [
+                        { page: 'P4', en: 'Pig looks out at the corn. "This is nice corn," he says. "It is very nice, Pig," says Goose. "It will sell well at the market."', zh: '小猪向外看着玉米地：“这玉米真不错。”白鹅说：“非常棒，在集市上一定很好卖！”' },
+                        { page: 'P5', en: 'Goose looks down at the pumpkins. "These are nice pumpkins," she says. "They are very nice, Goose," says Dog. "They will sell well at the market."', zh: '白鹅低头看着大南瓜：“这些南瓜真不错。”小狗夸道：“非常棒，在集市上一定很好卖！”' },
+                        { page: 'P6', en: 'Dog looks up at the apples. "These are nice apples," he says. "They are very nice, Dog," says Pig. "They will sell well at the market."', zh: '小狗抬头看着树上的红苹果：“这些苹果真不错。”小猪说：“非常棒，在集市上一定很好卖！”' }
+                    ]
+                },
+                {
+                    title: 'Chapter 3 · Off to Market! (P7–P8)',
+                    pages: [
+                        { page: 'P7', en: '"We are finished," says Pig. "Let\'s load the cart," says Goose. Pig, Goose, and Dog fill the cart with apples, pumpkins, and corn. "We are ready to go to market!" says Dog.', zh: '“摘完啦！”小猪说。“我们装车吧！”他们把苹果、南瓜和玉米装满推车（fill the cart），准备出发去集市！' },
+                        { page: 'P8', en: 'Pig, Goose, and Dog hop on the cart. They drive down to the river. "Oh, no! The bridge is down," says Pig. "We can\'t get the harvest to market," says Goose. "What will we do?" asks Dog.', zh: '大家跳上推车赶往河边。“糟糕！桥塌了（The bridge is down）！”小猪喊道，“我们没法把丰收作物运去集市了，怎么办呀？”' }
+                    ]
+                },
+                {
+                    title: 'Chapter 4 · Clever Beaver (P9–P11)',
+                    pages: [
+                        { page: 'P9', en: '"I know someone who can help us," says Pig. "Who is it?" asks Goose. "Beaver can help us!" says Dog.', zh: '小猪说：“我知道谁能帮我们！”小狗兴奋地说：“河狸（Beaver）能帮我们！”' },
+                        { page: 'P10', en: 'Pig, Goose, and Dog talk to Beaver. "The bridge is down," says Pig. "We have to cross the river," says Goose. "Can you help us?" asks Dog.', zh: '大家对河狸说：“桥塌了，我们必须过河，你能帮帮我们吗？”' },
+                        { page: 'P11', en: 'Beaver makes a new bridge. "Beaver did it!" says Pig. "Thank you, Beaver!" says Dog. "Now we can get to market," says Goose. "We can sell our apples, pumpkins, and corn!"', zh: '河狸修好了一座新桥！大家欢呼道谢：“现在我们能去集市卖苹果、南瓜和玉米啦！”' }
+                    ]
+                }
+            ]
+        },
+
+        qaList: [
+            {
+                id: 's1_1121_qa1',
+                index: 1,
+                icon: '🌽',
+                q: 'What do Pig, Goose, and Dog each pick on the farm?',
+                qSpeak: 'What do Pig, Goose, and Dog each pick on the farm?',
+                qZh: '【绘本P3课堂连线题】小猪、白鹅和小狗在农场分别采摘什么？',
+                a: 'Pig picks the corn, Goose picks the pumpkins, and Dog picks the apples.',
+                aZh: '小猪摘玉米，白鹅摘南瓜，小狗摘苹果。',
+                sentences: [
+                    { en: 'Pig picks the corn, Goose picks the pumpkins, and Dog picks the apples.', zh: '小猪摘玉米，白鹅摘南瓜，小狗摘苹果。' }
+                ],
+                clozeSentence: 'Pig picks the ____, Goose picks the ____, and Dog picks the apples.',
+                clozeAnswer: 'corn → pumpkins',
+                clozeOptions: ['corn → pumpkins', 'apples → corn', 'berries → nuts', 'pumpkins → pears'],
+                qaDistractors: [
+                    'Pig picks apples, Goose picks corn, and Dog picks blueberries.',
+                    'Beaver picks all the food by himself.',
+                    'They buy food at the city supermarket.'
+                ],
+                keyVocab: { word: 'harvest', zh: '丰收；收获 (harvest time)', icon: '🌾', phonics: 'h-ar-v-e-st' }
+            },
+            {
+                id: 's1_1121_qa2',
+                index: 2,
+                icon: '🛒',
+                q: 'Where will the friends go after they have filled the cart?',
+                qSpeak: 'Where will the friends go after they have filled the cart?',
+                qZh: '【课本P12第1题 · Look at P7】装满推车后，好朋友们要去哪里？',
+                a: 'They will go to market to sell their apples, pumpkins, and corn.',
+                aZh: '他们要去集市（go to market）售卖摘好的苹果、南瓜和玉米。',
+                sentences: [
+                    { en: 'They fill the cart with apples, pumpkins, and corn.', zh: '他们把苹果、南瓜和玉米装满推车。' },
+                    { en: 'They will go to market to sell them.', zh: '他们准备去集市售卖丰收成果。' }
+                ],
+                clozeSentence: 'After they fill the ____, they are ready to go to ____!',
+                clozeAnswer: 'cart → market',
+                clozeOptions: ['cart → market', 'bag → school', 'box → pond', 'boat → hill'],
+                qaDistractors: [
+                    'They will go to school for a spelling bee.',
+                    'They will go to sleep in the farmhouse.',
+                    'They will dip in the pond.'
+                ],
+                keyVocab: { word: 'market', zh: '集市；市场 (go to market)', icon: '🏪', phonics: 'm-ar-k-e-t' }
+            },
+            {
+                id: 's1_1121_qa3',
+                index: 3,
+                icon: '🌊',
+                q: 'What problem do they meet when they drive down to the river?',
+                qSpeak: 'What problem do they meet when they drive down to the river?',
+                qZh: '【绘本P8划线句】当他们赶车来到河边时，遇到了什么困难？',
+                a: "The bridge is down, so they can't cross the river to get to market.",
+                aZh: '河上的桥塌了（The bridge is down），他们没法过河去集市。',
+                sentences: [
+                    { en: "The bridge is down, so they can't get the harvest to market.", zh: '木桥塌了，他们没法把丰收作物运到集市去。' }
+                ],
+                clozeSentence: '"Oh, no! The ____ is down! We have to cross the ____."',
+                clozeAnswer: 'bridge → river',
+                clozeOptions: ['bridge → river', 'cart → hill', 'tree → road', 'door → farm'],
+                qaDistractors: [
+                    'They forgot to pick the pumpkins on the farm.',
+                    'It starts to snow heavily on the hill.',
+                    'The apples fell into the mud.'
+                ],
+                keyVocab: { word: 'bridge', zh: '桥梁 (The bridge is down)', icon: '🌉', phonics: 'br-i-dge' }
+            },
+            {
+                id: 's1_1121_qa4',
+                index: 4,
+                icon: '🦫',
+                q: 'How does Beaver help Pig, Goose, and Dog? (Retell all 3 parts)',
+                qSpeak: 'How does Beaver help Pig, Goose, and Dog?',
+                qZh: '【课本P12第2题 & 3步复述】聪明的河狸是怎么帮助小猪、白鹅和小狗的？',
+                a: 'Beaver makes a new bridge, so they can cross the river and get to market.',
+                aZh: '河狸建造了一座新桥，让他们顺利过河去集市售卖丰收蔬果！',
+                sentences: [
+                    { en: 'Pig, Goose, and Dog pick corn, pumpkins, and apples and fill the cart.', zh: '1️⃣ 小猪、白鹅和小狗采摘作物装满推车。' },
+                    { en: "They drive down to the river, but the bridge is down. They can't get to market.", zh: '2️⃣ 赶车到河边发现木桥塌了，过不去河。' },
+                    { en: 'Beaver makes a new bridge, so they can get to market and sell their harvest!', zh: '3️⃣ 河狸造了一座新桥，大家顺利去集市卖蔬果！' }
+                ],
+                clozeSentence: 'Clever ____ makes a new ____, so they can get to market!',
+                clozeAnswer: 'Beaver → bridge',
+                clozeOptions: ['Beaver → bridge', 'Pig → cart', 'Goose → boat', 'Dog → stool'],
+                qaDistractors: [
+                    'Beaver swims across the river with all the pumpkins.',
+                    'Beaver buys all the corn by the river.',
+                    'Beaver fixes the broken wheel of the cart.'
+                ],
+                keyVocab: { word: 'beaver', zh: '河狸 (Clever Beaver)', icon: '🦫', phonics: 'b-ea-v-er' }
+            },
+            {
+                id: 's1_1121_qa5',
+                index: 5,
+                icon: '📘',
+                q: 'Is "Harvest Time" nonfiction or fiction? Why?',
+                qSpeak: 'Is Harvest Time nonfiction or fiction? Why?',
+                qZh: '【封面课堂笔记 & P12第3题】《Harvest Time》是纪实还是虚构故事？为什么？',
+                a: 'It is fantasy (fiction / not real), because animals talk, wear clothes, and drive a cart to market.',
+                aZh: '它是奇幻虚构故事（Fantasy / not real），因为农场小动物会说话、穿衣服还会赶车去赶集。',
+                sentences: [
+                    { en: 'It is fantasy and not real, because animals talk, wear clothes, and drive a cart.', zh: '它是奇幻故事（not real），因为动物们会说话穿衣赶马车。' }
+                ],
+                clozeSentence: 'Harvest Time is ____ (not real), and "ripe" means ready to ____.',
+                clozeAnswer: 'fantasy → eat',
+                clozeOptions: ['fantasy → eat', 'nonfiction → sleep', 'real → run', 'science → fly'],
+                qaDistractors: [
+                    'It is nonfiction because real beavers sell apples at markets.',
+                    'It is nonfiction with real photos of farmers.',
+                    'It is a true story about a school party.'
+                ],
+                keyVocab: { word: 'ripe', zh: '成熟的 (ready to eat / pick)', icon: '🍎', phonics: 'r-i-pe' }
+            }
+        ],
+
+        sightWords: [
+            {
+                id: 'cw_s1_1121_harvest',
+                word: 'harvest',
+                zh: '丰收；收获（主题词①）',
+                icon: '🌾',
+                phonics: 'h-ar-v-e-st',
+                ipa: '/ˈhɑːrvɪst/',
+                sentence: 'It is harvest time on the farm.',
+                sentenceZh: '农场到了丰收的季节！（P2原句）',
+                maskedSentence: 'It is ____ time on the farm.',
+                distractorChars: ['u', 'o', 'd']
+            },
+            {
+                id: 'cw_s1_1121_ripe',
+                word: 'ripe',
+                zh: '成熟的 = ready to eat（笔记词②）',
+                icon: '🍎',
+                phonics: 'r-i-pe',
+                ipa: '/raɪp/',
+                sentence: 'Everything is ripe and ready to pick.',
+                sentenceZh: '所有蔬果都成熟了，可以采摘啦。（P2圈画词）',
+                maskedSentence: 'Everything is ____ and ready to pick.',
+                distractorChars: ['a', 'b', 't']
+            },
+            {
+                id: 'cw_s1_1121_cart',
+                word: 'cart',
+                zh: '农用运货推车（圈画词③）',
+                icon: '🛒',
+                phonics: 'c-ar-t',
+                ipa: '/kɑːrt/',
+                sentence: 'They fill the cart with apples.',
+                sentenceZh: '他们把推车装满苹果。（P7原句精简）',
+                maskedSentence: 'They fill the ____ with apples.',
+                distractorChars: ['k', 'e', 'd']
+            },
+            {
+                id: 'cw_s1_1121_market',
+                word: 'market',
+                zh: '集市；市场（核心词④）',
+                icon: '🏪',
+                phonics: 'm-ar-k-e-t',
+                ipa: '/ˈmɑːrkɪt/',
+                sentence: 'We are ready to go to market.',
+                sentenceZh: '我们准备好出发去集市啦！（P7原句）',
+                maskedSentence: 'We are ready to go to ____.',
+                distractorChars: ['n', 'c', 'i']
+            },
+            {
+                id: 'cw_s1_1121_bridge',
+                word: 'bridge',
+                zh: '桥梁（核心词⑤）',
+                icon: '🌉',
+                phonics: 'br-i-dge',
+                ipa: '/brɪdʒ/',
+                sentence: 'Beaver makes a new bridge.',
+                sentenceZh: '河狸修好了一座新桥。（P11原句）',
+                maskedSentence: 'Beaver makes a new ____.',
+                distractorChars: ['p', 'a', 't']
+            }
+        ],
+
+        phonicsWords: [
+            { id: 'cw_s1_1121_ph_harvest', word: 'harvest', zh: '丰收(P2)',     icon: '🌾', phonics: 'h-ar-v-e-st', ipa: '/ˈhɑːrvɪst/', sentence: 'I like harvest time.',                distractorChars: ['u', 'o', 'd'] },
+            { id: 'cw_s1_1121_ph_ripe',    word: 'ripe',    zh: '成熟的(P2)',   icon: '🍎', phonics: 'r-i-pe',      ipa: '/raɪp/',      sentence: 'Everything is ripe and ready to eat.', distractorChars: ['a', 'b', 't'] },
+            { id: 'cw_s1_1121_ph_corn',    word: 'corn',    zh: '玉米(P3)',     icon: '🌽', phonics: 'c-or-n',      ipa: '/kɔːrn/',     sentence: 'Pig picks the corn.',                  distractorChars: ['k', 'a', 'm'] },
+            { id: 'cw_s1_1121_ph_pumpkin', word: 'pumpkin', zh: '南瓜(P3)',     icon: '🎃', phonics: 'p-u-mp-k-i-n',ipa: '/ˈpʌmpkɪn/',  sentence: 'Goose looks down at the pumpkins.',    distractorChars: ['a', 'b', 'e'] },
+            { id: 'cw_s1_1121_ph_apples',  word: 'apples',  zh: '苹果(P3)',     icon: '🍎', phonics: 'a-pp-le-s',   ipa: '/ˈæpəlz/',    sentence: 'Dog looks up at the apples.',          distractorChars: ['u', 'i', 't'] },
+            { id: 'cw_s1_1121_ph_cart',    word: 'cart',    zh: '推车(P7)',     icon: '🛒', phonics: 'c-ar-t',      ipa: '/kɑːrt/',     sentence: "Let's load the cart.",                 distractorChars: ['k', 'e', 'd'] },
+            { id: 'cw_s1_1121_ph_market',  word: 'market',  zh: '集市(P7)',     icon: '🏪', phonics: 'm-ar-k-e-t',  ipa: '/ˈmɑːrkɪt/',  sentence: 'It will sell well at the market.',     distractorChars: ['n', 'c', 'i'] },
+            { id: 'cw_s1_1121_ph_river',   word: 'river',   zh: '小河(P8)',     icon: '🌊', phonics: 'r-i-v-er',    ipa: '/ˈrɪvər/',    sentence: 'We have to cross the river.',          distractorChars: ['a', 'w', 'n'] },
+            { id: 'cw_s1_1121_ph_bridge',  word: 'bridge',  zh: '木桥(P8)',     icon: '🌉', phonics: 'br-i-dge',    ipa: '/brɪdʒ/',     sentence: 'The bridge is down.',                  distractorChars: ['p', 'a', 't'] },
+            { id: 'cw_s1_1121_ph_beaver',  word: 'beaver',  zh: '河狸(P9)',     icon: '🦫', phonics: 'b-ea-v-er',   ipa: '/ˈbiːvər/',   sentence: 'Beaver can help us!',                  distractorChars: ['p', 'i', 'd'] },
+            { id: 'cw_s1_1121_ph_cross',   word: 'cross',   zh: '穿过(P10)',    icon: '🚶', phonics: 'cr-o-ss',     ipa: '/krɔːs/',     sentence: 'We have to cross the river.',          distractorChars: ['k', 'a', 'e'] },
+            { id: 'cw_s1_1121_ph_sell',    word: 'sell',    zh: '售卖(P11)',    icon: '🪙', phonics: 's-e-ll',      ipa: '/sel/',       sentence: 'We can sell our apples and corn!',     distractorChars: ['a', 'i', 't'] }
+        ]
+    },
+    {
+        id: 'S1U1W2',
+        code: 'S1U1W2',
+        stage: 'S1',
+        dateLabel: '11/19',
+        storyTitle: 'Six Kids',
+        title: 'S1U1W2 · Six Kids',
+        badgeLabel: 'S1 · 11/19 主课本作业 (S1U1W2 · Six Kids)',
+        subtitle: '视频朗读3格细节 · 课文问答 5 组 · 必考高频词句 4 组 · Short i 与学案词 12 词',
+        qaSectionTitle: '📹 2. 作业单第3项：拍摄视频朗读故事问答 & 写作学案（Six Kids）',
+        sightSectionTitle: '✍️ 3. 作业单第2项：主教材高频词抄4遍·句子2遍·下周四听写 (down / up / out / very)',
+        phonicsRuleTitle: 'Short i (/ɪ/) 短元音拼读 + 课堂 Writing 学案 Word Bank 12 词',
+
+        // 作业单第 3 项：拍摄视频，朗读阅读技巧 3 格 Detail 流程图
+        retellFlow: {
+            title: '🎬 1. 作业单第3项：拍摄视频 · 朗读阅读技巧 3 格细节图 (Details)',
+            centerBadge: 'Six Kids',
+            wordBank: ['walk up a hill', 'farm tools', 'dig holes', 'plant seeds', 'pick blueberries', 'farm', 'pond', 'dip'],
+            fullSpeakText: 'Six Kids. First six chicks walk up a hill carrying farm tools. Then they dig holes to plant seeds in their garden. Then the six chicks pick blueberries.',
+            boxes: [
+                {
+                    id: 'flow_1',
+                    step: 1,
+                    en: 'First six chicks walk up a hill carrying farm tools.',
+                    htmlEn: 'First six chicks <u>walk up a hill</u> carrying <u>farm tools</u>.',
+                    zh: '首先，六只小鸡扛着农具走上小山坡。',
+                    blanks: ['walk up a hill', 'farm tools']
+                },
+                {
+                    id: 'flow_2',
+                    step: 2,
+                    en: 'Then they dig holes to plant seeds in their garden.',
+                    htmlEn: 'Then they <u>dig holes</u> to <u>plant seeds</u> in their garden.',
+                    zh: '接着，他们在菜园里挖坑种下种子。',
+                    blanks: ['dig holes', 'plant seeds']
+                },
+                {
+                    id: 'flow_3',
+                    step: 3,
+                    en: 'Then the six chicks pick blueberries.',
+                    htmlEn: 'Then the six chicks <u>pick blueberries</u>.',
+                    zh: '然后，六只小鸡一起摘蓝莓（吃得嘴和手都变蓝啦）。',
+                    blanks: ['pick blueberries']
+                }
+            ]
+        },
+
+        // 课堂 Writing 学案（11/19 Unit 1 Week 2 Writing: Details -> Clues）
+        storyChapters: {
+            summaryTitle: '📚 展开《Six Kids》11/19 课堂 Writing 写作学案点读 (Details → Clues)',
+            meta: 'Prompt: Describe how where the six kids live affects what they do. Use text evidence to support your answer.',
+            chartTitle: '🏡 Six Kids 居住地点与活动对应表：',
+            partyChart: [
+                { name: 'on the farm 🚜', item: 'go outside & dig holes 🕳️' },
+                { name: 'near the hill ⛰️', item: 'see & pick blueberries 🫐' },
+                { name: 'near the pond 🌊', item: 'dip in the pond 💦' }
+            ],
+            chapters: [
+                {
+                    title: 'Unit 1 Week 2 · Writing Worksheet (Nov. 19th)',
+                    pages: [
+                        { page: '句 1', en: 'They live on the farm, so they go outside a lot and dig holes.', zh: '他们住在农场里，所以经常去户外活动并且挖坑。' },
+                        { page: '句 2', en: 'They live near the hill, so they can see and pick blueberries.', zh: '他们住在小山坡附近，所以能看到并采摘蓝莓。' },
+                        { page: '句 3', en: 'They live near the pond, so they can dip in the pond.', zh: '他们住在池塘边，所以可以在池塘里泡水嬉戏。' }
+                    ]
+                }
+            ]
+        },
+
+        qaList: [
+            {
+                id: 's1u1w2_qa1',
+                index: 1,
+                icon: '☀️',
+                q: 'Where do six kids go? They go inside or outside? (P34-35)',
+                qSpeak: 'Where do six kids go? Do they go inside or outside?',
+                qZh: '【作业单Q1 · P34-35】六个孩子去哪里？他们去屋里还是去户外？',
+                a: 'Six kids go outside.',
+                aZh: '六个孩子去户外（go outside）。',
+                sentences: [
+                    { en: 'Six kids go outside.', zh: '六个孩子去户外活动。' }
+                ],
+                clozeSentence: 'Six kids go ____.',
+                clozeAnswer: 'outside',
+                clozeOptions: ['outside', 'inside', 'upstairs', 'asleep'],
+                qaDistractors: [
+                    'Six kids stay inside the house all day.',
+                    'Six kids go to the city cinema.',
+                    'Six kids go to bed.'
+                ],
+                keyVocab: { word: 'out', zh: '出去；在户外 (go outside)', icon: '☀️', phonics: 'ou-t' }
+            },
+            {
+                id: 's1u1w2_qa2',
+                index: 2,
+                icon: '⛰️',
+                q: 'What are they doing on pages 36 to 37? (P36-37)',
+                qSpeak: 'What are they doing on pages 36 to 37?',
+                qZh: '【作业单Q2 · P36-37】在课本第 36-37 页，他们正在做什么？',
+                a: 'They are walking up a hill with some farm tools.',
+                aZh: '他们正拿着一些农具往小山坡上走。',
+                sentences: [
+                    { en: 'They are walking up a hill with some farm tools.', zh: '他们正拿着农具走上小山坡。' }
+                ],
+                clozeSentence: 'They are walking ____ a ____ with some farm tools.',
+                clozeAnswer: 'up → hill',
+                clozeOptions: ['up → hill', 'down → steps', 'in → city', 'on → roof'],
+                qaDistractors: [
+                    'They are swimming in the deep sea.',
+                    'They are reading books in the classroom.',
+                    'They are making party hats.'
+                ],
+                keyVocab: { word: 'hill', zh: '小山坡 (walk up a hill)', icon: '⛰️', phonics: 'h-i-ll' }
+            },
+            {
+                id: 's1u1w2_qa3',
+                index: 3,
+                icon: '🌱',
+                q: 'What are they doing in the garden? (P38)',
+                qSpeak: 'What are they doing in the garden?',
+                qZh: '【作业单Q3 · P38】在课本第 38 页菜园里，他们正在做什么？',
+                a: 'They are digging a hole to plant some seeds.',
+                aZh: '他们正在挖坑，准备种下一些种子。',
+                sentences: [
+                    { en: 'They are digging a hole to plant some seeds.', zh: '他们正在挖坑种种子。' }
+                ],
+                clozeSentence: 'They are ____ a hole to plant some ____.',
+                clozeAnswer: 'digging → seeds',
+                clozeOptions: ['digging → seeds', 'picking → apples', 'drawing → pictures', 'building → bridges'],
+                qaDistractors: [
+                    'They are riding a bike in the city.',
+                    'They are eating popcorn at school.',
+                    'They are sleeping on a stool.'
+                ],
+                keyVocab: { word: 'dig', zh: '挖；掘 (dig holes)', icon: '🪏', phonics: 'd-i-g' }
+            },
+            {
+                id: 's1u1w2_qa4',
+                index: 4,
+                icon: '🫐',
+                q: 'What are they picking, and what happened when they picked? (P40)',
+                qSpeak: 'What are they picking, and what happened when they picked?',
+                qZh: '【作业单Q4 · P40 & 3格顺序复述】他们在摘什么？摘的时候发生了什么有趣的事？',
+                a: 'They are picking blueberries. Some kids get blue when picking blueberries.',
+                aZh: '他们正在摘蓝莓；摘蓝莓的时候有些孩子染得一身蓝！',
+                sentences: [
+                    { en: 'First six chicks walk up a hill carrying farm tools.', zh: '1️⃣ 首先六只小鸡扛着农具走上山坡。' },
+                    { en: 'Then they dig holes to plant seeds in their garden.', zh: '2️⃣ 接着他们在菜园里挖坑种下种子。' },
+                    { en: 'Then the six chicks pick blueberries.', zh: '3️⃣ 然后六只小鸡一起摘甜甜的蓝莓。' }
+                ],
+                clozeSentence: 'They are ____ blueberries. Some kids get ____ when picking blueberries.',
+                clozeAnswer: 'picking → blue',
+                clozeOptions: ['picking → blue', 'drinking → red', 'cutting → green', 'washing → black'],
+                qaDistractors: [
+                    'They are picking pumpkins and get yellow.',
+                    'They find nothing left on the hill.',
+                    'They break the swing and fall in the mud.'
+                ],
+                keyVocab: { word: 'pick', zh: '采摘 (pick blueberries)', icon: '🫐', phonics: 'p-i-ck' }
+            },
+            {
+                id: 's1u1w2_qa5',
+                index: 5,
+                icon: '💦',
+                q: 'Where do the six kids live, and what can they do in the pond?',
+                qSpeak: 'Where do the six kids live, and what can they do in the pond?',
+                qZh: '【11/19课堂Writing学案】六个孩子住在哪里？他们在池塘里可以做什么？',
+                a: 'They live near the pond, so they can dip in the pond.',
+                aZh: '他们住在池塘附近，所以可以在池塘里泡水玩耍（dip in the pond）。',
+                sentences: [
+                    { en: 'They live near the pond, so they can dip in the pond.', zh: '他们住在池塘附近，所以可以在池塘里戏水。' }
+                ],
+                clozeSentence: 'They live ____ the pond, so they can ____ in the pond.',
+                clozeAnswer: 'near → dip',
+                clozeOptions: ['near → dip', 'under → fly', 'far → run', 'inside → write'],
+                qaDistractors: [
+                    'They live in a very loud city.',
+                    'They cannot go near the water.',
+                    'They drive a cart across the pond.'
+                ],
+                keyVocab: { word: 'dip', zh: '浸；泡水玩 (dip in the pond)', icon: '💦', phonics: 'd-i-p' }
+            }
+        ],
+
+        // 作业单第 2 项：主教材高频词抄 4 遍，句子 2 遍，下周四上课听写词和句子！
+        sightWords: [
+            {
+                id: 'cw_s1u1w2_down',
+                word: 'down',
+                zh: '向下；沿着（必考高频词①）',
+                icon: '⬇️',
+                phonics: 'd-ow-n',
+                ipa: '/daʊn/',
+                sentence: 'We go down the steps.',
+                sentenceZh: '我们走下台阶。（作业单听写原句）',
+                maskedSentence: 'We go ____ the steps.',
+                distractorChars: ['u', 'p', 'm']
+            },
+            {
+                id: 'cw_s1u1w2_up',
+                word: 'up',
+                zh: '向上（必考高频词②）',
+                icon: '⬆️',
+                phonics: 'u-p',
+                ipa: '/ʌp/',
+                sentence: 'They went up the hill.',
+                sentenceZh: '他们走上了小山坡。（作业单听写原句）',
+                maskedSentence: 'They went ____ the hill.',
+                distractorChars: ['a', 'd', 'b']
+            },
+            {
+                id: 'cw_s1u1w2_out',
+                word: 'out',
+                zh: '出去；在外（必考高频词③）',
+                icon: '🚪',
+                phonics: 'ou-t',
+                ipa: '/aʊt/',
+                sentence: 'They go out to play.',
+                sentenceZh: '他们出去玩耍。（作业单听写原句）',
+                maskedSentence: 'They go ____ to play.',
+                distractorChars: ['a', 'n', 'd']
+            },
+            {
+                id: 'cw_s1u1w2_very',
+                word: 'very',
+                zh: '非常；很（必考高频词④）',
+                icon: '🔊',
+                phonics: 'v-e-r-y',
+                ipa: '/ˈveri/',
+                sentence: 'It is very loud in the city.',
+                sentenceZh: '城市里非常喧闹。（作业单听写原句）',
+                maskedSentence: 'It is ____ loud in the city.',
+                distractorChars: ['w', 'a', 'i']
+            }
+        ],
+
+        // Short i (/ɪ/) 短元音拼读 + 11/19 Writing 学案 Word Bank 8 词 = 12 词
+        phonicsWords: [
+            { id: 'cw_s1u1w2_six',     word: 'six',     zh: '数字六(Short i)', icon: '6️⃣', phonics: 's-i-x',       ipa: '/sɪks/',    sentence: 'Six kids go outside.',                    distractorChars: ['a', 'e', 'k'] },
+            { id: 'cw_s1u1w2_kids',    word: 'kids',    zh: '孩子们(Short i)', icon: '👧', phonics: 'k-i-d-s',     ipa: '/kɪdz/',    sentence: 'Some kids get blue.',                     distractorChars: ['c', 'a', 'e'] },
+            { id: 'cw_s1u1w2_dig',     word: 'dig',     zh: '挖坑(学案词)',    icon: '🪏', phonics: 'd-i-g',       ipa: '/dɪɡ/',     sentence: 'They dig holes to plant seeds.',          distractorChars: ['b', 'a', 'p'] },
+            { id: 'cw_s1u1w2_dip',     word: 'dip',     zh: '泡水(学案词)',    icon: '💦', phonics: 'd-i-p',       ipa: '/dɪp/',     sentence: 'They can dip in the pond.',               distractorChars: ['b', 'a', 'g'] },
+            { id: 'cw_s1u1w2_pick',    word: 'pick',    zh: '采摘(学案词)',    icon: '🫐', phonics: 'p-i-ck',      ipa: '/pɪk/',     sentence: 'They can see and pick blueberries.',      distractorChars: ['b', 'a', 'e'] },
+            { id: 'cw_s1u1w2_hill',    word: 'hill',    zh: '小山坡(学案词)',  icon: '⛰️', phonics: 'h-i-ll',      ipa: '/hɪl/',     sentence: 'They live near the hill.',                distractorChars: ['a', 'e', 't'] },
+            { id: 'cw_s1u1w2_farm',    word: 'farm',    zh: '农场(学案词)',    icon: '🚜', phonics: 'f-ar-m',      ipa: '/fɑːrm/',   sentence: 'They live on the farm.',                  distractorChars: ['v', 'o', 'n'] },
+            { id: 'cw_s1u1w2_pond',    word: 'pond',    zh: '池塘(学案词)',    icon: '🌊', phonics: 'p-o-n-d',     ipa: '/pɑːnd/',   sentence: 'They live near the pond.',                distractorChars: ['b', 'a', 'u'] },
+            { id: 'cw_s1u1w2_berries', word: 'berries', zh: '浆果(学案词)',    icon: '🫐', phonics: 'b-e-rr-ie-s', ipa: '/ˈberiz/',  sentence: 'The six chicks pick sweet berries.',      distractorChars: ['p', 'a', 'o'] },
+            { id: 'cw_s1u1w2_near',    word: 'near',    zh: '在附近(学案词)',  icon: '📍', phonics: 'n-ear',       ipa: '/nɪr/',     sentence: 'They live near the pond.',                distractorChars: ['m', 'o', 't'] },
+            { id: 'cw_s1u1w2_chicks',  word: 'chicks',  zh: '小鸡们(Short i)', icon: '🐥', phonics: 'ch-i-ck-s',   ipa: '/tʃɪks/',   sentence: 'Six chicks walk up a hill.',              distractorChars: ['a', 'e', 't'] },
+            { id: 'cw_s1u1w2_seeds',   word: 'seeds',   zh: '种子(流程图词)',  icon: '🌱', phonics: 's-ee-d-s',    ipa: '/siːdz/',   sentence: 'They plant seeds in their garden.',       distractorChars: ['a', 'i', 'z'] }
+        ]
+    },
+    {
         id: 'S1_1114',
         code: 'S1·分级',
         stage: 'S1',

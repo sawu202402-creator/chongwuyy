@@ -1835,6 +1835,9 @@
     grid-template-columns: repeat(2, 1fr);
     gap: 8px;
 }
+.qw-rc-flow-grid.cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+}
 .qw-rc-board.compact .qw-rc-flow-grid {
     grid-template-columns: 1fr;
 }

@@ -311,35 +311,66 @@ assert.equal(easyCourseKeys.size, 24, 'Easy S1U1W1 course_all must have 24 uniqu
 assert.deepEqual([...easyCourseSubTypes].sort(), ['phonics_listen_pick', 'qa_cloze', 'qa_match', 'sight_cloze_pick']);
 console.log('   ✅ Kid-Friendly Easy Difficulty & Excluded Types verified!');
 
-console.log('4B. Testing Off-Campus English Course Registry Full Exam Mode (S1·分级 Class Party & S1U1W1 Jack Can)...');
-assert.ok(COURSE_LESSONS.length >= 2);
+console.log('4B. Testing Off-Campus English Course Registry Full Exam Mode (5 Lessons: S1U1W3, S1_1121, S1U1W2, S1_1114, S1U1W1)...');
+assert.equal(COURSE_LESSONS.length, 5, 'COURSE_LESSONS must contain all 5 off-campus English lessons');
 assert.equal(COURSE_SUB_MODES.length, 5);
-
-// 1) Verify latest lesson COURSE_LESSONS[0] is S1_1114 (11/14 分级阅读 Class Party)
-const s1_1114 = COURSE_LESSONS[0];
-assert.equal(s1_1114.id, 'S1_1114');
-assert.equal(s1_1114.code, 'S1·分级');
-assert.equal(s1_1114.dateLabel, '11/14');
-assert.equal(s1_1114.storyTitle, 'Class Party');
-assert.equal(s1_1114.retellFlow.boxes.length, 4, 'Class Party must have 4 flowchart retell boxes');
 assert.deepEqual(
-    s1_1114.sightWords.map(w => w.word),
-    ['chapter', 'question', 'class', 'celebrate', 'party']
+    COURSE_LESSONS.map(l => l.id),
+    ['S1U1W3', 'S1_1121', 'S1U1W2', 'S1_1114', 'S1U1W1']
 );
-assert.equal(s1_1114.qaList.length, 6, 'Class Party must have 6 Q&A items');
-assert.equal(s1_1114.phonicsWords.length, 12, 'Class Party must have 12 vocabulary/phonics words');
 
-// Verify S1_1114 easy random course_all yields 29 gentle items (12 ph_pick + 5 sw_pick + 12 qa)
+// 1) Verify latest lesson COURSE_LESSONS[0] is S1U1W3 (11/26 A Pig for Cliff)
+const s1u1w3 = COURSE_LESSONS[0];
+assert.equal(s1u1w3.id, 'S1U1W3');
+assert.equal(s1u1w3.code, 'S1U1W3');
+assert.equal(s1u1w3.dateLabel, '11/26');
+assert.equal(s1u1w3.storyTitle, 'A Pig for Cliff');
+assert.equal(s1u1w3.retellFlow.boxes.length, 3, 'A Pig for Cliff must have 3 Key Details boxes');
+assert.deepEqual(s1u1w3.sightWords.map(w => w.word), ['come', 'pull', 'be', 'good']);
+assert.equal(s1u1w3.qaList.length, 5);
+assert.equal(s1u1w3.phonicsWords.length, 12);
+
+// 1B) Verify S1_1121 (11/21 Harvest Time) & S1U1W2 (11/19 Six Kids)
+const s1_1121 = COURSE_LESSONS.find(l => l.id === 'S1_1121');
+assert.equal(s1_1121.storyTitle, 'Harvest Time');
+assert.equal(s1_1121.retellFlow.boxes.length, 3);
+assert.equal(s1_1121.storyChapters.chapters.length, 4, 'Harvest Time must have all 4 chapters');
+assert.deepEqual(s1_1121.sightWords.map(w => w.word), ['harvest', 'ripe', 'cart', 'market', 'bridge']);
+
+const s1u1w2 = COURSE_LESSONS.find(l => l.id === 'S1U1W2');
+assert.equal(s1u1w2.storyTitle, 'Six Kids');
+assert.equal(s1u1w2.retellFlow.boxes.length, 3);
+assert.deepEqual(s1u1w2.sightWords.map(w => w.word), ['down', 'up', 'out', 'very']);
+assert.equal(s1u1w2.qaList.length, 5);
+assert.equal(s1u1w2.phonicsWords.length, 12);
+
+// Verify latest (S1U1W3) easy random course_all yields 26 gentle items (12 ph_pick + 4 sw_pick + 10 qa)
 easyEngine.setConfig({ wordDifficulty: 'easy', courseAllowHardDictation: false, courseLessonId: 'latest' });
 const latestEasyKeys = new Set();
-for (let i = 0; i < 29; i++) {
+for (let i = 0; i < 26; i++) {
     const cq = easyEngine.nextQuickQuestion(null, 'course_all');
-    assert.equal(cq.lessonId, 'S1_1114');
+    assert.equal(cq.lessonId, 'S1U1W3');
     latestEasyKeys.add(cq.itemKey);
 }
-assert.equal(latestEasyKeys.size, 29, 'Easy S1_1114 course_all must have 29 unique gentle items');
+assert.equal(latestEasyKeys.size, 26, 'Easy S1U1W3 course_all must have 26 unique gentle items');
 
-// Verify S1_1114 full exam mode yields 35 non-repeating items (12 ph_dict + 10 sight + 13 qa incl. 4-step flowchart ordering)
+// Verify S1U1W2 & S1_1121 full exam mode non-repeating shuffle bags
+for (const [lid, expectedCount] of [['S1U1W3', 31], ['S1_1121', 33], ['S1U1W2', 31]]) {
+    ee.setConfig({ courseLessonId: lid, wordDifficulty: 'all', courseAllowHardDictation: true, enabledTypes: ALL_ENGLISH_TYPE_IDS });
+    const seen = new Set();
+    for (let i = 0; i < expectedCount; i++) {
+        const cq = ee.nextQuickQuestion(null, 'course_all');
+        assert.equal(cq.lessonId, lid);
+        seen.add(cq.itemKey);
+    }
+    assert.equal(seen.size, expectedCount, `${lid} full exam course_all must have ${expectedCount} unique items with 0 repeats`);
+}
+
+// Verify S1_1114 (11/14 Class Party) remains intact & switchable (35 non-repeating items)
+const s1_1114 = COURSE_LESSONS.find(l => l.id === 'S1_1114');
+assert.ok(s1_1114);
+assert.equal(s1_1114.storyTitle, 'Class Party');
+assert.equal(s1_1114.retellFlow.boxes.length, 4, 'Class Party must have 4 flowchart retell boxes');
 ee.setConfig({ courseLessonId: 'S1_1114', wordDifficulty: 'all', courseAllowHardDictation: true, enabledTypes: ALL_ENGLISH_TYPE_IDS });
 const classPartyExamKeys = new Set();
 let saw4StepFlow = false;
